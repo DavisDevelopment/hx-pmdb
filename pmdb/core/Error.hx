@@ -70,3 +70,4 @@ class ValueError<T> extends Error {
     private var _value(default, null): Lazy<T>;
 }
 
+class NotImplementedError extends Error {}
