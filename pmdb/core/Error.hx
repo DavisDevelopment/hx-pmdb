@@ -55,3 +55,18 @@ class Error {
     /* the actual exception-stack as given by Haxe */
     private var _estack(default, null): Option<Array<StackItem>>;
 }
+
+class ValueError<T> extends Error {
+    /* Constructor Function */
+    public function new(value:Lazy<T>, ?msg:Lazy<String>, ?position:PosInfos) {
+        super(msg, position);
+
+        this._value = value;
+    }
+
+    public var value(get, never): T;
+    inline function get_value():T return _value.get();
+
+    private var _value(default, null): Lazy<T>;
+}
+
