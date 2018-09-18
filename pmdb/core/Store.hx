@@ -495,6 +495,25 @@ class Store<Item> {
         }
     }
 
+    /**
+      remove items that match the given Query
+     **/
+    public function remove(query:Query, multiple:Bool=false):Array<Item> {
+        var q = query.filter;
+        var numRemoved:Int = 0,
+        removedDocs:Array<Item> = new Array();
+
+        for (d in getCandidates( q )) {
+            if (q.match(cast d) && (multiple || numRemoved == 0)) {
+                numRemoved++;
+                removedDocs.push( d );
+                removeOneFromIndexes( d );
+            }
+        }
+
+        _persist();
+    }
+
 /* === Computed Instance Fields === */
 
     // primary Index for [this] Store
