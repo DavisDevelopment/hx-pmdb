@@ -9,6 +9,7 @@ import pmdb.ql.types.*;
 import pmdb.ql.types.DataType;
 import pmdb.core.ds.AVLTree;
 import pmdb.core.ds.*;
+import pmdb.core.query.*;
 import pmdb.core.*;
 
 import haxe.ds.Either;
@@ -27,6 +28,7 @@ using tannus.ds.MapTools;
 using tannus.async.OptionTools;
 using tannus.FunctionTools;
 using pmdb.ql.types.DataTypes;
+using pmdb.core.QueryFilters;
 
 /**
   QueryFilter - specifies one or more checks used to filter documents from query-results
@@ -36,17 +38,11 @@ using pmdb.ql.types.DataTypes;
  **/
 class QueryFilter {
     /* Constructor Function */
-    public function new(source:Dynamic, ?pos:PosInfos) {
-        raw = null;
-        if (source == null) {
-            throw new Error('QueryFilter cannot be instantiated as null', pos);
-        }
-        if (isType(source, QueryAst)) {
-            //
-        }
-        else if (Arch.isObject( source )) {
-            raw = source;
-        }
+    public function new(ast:QueryAst, ?pos:PosInfos) {
+        this.ast = ast;
+        this.position = pos;
+        this.raw = null;
+        this._match = null;
     }
 
 /* === Methods === */
@@ -54,14 +50,31 @@ class QueryFilter {
     /**
       tells whether the given object [doc] is matched by the pattern described by [this]
      **/
-    public function match(doc: Anon<Dynamic>):Bool {
-        return pmdb.nedb.NModel.match(doc, raw);
+    public function match(doc: Anon<Anon<Dynamic>>):Bool {
+        if (_match == null) {
+            _match = new Match( this );
+        }
+        return _match.test( doc );
+    }
+
+    public function iterFilter(fn: QueryExpr -> Void):Void {
+        return ast.iterFilter( fn );
+    }
+
+    /**
+      create and return a new QueryFilter from the given struct
+     **/
+    public static function ofAnon(o: Anon<Anon<Dynamic>>):QueryFilter {
+        return new QueryFilter(pmdb.core.query.ParseFromAnon.run( o ));
     }
 
 /* === Fields === */
 
-    //private var ast(default, null): QueryAst;
-    private var raw(default, null): Null<Anon<Dynamic>>;
+    private var ast(default, null): QueryAst;
+    private var raw(default, null): Null<Anon<Anon<Dynamic>>>;
+    private var position(default, null): PosInfos;
+
+    private var _match(default, null): Null<Match>;
 }
 
 enum QueryAst {
@@ -71,7 +84,7 @@ enum QueryAst {
 
 enum QueryExpr {
     Is(key:String, val:Dynamic);
-    //Op(what...?);
+    Op(key:String, operator:ColOp);
 }
 
 enum LogOp {
@@ -80,4 +93,10 @@ enum LogOp {
     LOr(a:QueryAst, b:QueryAst);
 }
 
-
+enum ColOp {
+    Lt(val: Dynamic);
+    Lte(val: Dynamic);
+    Gt(val: Dynamic);
+    Gte(val: Dynamic);
+    In(vals: Array<Dynamic>);
+}
