@@ -99,4 +99,9 @@ class Arch {
     public static inline function isDate(x: Dynamic):Bool {
         return isType(x, Date);
     }
+
+    public static inline function isFunction(x: Dynamic):Bool {
+        return Reflect.isFunction( x );
+    }
+
 }
