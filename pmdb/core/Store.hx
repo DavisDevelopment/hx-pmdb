@@ -473,6 +473,28 @@ class Store<Item> {
         return cur;
     }
 
+    /**
+      perform a "find" query
+     **/
+    public function cfind(query: Query):Cursor<Item> {
+        return cursor( query );
+    }
+
+    public function find(query: Query):Array<Item> {
+        return cfind( query ).exec();
+    }
+
+    /**
+      return the first item that matches [query]
+     **/
+    public function findOne(query: Query):Null<Item> {
+        var res = cfind( query ).limit( 1 ).exec();
+        return switch res {
+            case null: null;
+            case _: res[0];
+        }
+    }
+
 /* === Computed Instance Fields === */
 
     // primary Index for [this] Store
