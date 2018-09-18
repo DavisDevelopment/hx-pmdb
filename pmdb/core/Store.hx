@@ -460,6 +460,10 @@ class Store<Item> {
         return getAllData();
     }
 
+    public function makeQuery(query: Query):Query {
+        return query;
+    }
+
 /* === Computed Instance Fields === */
 
     // primary Index for [this] Store
