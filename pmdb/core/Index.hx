@@ -244,14 +244,14 @@ class Index<Key, Item> {
     /**
       creates and returns [this] Index's Key-Comparator
      **/
-    function key_comparator():Comparator<Key> {
+    public function key_comparator():Comparator<Key> {
         return dt_comparator( fieldType );
     }
 
     /**
       creates and returns [this] Index's item equator
      **/
-    function item_equator():Equator<Item> {
+    public function item_equator():Equator<Item> {
         return cast Equator.any();
     }
 
