@@ -47,16 +47,25 @@ class Cursor <Item> {
 
 /* === Instance Methods === */
 
+    /**
+      set the pagination-limit of [this] Cursor
+     **/
     public function limit(n: Int):Cursor<Item> {
         _limit = Some( n );
         return this;
     }
 
+    /**
+      set the pagination-offset of [this] Cursor
+     **/
     public function skip(n: Int):Cursor<Item> {
         _skip = Some( n );
         return this;
     }
 
+    /**
+      set the sorting of [this] Cursor
+     **/
     public function sort(q: SortQuery):Cursor<Item> {
         _sort = Some( q );
         return this;
