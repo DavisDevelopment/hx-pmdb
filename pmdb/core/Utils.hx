@@ -37,6 +37,12 @@ class Utils {
     }
 }
 
+class Anons {
+    public static inline function dotGet<T>(o:Anon<T>, key:String):T {
+        return Arch.getDotValue(cast o, key);
+    }
+}
+
 class Arrays {
     public static function append<T>(a:Array<T>, toAppend:Iterable<T>):Array<T> {
         for (v in toAppend)

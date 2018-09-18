@@ -39,66 +39,57 @@ class ParseFromAnon {
 
 /* === Methods === */
 
+    /**
+      parse an ast from the given source
+     **/
     public function parseAst(src: Anon<Dynamic>):QueryAst {
-        var chunks:Array<QueryAst> = new Array();
+        if (src.exists("$or") || src.exists("$and") || src.exists("$not")) {
+            return QueryAst.Flow(parseFlow( src ));
+        }
+        // hack; must be a better way to do this
+        else if (src.exists("$where")) {
+            var fn = src["$where"];
+            src.remove("$where");
+            if (!Arch.isFunction( fn )) {
+                throw new Error('$$where operator called on non-function');
+            }
+
+            if (src.keys().empty()) {
+                return QueryAst.Flow(LWhere(cast fn));
+            }
+            else {
+                return QueryAst.Flow(LAnd([parseAst(src), QueryAst.Flow(LWhere(cast fn))]));
+            }
+        }
+        else {
+            return QueryAst.Expr(parseExpr( src ));
+        }
+    }
+
+    /**
+      parse out a filter expression from the given source
+     **/
+    function parseExpr(src: Anon<Dynamic>):FilterExpr<Any> {
+        var expr:FilterExpr<Any> = new FilterExpr();
         for (key in src.keys()) {
             if (src[key] == null || Arch.isPrimitiveType(src[key])) {
-                chunks.push(Filter(Is(key, src[key])));
-            }
-            else if (key.startsWith("$")) {
-                switch key {
-                    case "$or":
-                       if (Arch.isArray(src[key])) {
-                           var ors:Array<Dynamic> = cast src[key];
-                           chunks.push(ors.map.fn(parseAst(_)).compose(function(a:QueryAst, b:QueryAst):QueryAst {
-                               return Flow(LOr(a, b));
-                           }, function(a: QueryAst):QueryAst {
-                               return a;
-                           }));
-                       } 
-
-                    case "$and":
-                       if (Arch.isArray(src[key])) {
-                           var ors:Array<Dynamic> = cast src[key];
-                           chunks.push(ors.map.fn(parseAst(_)).compose(function(a:QueryAst, b:QueryAst):QueryAst {
-                               return Flow(LAnd(a, b));
-                           }, function(a: QueryAst):QueryAst {
-                               return a;
-                           }));
-                       }
-
-                    case "$not":
-                       chunks.push(Flow(LNot(parseAst(src[key]))));
-
-                    case other:
-                       throw new Error('Unsupported operator "$key"');
-                }
+                expr.addIs(key, src[key]);
             }
             else if (src[key] != null && Arch.isObject(src[key])) {
                 var name:String = key;
                 var sub:Anon<Dynamic> = Anon.of(src[key]);
-                var op:ColOp->QueryAst = (x -> Filter(Op(name, x)));
 
                 for (key in sub.keys()) {
-                    switch key {
-                        case "$lt":
-                            chunks.push(op(Lt(sub[key])));
+                    expr.addOp(name, (switch key {
+                        case "$lt": ColOpCode.LessThan;
+                        case "$lte": LessThanEq;
+                        case "$gt": GreaterThan;
+                        case "$gte": GreaterThanEq;
+                        case "$in": ColOpCode.In;
+                        case "$regex", "$regexp": ColOpCode.Regexp;
 
-                        case "$lte":
-                            chunks.push(op(Lte(sub[key])));
-
-                        case "$gt":
-                            chunks.push(op(Gt(sub[key])));
-
-                        case "$gte":
-                            chunks.push(op(Gte(sub[key])));
-
-                        case "$in":
-                            chunks.push(op(In(cast sub[key])));
-
-                        case other:
-                            throw new Error('Unsupported comparision operator "$other"');
-                    }
+                        case other: throw new Error('Invalid opcode "$other"');
+                    }), sub[key]);
                 }
             }
             else {
@@ -106,9 +97,35 @@ class ParseFromAnon {
             }
         }
 
-        return chunks.compose(function(a:QueryAst, b:QueryAst):QueryAst {
-            return Flow(LAnd(a, b));
-        }, FunctionTools.identity);
+        return expr;
+    }
+
+    /**
+      parse a logical flow statement from the given source
+     **/
+    function parseFlow(src: Anon<Dynamic>):LogOp {
+        if (src.exists("$not")) {
+            return LNot(parseAst(cast src["$not"]));
+        }
+        else if (src.exists("$and")) {
+            var rawSubs:Array<Anon<Dynamic>> = cast src["$and"];
+            var subs:Array<QueryAst> = rawSubs.map( parseAst );
+            return LAnd( subs );
+        }
+        else if (src.exists("$or")) {
+            var rawSubs:Array<Anon<Dynamic>> = cast src["$or"];
+            var subs:Array<QueryAst> = rawSubs.map( parseAst );
+            return LOr( subs );
+        }
+        else {
+            var keys = src.keys();
+            if (keys.empty()) {
+                throw new Error('Empty flow source');
+            }
+            else {
+                throw new Error('Invalid logop "${keys[0]}"');
+            }
+        }
     }
 
     public static function run(o: Anon<Dynamic>):QueryAst {

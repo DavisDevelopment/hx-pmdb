@@ -30,6 +30,7 @@ using tannus.ds.MapTools;
 using tannus.async.OptionTools;
 using tannus.FunctionTools;
 using pmdb.ql.types.DataTypes;
+using pmdb.core.Utils;
 
 class QueryFilters {
 
@@ -38,25 +39,28 @@ class QueryFilters {
 class QueryAsts {
     public static function queryMatch(expr:QueryAst, doc:Anon<Anon<Dynamic>>):Bool {
         return switch expr {
-            case QueryAst.Filter( expr ): Filters.queryMatch(expr, doc);
+            case QueryAst.Expr( expr ): Filters.queryMatch(expr, doc);
             case QueryAst.Flow( logic ): Flows.queryMatch(logic, doc);
         }
     }
 
-    public static function iterFilter(expr:QueryAst, fn:QueryExpr->Void):Void {
+    public static function iterFilters(expr: QueryAst, fn:FilterExpr<Any>->Void):Void {
         switch expr {
-            case Filter(e):
-                fn( e );
+            case Flow( log ):
+                switch log {
+                    case LNot( e ):
+                        iterFilters(e, fn);
 
-            case Flow( flow ):
-                switch flow {
-                    case LNot(expr):
-                        iterFilter(expr, fn);
+                    case LAnd( ea ), LOr( ea ):
+                        for (e in ea)
+                            iterFilters(e, fn);
 
-                    case LAnd(l, r), LOr(l, r):
-                        iterFilter(l, fn);
-                        iterFilter(r, fn);
+                    case _:
+                        return ;
                 }
+
+            case Expr( expr ):
+                fn( expr );
         }
     }
 }
@@ -68,11 +72,11 @@ class Flows {
             case LNot( query ):
                 return !match(query, doc);
 
-            case LAnd(left, right):
-                return match(left, doc) && match(right, doc);
+            case LAnd( queries ):
+                return queries.all(QueryAsts.queryMatch.bind(_, doc));
 
-            case LOr(left, right):
-                return match(left, doc) || match(right, doc);
+            case LOr( queries ):
+                return queries.any(QueryAsts.queryMatch.bind(_, doc));
 
             case other:
                 throw new Error('Unsupported logical operator $other');
@@ -81,31 +85,103 @@ class Flows {
 }
 
 class Filters {
-    public static function queryMatch(expr:QueryExpr, doc:Anon<Anon<Dynamic>>):Bool {
-        switch expr {
-            case Is(key, val):
-                return (doc[key] == val);
+    public static function queryMatch(expr:FilterExpr<Any>, doc:Anon<Anon<Dynamic>>):Bool {
+        for (name in expr.keys()) {
+            if (!FilterValues.queryMatch(name, expr.get(name), doc)) {
+                return false;
+            }
+        }
 
-            case Op(name, op):
-                switch op {
-                    case Lt(val):
-                        return Ops.op_lt(doc[name], val, Comparator.any());
-                    
-                    case Lte(val):
-                        return Ops.op_lte(doc[name], val, Comparator.any());
-                    
-                    case Gt(val):
-                        return Ops.op_gt(doc[name], val, Comparator.any());
-                    
-                    case Gte(val):
-                        return Ops.op_gte(doc[name], val, Comparator.any());
+        return true;
+    }
+}
 
-                    case In(vals):
-                        return Ops.op_in(doc[name], vals, cast Equator.any());
+class FilterValues {
+    @:noUsing
+    public static function queryMatch<T>(name:String, expr:FilterExprValue<T>, doc:Anon<Anon<Dynamic>>):Bool {
+        return switch expr {
+            case VIs( value ): Arch.areThingsEqual(value, doc.dotGet( name ));
+            case VOps( ops ): testQueryOps(name, doc, ops);
+        }
+    }
 
-                    case other:
-                        throw new Error('Unexpected $other');
-                }
+    public static function testQueryOps<T>(name:String, doc:Anon<Anon<Dynamic>>, ops:Map<ColOpCode, Dynamic>):Bool {
+        for (op in ops.keys()) {
+            if (!testQueryOp(name, doc, op, ops[op])) {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    public static function testQueryOp<T>(name:String, doc:Anon<Anon<Dynamic>>, op:ColOpCode, value:Dynamic):Bool {
+        return switch op {
+            case LessThan: Ops.op_lt(cast doc.dotGet( name ), value, Comparator.any());
+            case LessThanEq: Ops.op_lte(cast doc.dotGet( name ), value, Comparator.any());
+            case GreaterThan: Ops.op_gt(cast doc.dotGet( name ), value, Comparator.any());
+            case GreaterThanEq: Ops.op_gte(cast doc.dotGet( name ), value, Comparator.any());
+            case In: Ops.op_in(cast doc.dotGet( name ), cast value, cast Equator.any());
+            case NIn: Ops.op_nin(cast doc.dotGet( name ), cast value, cast Equator.any());
+            case Regexp: Ops.op_regex(doc.dotGet( name ), cast value);
+        }
+    }
+
+    public static inline function hasValueRange<T>(ops: Map<ColOpCode, T>):Bool {
+        return (ops.exists(LessThan) || ops.exists(LessThanEq) || ops.exists(GreaterThan) || ops.exists(GreaterThanEq));
+    }
+
+    public static function getValueRange<T>(ops: Map<ColOpCode, T>, remove:Bool=false):Null<{?min:BoundingValue<T>, ?max:BoundingValue<T>}> {
+        var min:Null<BoundingValue<T>> = null;
+        var max:Null<BoundingValue<T>> = null;
+
+        if (ops.exists(LessThan)) {
+            max = switch ops[LessThan] {
+                case null: null;
+                case v: BoundingValue.Edge( v );
+            }
+            if ( remove )
+                ops.remove( LessThan );
+        }
+
+        if (ops.exists( LessThanEq )) {
+            max = switch ops[LessThanEq] {
+                case null: null;
+                case v: BoundingValue.Inclusive( v );
+            }
+
+            if ( remove )
+                ops.remove( LessThanEq );
+        }
+
+        if (ops.exists( GreaterThan )) {
+            min = switch ops[GreaterThan] {
+                case null: null;
+                case v: BoundingValue.Edge( v );
+            }
+
+            if ( remove )
+                ops.remove( GreaterThan );
+        }
+
+        if (ops.exists( GreaterThanEq )) {
+            max = switch ops[GreaterThanEq] {
+                case null: null;
+                case v: BoundingValue.Inclusive( v );
+            }
+            if ( remove )
+                ops.remove( GreaterThanEq );
+        }
+
+        if (min == null && max == null) {
+            return null;
+        }
+        else {
+            var out:{?min:BoundingValue<T>, ?max:BoundingValue<T>} = {};
+            if (min != null)
+                out.min = min;
+            if (max != null)
+                out.max = max;
+            return out;
         }
     }
 }
