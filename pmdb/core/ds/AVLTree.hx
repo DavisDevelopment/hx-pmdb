@@ -432,28 +432,24 @@ class AVLTree<Key, Value> {
     /**
       execute [f] on every node in [this] tree
      **/
-    public function executeOnEveryNode(exec: AVLTreeNode<Key, Value> -> WalkStep) {
+    public function executeOnEveryNode(exec: AVLTreeNode<Key, Value> -> Void) {
         _executeOnEveryNode(root, exec);
     }
 
     /**
       execute [f] on every node in [this] tree
      **/
-    private function _executeOnEveryNode(root:Null<Node<Key, Value>>, f:AVLTreeNode<Key, Value>->WalkStep):Bool {
+    private function _executeOnEveryNode(root:Null<Node<Key, Value>>, f:AVLTreeNode<Key, Value> -> Void) {
         if (root == null)
-            return false;
-        
-        if (!_executeOnEveryNode(root.left, f))
-            return false;
+            return ;
 
-        if (f( root ).match(Stop)) {
-            return false;
-        }
+        if (root.left != null)
+            _executeOnEveryNode(root.left, f);
 
-        if (!_executeOnEveryNode(root.right, f))
-            return false;
+        f( root );
 
-        return true;
+        if (root.right != null)
+            _executeOnEveryNode(root.right, f);
     }
 
     public function traverse(f:(tree:AVLTree<Key, Value>, node:AVLTreeNode<Key, Value>)->TraverseStep):TraversalResult {
@@ -763,10 +759,10 @@ enum BoundingValue<T> {
     Inclusive(v: T);
 }
 
-enum WalkStep {
-    Walk;
-    Stop;
-}
+//enum WalkStep {
+    //Walk;
+    //Stop;
+//}
 
 enum TraverseStep {
     // 'retur'; marks the end of the traversal when entire hierarchy has been traversed

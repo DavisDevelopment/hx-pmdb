@@ -56,7 +56,9 @@ interface IComparator<T> {
 private class ReflectComparator<T> implements IComparator<T> {
     /* Constructor Function */
     public function new() {}
-    public function compare(x:T, y:T):Int return Reflect.compare(x, y);
+    public function compare(x:T, y:T):Int {
+        return Reflect.compare(x, y);
+    }
 }
 
 class NumComparator<T:Float> extends ReflectComparator<T> {
