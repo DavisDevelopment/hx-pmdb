@@ -31,10 +31,11 @@ using tannus.ds.MapTools;
 using tannus.async.OptionTools;
 using tannus.FunctionTools;
 using pmdb.ql.types.DataTypes;
+using pmdb.core.Utils;
 
 class Cursor <Item> {
     /* Constructor Function */
-    public function new(store:Store<Item>, query:QueryFilter, execFn:Dynamic):Void {
+    public function new(store:Store<Item>, query:QueryFilter):Void {
         this.db = store;
         this.query = query;
 
