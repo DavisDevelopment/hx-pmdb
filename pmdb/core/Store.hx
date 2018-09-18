@@ -11,6 +11,7 @@ import pmdb.ql.types.DataType;
 import pmdb.core.ds.AVLTree;
 import pmdb.core.ds.*;
 import pmdb.core.QueryFilter;
+import pmdb.core.Cursor;
 
 import haxe.ds.Either;
 import haxe.extern.EitherType;
@@ -33,6 +34,7 @@ using tannus.ds.MapTools;
 using tannus.async.OptionTools;
 using tannus.FunctionTools;
 using pmdb.ql.types.DataTypes;
+using pmdb.core.QueryFilters;
 
 /**
   Store<Item> - stores a "table" of documents, indexed by their various keys
@@ -346,34 +348,40 @@ class Store<Item> {
       return the list of candidates for a given query
      **/
     public function getCandidates(query: QueryFilter):Array<Item> {
-        var indexNames:Array<String> = indexes.keyArray();
-        var usableQueryKeys:Array<String> = new Array();
-        var result:Array<Item> = [];
+        // declare setup variables
+        var filters = [];
+        query.iterFilters(function(expr) {
+            filters.push( expr );
+        });
 
-        try {
-            query.iterFilter(function(expr) {
-                switch expr {
-                    case Is(key, val) if (indexes.exists( key )):
-                        result = indexes[key].getByKey( val );
-                        throw true;
+        // iterate over all filters
+        for (filter in filters) {
+            // iterate over each field in the current filter
+            for (name in filter.keys()) {
+                if (indexes.exists( name )) {
+                    var idx = indexes[name];
 
-                    //TODO
+                    switch filter.get( name ) {
+                        case VIs( value ):
+                            return idx.getByKey( value );
 
-                    case _:
-                        //TODO
+                        case VOps( ops ):
+                            if (ops.exists(In)) {
+                                return idx.getByKeys((cast cast(ops.get( In ), Array<Dynamic>) : Array<Any>));
+                            }
+                            else if (ops.hasValueRange()) {
+                                var range = ops.getValueRange();
+                                return idx.getBetweenBounds(range.min, range.max);
+                            }
+                            else {
+                                //TODO
+                            }
+                    }
                 }
-            });
+            }
+        }
 
-            return getAllData();
-        }
-        catch (error: Bool) {
-            if ( error ) {
-                return result;
-            }
-            else {
-                return getAllData();
-            }
-        }
+        return getAllData();
     }
 
     /**
@@ -389,12 +397,12 @@ class Store<Item> {
             }
         }
 
-        trace( indexNames );
-        trace( usableQueryKeys );
+        //trace( indexNames );
+        //trace( usableQueryKeys );
         usableQueryKeys = usableQueryKeys.intersection( indexNames );
-        trace( usableQueryKeys );
+        //trace( usableQueryKeys );
         if (usableQueryKeys.length > 0) {
-            trace( usableQueryKeys );
+            //trace( usableQueryKeys );
             return indexes[usableQueryKeys[0]].getByKey(query[usableQueryKeys[0]]);
         }
 
@@ -405,10 +413,10 @@ class Store<Item> {
             }
         }
 
-        trace( usableQueryKeys );
+        //trace( usableQueryKeys );
         usableQueryKeys = usableQueryKeys.intersection( indexNames );
         if (usableQueryKeys.length > 0) {
-            trace( usableQueryKeys );
+            //trace( usableQueryKeys );
             return indexes[usableQueryKeys[0]].getByKeys(query[usableQueryKeys[0]]["$in"]);
         }
 
@@ -419,7 +427,7 @@ class Store<Item> {
             }
         }
 
-        trace( usableQueryKeys );
+        //trace( usableQueryKeys );
         usableQueryKeys = usableQueryKeys.intersection( indexNames );
         if (usableQueryKeys.length > 0) {
             var bounds:Anon<Dynamic> = query[usableQueryKeys[0]];
@@ -444,11 +452,11 @@ class Store<Item> {
                 }
             }
 
-            trace( usableQueryKeys );
+            //trace( usableQueryKeys );
             return indexes[usableQueryKeys[0]].getBetweenBounds(cast min, cast max);
         }
 
-        trace("All");
+        //trace("All");
         return getAllData();
     }
 
