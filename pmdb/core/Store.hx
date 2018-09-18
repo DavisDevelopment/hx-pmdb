@@ -512,6 +512,8 @@ class Store<Item> {
         }
 
         _persist();
+
+        return removedDocs;
     }
 
 /* === Computed Instance Fields === */

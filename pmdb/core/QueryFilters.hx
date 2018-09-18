@@ -37,10 +37,10 @@ class QueryFilters {
 }
 
 class QueryAsts {
-    public static function queryMatch(expr:QueryAst, doc:Anon<Anon<Dynamic>>):Bool {
+    public static function queryMatch(expr:QueryAst, doc:Anon<Anon<Dynamic>>, store:Store<Any>):Bool {
         return switch expr {
-            case QueryAst.Expr( expr ): Filters.queryMatch(expr, doc);
-            case QueryAst.Flow( logic ): Flows.queryMatch(logic, doc);
+            case QueryAst.Expr( expr ): Filters.queryMatch(expr, doc, store);
+            case QueryAst.Flow( logic ): Flows.queryMatch(logic, doc, store);
         }
     }
 
@@ -66,17 +66,17 @@ class QueryAsts {
 }
 
 class Flows {
-    public static function queryMatch(expr:LogOp, doc:Anon<Anon<Dynamic>>):Bool {
-        var match = QueryAsts.queryMatch.bind(_, _);
+    public static function queryMatch(expr:LogOp, doc:Anon<Anon<Dynamic>>, store:Store<Any>):Bool {
+        var match = QueryAsts.queryMatch.bind(_, _, store);
         switch expr {
             case LNot( query ):
                 return !match(query, doc);
 
             case LAnd( queries ):
-                return queries.all(QueryAsts.queryMatch.bind(_, doc));
+                return queries.all(QueryAsts.queryMatch.bind(_, doc, store));
 
             case LOr( queries ):
-                return queries.any(QueryAsts.queryMatch.bind(_, doc));
+                return queries.any(QueryAsts.queryMatch.bind(_, doc, store));
 
             case other:
                 throw new Error('Unsupported logical operator $other');
@@ -85,9 +85,9 @@ class Flows {
 }
 
 class Filters {
-    public static function queryMatch(expr:FilterExpr<Any>, doc:Anon<Anon<Dynamic>>):Bool {
+    public static function queryMatch(expr:FilterExpr<Any>, doc:Anon<Anon<Dynamic>>, store:Store<Any>):Bool {
         for (name in expr.keys()) {
-            if (!FilterValues.queryMatch(name, expr.get(name), doc)) {
+            if (!FilterValues.queryMatch(name, expr.get(name), doc, store)) {
                 return false;
             }
         }
@@ -98,30 +98,30 @@ class Filters {
 
 class FilterValues {
     @:noUsing
-    public static function queryMatch<T>(name:String, expr:FilterExprValue<T>, doc:Anon<Anon<Dynamic>>):Bool {
+    public static function queryMatch<T>(name:String, expr:FilterExprValue<T>, doc:Anon<Anon<Dynamic>>, store:Store<Any>):Bool {
         return switch expr {
             case VIs( value ): Arch.areThingsEqual(value, doc.dotGet( name ));
-            case VOps( ops ): testQueryOps(name, doc, ops);
+            case VOps( ops ): testQueryOps(name, doc, ops, store);
         }
     }
 
-    public static function testQueryOps<T>(name:String, doc:Anon<Anon<Dynamic>>, ops:Map<ColOpCode, Dynamic>):Bool {
+    public static function testQueryOps<T>(name:String, doc:Anon<Anon<Dynamic>>, ops:Map<ColOpCode, Dynamic>, store:Store<Any>):Bool {
         for (op in ops.keys()) {
-            if (!testQueryOp(name, doc, op, ops[op])) {
+            if (!testQueryOp(name, doc, op, ops[op], store)) {
                 return false;
             }
         }
         return true;
     }
 
-    public static function testQueryOp<T>(name:String, doc:Anon<Anon<Dynamic>>, op:ColOpCode, value:Dynamic):Bool {
+    public static function testQueryOp<T>(name:String, doc:Anon<Anon<Dynamic>>, op:ColOpCode, value:Dynamic, store:Store<Any>):Bool {
         return switch op {
-            case LessThan: Ops.op_lt(cast doc.dotGet( name ), value, Comparator.any());
-            case LessThanEq: Ops.op_lte(cast doc.dotGet( name ), value, Comparator.any());
-            case GreaterThan: Ops.op_gt(cast doc.dotGet( name ), value, Comparator.any());
-            case GreaterThanEq: Ops.op_gte(cast doc.dotGet( name ), value, Comparator.any());
-            case In: Ops.op_in(cast doc.dotGet( name ), cast value, cast Equator.any());
-            case NIn: Ops.op_nin(cast doc.dotGet( name ), cast value, cast Equator.any());
+            case LessThan: Ops.op_lt(cast doc.dotGet( name ), value, store.indexes.exists(name) ? store.indexes[name].key_comparator() : Comparator.any());
+            case LessThanEq: Ops.op_lte(cast doc.dotGet( name ), value, store.indexes.exists(name) ? store.indexes[name].key_comparator() : Comparator.any());
+            case GreaterThan: Ops.op_gt(cast doc.dotGet( name ), value, store.indexes.exists(name) ? store.indexes[name].key_comparator() : Comparator.any());
+            case GreaterThanEq: Ops.op_gte(cast doc.dotGet( name ), value, store.indexes.exists(name) ? store.indexes[name].key_comparator() : Comparator.any());
+            case In: Ops.op_in(cast doc.dotGet( name ), cast value, store.indexes.exists(name) ? store.indexes[name].item_equator() : Equator.any());
+            case NIn: Ops.op_nin(cast doc.dotGet( name ), cast value, store.indexes.exists(name) ? store.indexes[name].item_equator() : Equator.any());
             case Regexp: Ops.op_regex(doc.dotGet( name ), cast value);
         }
     }

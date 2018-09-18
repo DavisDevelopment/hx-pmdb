@@ -123,7 +123,7 @@ class Cursor <Item> {
 
         var candidates = db.getCandidates( query );
         for (i in 0...candidates.length) {
-            if (query.match(cast candidates[i])) {
+            if (query.match(cast candidates[i], cast db)) {
                 if (_sort.isNone()) {
                     res.push(candidates[i]);
                 }

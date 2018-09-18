@@ -44,8 +44,8 @@ class Match {
     /**
       returns whether [this]'s QueryFilter matched the given document
      **/
-    public function test(doc: Anon<Anon<Dynamic>>):Bool {
-        return query.ast.queryMatch( doc );
+    public function test(doc:Anon<Anon<Dynamic>>, ?store:Store<Any>):Bool {
+        return query.ast.queryMatch(doc, store);
     }
 
 /* === Variables === */

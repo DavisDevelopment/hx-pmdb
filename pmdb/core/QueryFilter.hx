@@ -51,11 +51,11 @@ class QueryFilter {
     /**
       tells whether the given object [doc] is matched by the pattern described by [this]
      **/
-    public function match(doc: Anon<Anon<Dynamic>>):Bool {
+    public function match(doc:Anon<Anon<Dynamic>>, ?store:Store<Any>):Bool {
         if (_match == null) {
             _match = new Match( this );
         }
-        return _match.test( doc );
+        return _match.test(doc, store);
     }
 
     public function iterFilters(fn: FilterExpr<Any>->Void):Void {
