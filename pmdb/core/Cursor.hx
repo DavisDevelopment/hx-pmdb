@@ -72,10 +72,128 @@ class Cursor <Item> {
     }
 
     /**
-      
+      set the 'projection' of [this] Cursor
      **/
-    public function _exec() {
-        
+    public function projection(p: Projection) {
+        _projection = Some( p );
+        return this;
+    }
+
+    public function project(items: Array<Item>):Array<Item> {
+        switch _projection {
+            case None:
+                return items;
+
+            case Some( select ):
+                var res = [],
+                keepId:Bool = true,
+                action = null, keys;
+
+                keepId = switch select[db.primaryKey] {
+                    case Omit: false;
+                    default: true;
+                }
+
+                select.remove( db.primaryKey );
+                keys = select.keys();
+                for (key in keys) {
+                    if (action != null && select[key] != action) {
+                        throw new Error('Cannot both keep and omit fields except for the primary key');
+                    }
+                    action = select[key];
+                }
+
+                for (item in items) {
+                    res.push( item );
+                }
+
+                return res;
+        }
+    }
+
+    /**
+      get the results of [this] Cursor's query
+     **/
+    @:noCompletion
+    public function _exec():Array<Item> {
+        var res:Array<Item> = [];
+        var added:Int = 0;
+        var skipped:Int = 0;
+        var i:Int, keys:Array<String>, key:String;
+
+        var candidates = db.getCandidates( query );
+        for (i in 0...candidates.length) {
+            if (query.match(cast candidates[i])) {
+                if (_sort.isNone()) {
+                    res.push(candidates[i]);
+                }
+                else {
+                    switch _skip {
+                        case Some(skip) if (skip > skipped):
+                            skipped++;
+
+                        case None:
+                            res.push(candidates[i]);
+                            added++;
+
+                            switch _limit {
+                                case Some(limit) if (limit <= added):
+                                    break;
+
+                                case _:
+                                    //
+                            }
+
+                        case _:
+                            //
+                    }
+                }
+            }
+        }
+
+        switch _sort {
+            case Some(sort):
+                var keys = sort.keys();
+                var criteria = [];
+                for (i in 0...keys.length) {
+                    criteria.push({
+                        key: keys[i],
+                        direction: sort[keys[i]]
+                    });
+                }
+
+                res.sort(cast function(a:Anon<Dynamic>, b:Anon<Dynamic>):Int {
+                    for (criterion in criteria) {
+                        var compare = criterion.direction * Arch.compareThings(a.dotGet(criterion.key), b.dotGet(criterion.key));
+                        if (compare != 0) {
+                            return compare;
+                        }
+                    }
+                    return 0;
+                });
+
+            case _:
+                //
+        }
+
+        var limit:Int = _limit.or( res.length );
+        var skip:Int = _skip.or( 0 );
+
+        res = res.slice(skip, skip + limit);
+
+        // apply projection
+        if (_projection.isSome()) {
+            res = project( res );
+        }
+
+        return res;
+    }
+
+    /**
+      execute [this] Cursor
+     **/
+    public function exec():Array<Item> {
+        return _exec();
     }
 
 /* === Instance Fields === */
@@ -93,7 +211,7 @@ typedef SortQuery = Anon<SortOrder>;
 typedef Projection = Anon<FieldFlag>;
 
 @:enum
-abstract SortOrder (Int) {
+abstract SortOrder (Int) from Int to Int {
     var Asc = 1;
     var Desc = -1;
 }
