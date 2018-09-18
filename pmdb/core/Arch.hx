@@ -50,6 +50,10 @@ class Arch {
         return pmdb.nedb.NModel.getDotValue(o, field);
     }
 
+    public static function areThingsEqual(left:Dynamic, right:Dynamic):Bool {
+        return pmdb.nedb.NModel.areThingsEqual(left, right);
+    }
+
     /**
       Tells whether a value is an "atomic" (true primitive) value
      **/
