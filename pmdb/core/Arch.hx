@@ -54,6 +54,10 @@ class Arch {
         return pmdb.nedb.NModel.areThingsEqual(left, right);
     }
 
+    public static function compareThings(left:Dynamic, right:Dynamic):Int {
+        return SortingTools.compareAny(left, right);
+    }
+
     /**
       Tells whether a value is an "atomic" (true primitive) value
      **/
