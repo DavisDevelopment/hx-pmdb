@@ -1,5 +1,6 @@
 package pmdb.core;
 
+import tannus.ds.Set;
 import tannus.ds.Anon;
 import tannus.ds.Lazy;
 import tannus.ds.Ref;
@@ -9,6 +10,7 @@ import pmdb.ql.types.*;
 import pmdb.ql.types.DataType;
 import pmdb.core.ds.AVLTree;
 import pmdb.core.ds.*;
+import pmdb.core.QueryFilter;
 
 import haxe.ds.Either;
 import haxe.extern.EitherType;
@@ -47,10 +49,16 @@ class Store<Item> {
 
 /* === Internal Methods === */
 
+    /**
+      initialize [this] Store
+     **/
     private function _init_() {
         _init_indices_();
     }
 
+    /**
+      initialize [this] Store's indices
+     **/
     private function _init_indices_():Void {
         /* == Primary Index == */
         this.primaryKey = '_id';
@@ -87,15 +95,18 @@ class Store<Item> {
                 ensureIndex( idx );
             }
         }
+
+        trace("initialized Indices");
     }
 
     /**
       prepare the given Item for insertion into [this] Store
      **/
-    private function prepareForInsertion(doc: Item):Item {
-        var doc:Anon<Dynamic> = Anon.of(cast doc);
+    private inline function prepareForInsertion(doc: Item):Item {
+        return doc;
+        //var doc:Anon<Dynamic> = Anon.of(cast doc);
 
-        return cast doc;
+        //return cast doc;
     }
 
     /**
@@ -131,6 +142,10 @@ class Store<Item> {
     public function getAllData():Array<Item> {
         return pid.getAll();
     }
+
+    /**
+      gg (bruh)
+     **/
 
     /**
       insert one or more new documents into [this] Store
@@ -171,9 +186,12 @@ class Store<Item> {
             return failed;
         }
         else {
-            var preparedDocs = docs.map.fn(prepareForInsertion(_));
+            // prepare the lot for insertion
+            var preparedDocs:Array<Item> = docs.map.fn(prepareForInsertion(_));
+
             addManyToIndexes( preparedDocs );
             _persist();
+
             return preparedDocs;
         }
     }
@@ -204,6 +222,13 @@ class Store<Item> {
     }
 
     /**
+      shouldn't really ever be needed, but here it is, for convenience
+     **/
+    public function index<K>(fieldName: String):Null<Index<K, Item>> {
+        return (cast indexes.get( fieldName ) : Index<K, Item>);
+    }
+
+    /**
       convenience method for creating a new Index
      **/
     public function addIndex<T>(name:String, ?type:DataType, ?unique:Bool, ?sparse:Bool):Index<T, Item> {
@@ -228,8 +253,10 @@ class Store<Item> {
         if (opts.name.empty())
             throw new Error('cannot create and Index without a fieldName');
 
-        if (indexes.exists( opts.name ))
+        if (indexes.exists( opts.name )) {
+            indexes[opts.name].insertMany(getAllData());
             return indexes[opts.name];
+        }
 
         // build the index
         indexes[opts.name] = buildIndex( opts );
@@ -291,14 +318,17 @@ class Store<Item> {
         var failingIndex:Int = -1,
         error: Dynamic = null,
         keys = indexes.keyArray();
+        trace( keys );
 
         for (i in 0...keys.length) {
             try {
                 indexes[keys[i]].insertMany( docs );
+                trace('successfully inserted ${docs.length} documents into "${keys[i]}"');
             }
             catch (e: Dynamic) {
                 failingIndex = i;
                 error = e;
+                trace('attempted insertion of the given ${docs.length} documents failed');
                 break;
             }
         }
@@ -312,7 +342,115 @@ class Store<Item> {
         }
     }
 
+    /**
+      return the list of candidates for a given query
+     **/
+    public function getCandidates(query: QueryFilter):Array<Item> {
+        var indexNames:Array<String> = indexes.keyArray();
+        var usableQueryKeys:Array<String> = new Array();
+        var result:Array<Item> = [];
 
+        try {
+            query.iterFilter(function(expr) {
+                switch expr {
+                    case Is(key, val) if (indexes.exists( key )):
+                        result = indexes[key].getByKey( val );
+                        throw true;
+
+                    //TODO
+
+                    case _:
+                        //TODO
+                }
+            });
+
+            return getAllData();
+        }
+        catch (error: Bool) {
+            if ( error ) {
+                return result;
+            }
+            else {
+                return getAllData();
+            }
+        }
+    }
+
+    /**
+      return the list of candidates for a given query
+     **/
+    public function getCandidatesRaw(query: Anon<Anon<Dynamic>>):Array<Item> {
+        var indexNames:Array<String> = indexes.keyArray();
+        var usableQueryKeys:Array<String> = new Array();
+        
+        for (k in query.keys()) {
+            if (query[k] == null || Arch.isPrimitiveType(query[k])) {
+                usableQueryKeys.push( k );
+            }
+        }
+
+        trace( indexNames );
+        trace( usableQueryKeys );
+        usableQueryKeys = usableQueryKeys.intersection( indexNames );
+        trace( usableQueryKeys );
+        if (usableQueryKeys.length > 0) {
+            trace( usableQueryKeys );
+            return indexes[usableQueryKeys[0]].getByKey(query[usableQueryKeys[0]]);
+        }
+
+        usableQueryKeys = new Array();
+        for (k in query.keys()) {
+            if (query[k] != null && query[k].exists("$in")) {
+                usableQueryKeys.push( k );
+            }
+        }
+
+        trace( usableQueryKeys );
+        usableQueryKeys = usableQueryKeys.intersection( indexNames );
+        if (usableQueryKeys.length > 0) {
+            trace( usableQueryKeys );
+            return indexes[usableQueryKeys[0]].getByKeys(query[usableQueryKeys[0]]["$in"]);
+        }
+
+        usableQueryKeys = [];
+        for (k in query.keys()) {
+            if (query[k] != null && (query[k].exists("$lt") ||query[k].exists("$lte") || query[k].exists("$gt") || query[k].exists("$gte"))) {
+                usableQueryKeys.push( k );
+            }
+        }
+
+        trace( usableQueryKeys );
+        usableQueryKeys = usableQueryKeys.intersection( indexNames );
+        if (usableQueryKeys.length > 0) {
+            var bounds:Anon<Dynamic> = query[usableQueryKeys[0]];
+            var min:Null<BoundingValue<Dynamic>> = null;
+            var max:Null<BoundingValue<Dynamic>> = null;
+            for (k in bounds.keys()) {
+                switch k {
+                    case "$lt":
+                        max = BoundingValue.Edge(bounds[k]);
+
+                    case "$lte":
+                        max = BoundingValue.Inclusive(bounds[k]);
+
+                    case "$gt":
+                        min = BoundingValue.Edge(bounds[k]);
+
+                    case "$gte":
+                        min = BoundingValue.Inclusive(bounds[k]);
+
+                    case _:
+                        throw new Error();
+                }
+            }
+
+            trace( usableQueryKeys );
+            return indexes[usableQueryKeys[0]].getBetweenBounds(cast min, cast max);
+        }
+
+        trace("All");
+        return getAllData();
+    }
 
 /* === Computed Instance Fields === */
 
