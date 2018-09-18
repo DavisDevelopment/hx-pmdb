@@ -179,11 +179,13 @@ class Index<Key, Item> {
         return tree.betweenBounds(min, max);
     }
 
+    /**
+      obtain an Array of all Items stored on [this] Index
+     **/
     public function getAll():Array<Item> {
         var ret = [];
         tree.executeOnEveryNode(function(node) {
             Utils.Arrays.append(ret, node.data);
-            return WalkStep.Walk;
         });
         return ret;
     }
