@@ -464,6 +464,15 @@ class Store<Item> {
         return query;
     }
 
+    /**
+      create and return a Cursor object
+     **/
+    public function cursor(query: Query):Cursor<Item> {
+        var cur:Cursor<Item> = new Cursor(this, query.filter);
+        query.applyToCursor(cast cur);
+        return cur;
+    }
+
 /* === Computed Instance Fields === */
 
     // primary Index for [this] Store
