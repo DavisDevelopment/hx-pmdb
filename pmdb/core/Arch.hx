@@ -19,6 +19,7 @@ import haxe.macro.Expr;
 import haxe.macro.Context;
 
 import Slambda.fn;
+import tannus.ds.AnonTools.deepCopy as copy;
 import Std.is as isType;
 
 using StringTools;
@@ -104,4 +105,7 @@ class Arch {
         return Reflect.isFunction( x );
     }
 
+    public static function deepCopy<T>(value:T, ?target:T, structs:Bool=true):T {
+        return copy(value, target, structs);
+    }
 }
