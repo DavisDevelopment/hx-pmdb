@@ -68,11 +68,14 @@ private class ReflectComparator<T> implements IComparator<T> {
     }
 }
 
-class NumComparator<T:Float> extends ReflectComparator<T> {
-    static var i:NumComparator<Float> = new NumComparator();
-    public static inline function make<T:Float>():NumComparator<T> {
-        return cast i;
-    }
+class NumComparator<T:Float> extends ReflectComparator<T> {}
+class FloatComparator extends NumComparator<Float> {
+    static var i:FloatComparator = new FloatComparator();
+    public static inline function make():FloatComparator return i;
+}
+class IntComparator extends NumComparator<Int> {
+    static var i:IntComparator = new IntComparator();
+    public static inline function make():IntComparator return i;
 }
 
 class StringComparator extends ReflectComparator<String> {
