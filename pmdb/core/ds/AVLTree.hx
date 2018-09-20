@@ -61,121 +61,95 @@ class AVLTree<Key, Value> {
       the values between two boundaries
      **/
     public function betweenBounds(?min:BoundingValue<Key>, ?max:BoundingValue<Key>):Array<Value> {
-        if (root == null)
-            return [];
+        //if (root == null)
+            //return [];
 
-        return _betweenBounds({
-            lower: n2o( min ),
-            upper: n2o( max )
-        }, root);
-    }
-
-    function _betweenBounds(query:{lower:Option<BoundingValue<Key>>, upper:Option<BoundingValue<Key>>}, root:Node<Key, Value>):Array<Value> {
-        var nquery = {
-            l: obv2bs( query.lower ),
-            u: obv2bs( query.upper )
-        };
-        return _betweenBounds_(nquery, root);
+        //return _betweenBounds({
+            //lower: n2o( min ),
+            //upper: n2o( max )
+        //}, root);
+        return _betweenBounds_({
+            lower: min, // must be greater than...
+            upper: max  // must be less than...
+        }, null, null, root, new Array());
     }
 
     /**
       recursively acquire node-values for nodes within the given key-range
      **/
-    function _betweenBounds_(query:{?l:BoundsSegment<Key>, ?u:BoundsSegment<Key>}, ?lbm:Key->Bool, ?ubm:Key->Bool, root:AVLTreeNode<Key, Value>):Array<Value> {
-        var res = [];
-        lbm = lbm != null ? lbm : _getLowerBoundMatcher( query.l );
-        ubm = ubm != null ? ubm : _getUpperBoundMatcher( query.u );
+    function _betweenBounds_(query:{?lower:BoundingValue<Key>, ?upper:BoundingValue<Key>}, ?lbm:Key->Bool, ?ubm:Key->Bool, root:AVLTreeNode<Key, Value>, ?res:Array<Value>):Array<Value> {
+        res = res != null ? res : [];
+        lbm = lbm != null ? lbm : getLowerBoundMatcher( query.lower );
+        ubm = ubm != null ? ubm : getUpperBoundMatcher( query.upper );
 
         if (lbm( root.key ) && root.left != null) {
             Utils.Arrays.append(res, _betweenBounds_(query, lbm, ubm, root.left));
+            //for (x in _betweenBounds_(query, lbm, ubm, root.left, res))
+                //res.push( x );
         }
+
         if (lbm( root.key ) && ubm( root.key )) {
             Utils.Arrays.append(res, root.data);
+            //for (x in root.data)
+                //res.push( x );
         }
+
         if (ubm( root.key ) && root.right != null) {
             Utils.Arrays.append(res, _betweenBounds_(query, lbm, ubm, root.right));
+            //for (x in _betweenBounds_(query, lbm, ubm, root.right, res))
+                //res.push( x );
         }
 
         return res;
     }
 
     /**
-      convert a BoundingValue<T> to a Null<BoundsSegment<T>>
-     **/
-    inline static function obv2bs<T>(obv: Option<BoundingValue<T>>):Null<BoundsSegment<T>> {
-        return (switch obv {
-            case None: null;
-            case Some(value): switch value {
-                case Edge(v): bs(v, false);
-                case Inclusive(v): bs(v, true);
-            }
-        });
-    }
-
-    /**
-      shorthand method for creating a BoundsSegment
-     **/
-    inline static function bs<T>(v:T, eq:Bool):BoundsSegment<T> {
-        return {v:v, eq:eq};
-    }
-
-    /**
-      nullable value to an Option<T>
-     **/
-    inline static function n2o<T>(v: Null<T>):Option<T> {
-        return (switch v {
-            case null: None;
-            case _: Some(v);
-        });
-    }
-
-    /**
       get a key-tester for the lower-boundary
      **/
-    inline function _getLowerBoundMatcher(?q: BoundsSegment<Key>):Key->Bool {
-        return 
-            if (q != null)
-                getLowerBoundMatcher(q.v, q.eq)
-            else
-                cast _affirmative;
+    private function getLowerBoundMatcher(?boundary: BoundingValue<Key>):Key->Bool {
+        return switch boundary {
+            case null: _affirmative;
+            case Edge( v ): _getLowerBoundMatcher(v, false);
+            case Inclusive( v ): _getLowerBoundMatcher(v, true);
+        }
     }
 
     /**
       get a key-tester for the upper boundary
      **/
-    inline function _getUpperBoundMatcher(?q: BoundsSegment<Key>):Key->Bool {
-        return 
-            if (q != null)
-                getUpperBoundMatcher(q.v, q.eq)
-            else
-                cast _negative;
+    private function getUpperBoundMatcher(?boundary: BoundingValue<Key>):Key->Bool {
+        return switch (boundary) {
+            case null: _affirmative;
+            case Edge( v ): _getUpperBoundMatcher(v, false);
+            case Inclusive( v ): _getUpperBoundMatcher(v, true);
+        }
     }
 
-    @:native('t')
-    static function _affirmative<T>(x: T):Bool {
-        return true;
-    }
+    //@:native('t') 
+    static function _affirmative<T>(x: T):Bool return true;
 
-    @:native('f')
-    static function _negative<T>(x: T):Bool {
-        return false;
-    }
+    //@:native('f') 
+    static function _negative<T>(x: T):Bool return false;
 
     /**
       tester for lower boundary key
      **/
-    function getLowerBoundMatcher(cutoff:Key, inclusive:Bool=false):Key->Bool {
-        return (function(n: Int) {
+    private function _getLowerBoundMatcher(cutoff:Key, inclusive:Bool=false):Key->Bool {
+        //return function(key: Key):Bool {
+            //return compareKeys(k, cutoff) > (inclusive ? -1 : 0);
+        //}
+        return 
+        (function(n: Int) {
             return (function(k: Key):Bool {
                 return (compareKeys(k, cutoff) > n);
             });
-        }(inclusive ? -1 : 0));
+        })(inclusive ? -1 : 0);
     }
     
     /**
       tester for upper boundary key
      **/
-    function getUpperBoundMatcher(cutoff:Key, inclusive:Bool=false):Key->Bool {
+    private function _getUpperBoundMatcher(cutoff:Key, inclusive:Bool=false):Key->Bool {
         return (function(n: Int) {
             return (function(k: Key):Bool {
                 return (compareKeys(k, cutoff) < n);
@@ -452,110 +426,6 @@ class AVLTree<Key, Value> {
             _executeOnEveryNode(root.right, f);
     }
 
-    public function traverse(f:(tree:AVLTree<Key, Value>, node:AVLTreeNode<Key, Value>)->TraverseStep):TraversalResult {
-        if (root == null)
-            return Exhausted;
-        
-        var invokeAfter:Array<Void->Void> = [];
-        var finalStep: TraverseStep;
-        try {
-            finalStep = _traverse(root, f, invokeAfter);
-        }
-        catch (ti: TraverseInterrupt) {
-            switch ti {
-                case ThrownStep(x):
-                    finalStep = x;
-            }
-        }
-
-        // map final 'step' returned from traversal to TraversalResult
-        inline function last(_s: TraverseStep):TraversalResult {
-            return switch _s {
-                case Complete: Exhausted; 
-                case Halt: Halted; 
-                case Exception(e): Failed(e);
-                // something wacky has happened; Proceed should never be the value of [finalStep]
-                case Proceed: throw 'assert';
-                case unex: throw 'Error: Unexpected $unex';
-            }
-        }
-
-        //
-        var result = last(_unwrapStep(finalStep, invokeAfter));
-
-        // handle [invokeAfter]
-        for (x in invokeAfter) {
-            x();
-        }
-
-        return result;
-    }
-
-    /*  */
-    function _traverse(node:Node<Key, Value>, f:(tree:AVLTree<Key, Value>, node:AVLTreeNode<Key, Value>)->TraverseStep, deferred:Array<Void->Void>):TraverseStep {
-        var steps:Array<TraverseStep> = [null, null, null];
-        
-        steps[1] = _unwrapStep(f(this, node), deferred);
-        switch steps[1] {
-            case Halt|Exception(_):
-                throw TraverseInterrupt.ThrownStep(steps[1]);
-
-            case IgnoreBranch:
-                return Complete;
-
-            // it doesn't really make sense for [f] to ever return "Complete", but I can't think of any reason why it should be disallowed
-            // will just treat like a Proceed value for now
-            case Complete, Proceed:
-                // inline local function for handling left/right's steps
-                inline function hstep(i:Int, s:TraverseStep) {
-                    switch _unwrapStep(s, deferred) {
-                        // acceptible values
-                        case Complete|Proceed:
-                            // okeh
-
-                        /*
-                        all other possible values are supposed to be hoisted to the top of the call-stack,
-                        and should thus bypass any checks performed by/in [_traverse]
-                        */
-                        case unex:
-                            throw 'AssertionFailed: $unex values should never pass through hstep';
-                    }
-                    //return true;
-                }
-
-                // traverse [node.left]
-                if (node.left != null) {
-                    hstep(0, steps[0] = _traverse(node.left, f, deferred));
-                }
-
-                // traverse [node.right]
-                if (node.right != null) {
-                    hstep(2, steps[2] = _traverse(node.right, f, deferred));
-                }
-
-                return Complete;
-
-            case unex:
-                throw 'Error: Unexpected $unex';
-        }
-
-        return Exception('wtf');
-    }
-
-    /**
-      'unwrap' special-case TraverseStep values that have nested TraverseStep's
-      (recursively)
-     **/
-    private static function _unwrapStep(step:TraverseStep, deferred:Array<Void->Void>):TraverseStep {
-        return switch step {
-            case Defer(f, nested):
-                deferred.push( f );
-                _unwrapStep(nested, deferred);
-
-            case _: step;
-        }
-    }
-
     /**
       iterator for all Nodes
      **/
@@ -757,49 +627,6 @@ typedef BoundsSegment<T> = {
 enum BoundingValue<T> {
     Edge(v: T);
     Inclusive(v: T);
-}
-
-//enum WalkStep {
-    //Walk;
-    //Stop;
-//}
-
-enum TraverseStep {
-    // 'retur'; marks the end of the traversal when entire hierarchy has been traversed
-    Complete;
-
-    // think 'break' expression
-    Halt;
-
-    // think 'continue' expression
-    Proceed;
-
-    // equivalent to a 'continue' used to jump over the remainder of a routine,
-    // used to skip the traversal of a branch/leaf on the tree
-    IgnoreBranch;
-
-    // halt traversal and raise [error]
-    Exception(error: Dynamic);
-
-    // defer invokation of [f] to immediately following completion of the current traversal-operation
-    Defer(f:Void->Void, step:TraverseStep);
-
-    //Ascend(step: TraverseStep);
-}
-
-enum TraversalResult {
-    // traversal halted prematurely, but didn't fail
-    Halted;
-
-    // traversed entire hierarchy; complete now
-    Exhausted;
-
-    // failed with [error]
-    Failed(error: Dynamic);
-}
-
-enum TraverseInterrupt {
-    ThrownStep(step: TraverseStep);
 }
 
 typedef AVLTreeOptions<K, V> = {
