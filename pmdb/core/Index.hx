@@ -245,7 +245,8 @@ class Index<Key, Item> {
       creates and returns [this] Index's Key-Comparator
      **/
     public function key_comparator():Comparator<Key> {
-        return dt_comparator( fieldType );
+        //return dt_comparator( fieldType );
+        return cast fieldType.getTypedComparator();
     }
 
     /**
@@ -253,25 +254,6 @@ class Index<Key, Item> {
      **/
     public function item_equator():Equator<Item> {
         return cast Equator.any();
-    }
-
-    /**
-      create and return a Comparator<T> from the given DataType
-     **/
-    static function dt_comparator<T>(type: DataType):Comparator<T> {
-        return switch type {
-            case TAny: Comparator.any();
-            case TScalar(stype): switch stype {
-                case TBoolean: cast Comparator.boolean();
-                case TInteger: cast Comparator.int();
-                case TDouble: cast Comparator.float();
-                case TString: cast Comparator.string();
-                case TDate: cast Comparator.date();
-                case _: throw 'unex';
-            }
-            case TArray(item): cast Comparator.arrayComparator(dt_comparator(item));
-            case _: throw 'unex';
-        }
     }
 
 /* === Computed Instance Fields === */
@@ -284,8 +266,9 @@ class Index<Key, Item> {
     public var fieldName(default, null): String;
     public var fieldType(default, null): DataType;
     public var sparse(default, null): Bool;
+    @:noCompletion
+    public var tree(default, null): AVLTree<Key, Item>;
 
-    private var tree(default, null): AVLTree<Key, Item>;
     private var options(default, null): IndexOptions;
 
     var _fn: Null<DotPath>;
