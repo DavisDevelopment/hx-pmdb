@@ -1,5 +1,7 @@
 package pmdb.core;
 
+import tannus.io.ByteArray;
+
 import tannus.math.TMath as Math;
 
 using tannus.ds.SortingTools;
@@ -143,6 +145,47 @@ private class ArrayComparator<T> implements IComparator<Array<T>> {
     }
 }
 
+private class BytesComparator implements IComparator<ByteArray> {
+    /* Constructor Function */
+    public function new() {
+        c = IntComparator.make();
+    }
+
+/* === Instance Methods === */
+
+    public function compare(a:ByteArray, b:ByteArray):Int {
+        var comp: Int;
+
+        for (i in 0...Math.min(a.length, b.length)) {
+            comp = c.compare(a[i], b[i]);
+            switch comp {
+                case 0:
+                    //
+                case _:
+                    return comp;
+            }
+        }
+
+        return c.compare(a.length, b.length);
+    }
+
+/* === Instance Fields === */
+
+    var c(default, null): Comparator<Int>;
+
+/* === Statics === */
+
+    private static var i(default, null): BytesComparator = new BytesComparator();
+
+    public static function make():BytesComparator return i;
+}
+
+/**
+  [= FIXME:Performance =]
+  this class should be adaptive, checking the first argument's type and then assuming:
+   - that the second argument will be of a compatible type
+   - that subsequent invokations will involve values of the same type as the first invokation
+ **/
 private class AnyComparator<T> implements IComparator<T> {
     /* Constructor Function */
     function new() {}
