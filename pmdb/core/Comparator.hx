@@ -21,16 +21,23 @@ abstract Comparator<T> (IComparator<T>) from IComparator<T> to IComparator<T> {
 
 /* === Factories === */
 
-    @:noUsing @:native('_bool')
-    public static inline function boolean():Comparator<Bool> return BooleanComparator.make();
-    @:noUsing @:native('_int')
-    public static inline function int():Comparator<Int> return NumComparator.make();
-    @:noUsing @:native('_float')
-    public static inline function float():Comparator<Float> return NumComparator.make();
-    @:noUsing @:native('_string')
-    public static inline function string():Comparator<String> return StringComparator.make();
-    public static inline function date():Comparator<Date> return new DateComparator();
-    public static inline function any<T>():Comparator<T> return cast AnyComparator.make();
+    @:noUsing
+    public static inline function cboolean():Comparator<Bool> return BooleanComparator.make();
+
+    @:noUsing
+    public static inline function cint():Comparator<Int> return IntComparator.make();
+
+    @:noUsing
+    public static inline function cfloat():Comparator<Float> return FloatComparator.make();
+
+    @:noUsing 
+    public static inline function cstring():Comparator<String> return StringComparator.make();
+
+    @:noUsing
+    public static inline function cbytes():Comparator<ByteArray> return BytesComparator.make();
+
+    public static inline function cdate():Comparator<Date> return new DateComparator();
+    public static inline function cany<T>():Comparator<T> return cast AnyComparator.make();
     
     @:from
     @:noUsing
