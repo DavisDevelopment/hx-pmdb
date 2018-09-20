@@ -10,8 +10,10 @@ import pmdb.ql.types.*;
 import pmdb.ql.types.DataType;
 import pmdb.core.ds.AVLTree;
 import pmdb.core.ds.*;
+import pmdb.core.*;
 import pmdb.core.QueryFilter;
 import pmdb.core.Cursor;
+import pmdb.core.Update;
 
 import haxe.ds.Either;
 import haxe.extern.EitherType;
@@ -474,21 +476,17 @@ class Store<Item> {
     }
 
     /**
-      perform a "find" query
+      get all documents matched by [query]
      **/
-    public function cfind(query: Query):Cursor<Item> {
-        return cursor( query );
-    }
-
     public function find(query: Query):Array<Item> {
-        return cfind( query ).exec();
+        return cursor( query ).exec();
     }
 
     /**
       return the first item that matches [query]
      **/
     public function findOne(query: Query):Null<Item> {
-        var res = cfind( query ).limit( 1 ).exec();
+        var res = cursor( query ).limit( 1 ).exec();
         return switch res {
             case null: null;
             case _: res[0];
@@ -514,6 +512,35 @@ class Store<Item> {
         _persist();
 
         return removedDocs;
+    }
+
+    /**
+      perform an update on [this] Store
+      [=NOTE=]
+      the current api for creating and defining Update<T> objects 
+      is merely a placeholder, and will be replaced with a less verbose, more performant one soon
+     **/
+    public function update(fn: Update<Item> -> Void) {
+        var ud:Update<Item> = new Update();
+        fn( ud );
+
+        //TODO some sanity checks here
+
+        var candidates = getCandidates( ud.pattern );
+        for (doc in candidates) {
+            if (!ud.pattern.match(cast doc, cast this))
+                continue;
+
+            switch ud.du {
+                case DModify(m):
+                    //trace( doc );
+                    m.apply(doc, this);
+                    //trace( doc );
+
+                case DReplace(_):
+                    //
+            }
+        }
     }
 
 /* === Computed Instance Fields === */
