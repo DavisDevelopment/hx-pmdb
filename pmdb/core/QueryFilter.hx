@@ -105,6 +105,10 @@ class QueryFilter {
         return CQuery.createQueryFilter( q );
     }
 
+    public static function any():QueryFilter {
+        return new QueryFilter(Expr(new FilterExpr()));
+    }
+
 /* === Fields === */
 
     private var ast(default, null): QueryAst;
