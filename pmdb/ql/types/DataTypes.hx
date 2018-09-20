@@ -9,6 +9,8 @@ import haxe.rtti.Rtti;
 import haxe.rtti.CType;
 
 import pmdb.core.Check;
+import pmdb.core.Comparator;
+import pmdb.core.Equator;
 import pmdb.core.Error;
 import pmdb.ql.types.DataType;
 
@@ -87,6 +89,23 @@ class DataTypes {
         return checkValue(property.type, value.get(property.name));
     }
 
+    public static function getTypedComparator(type:DataType, guard:Bool=false):Comparator<Dynamic> {
+        return switch type {
+            case TAny: Comparator.cany();
+            case TScalar(stype): switch stype {
+                case TBoolean: Comparator.cboolean();
+                case TInteger: Comparator.cint();
+                case TDouble: Comparator.cfloat();
+                case TString: Comparator.cstring();
+                case TDate: Comparator.cdate();
+                case _: throw 'unex';
+            }
+            case TArray(item): Comparator.arrayComparator(getTypedComparator(item));
+            case TNull(utype): Comparator.makeNullable(getTypedComparator( utype ));
+            case _: throw 'unex';
+        }
+    }
+
 /* === Variables === */
 }
 
@@ -161,6 +180,7 @@ class Anons {
 /**
   simple-static methods for type-checking
  **/
+@:noUsing
 class TypeChecks {
     public static inline function is_any(v: Dynamic):Bool {
         return true;
