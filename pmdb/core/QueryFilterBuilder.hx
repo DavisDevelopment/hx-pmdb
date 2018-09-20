@@ -128,6 +128,14 @@ class QueryFilterFieldBuilder {
         return op(NIn, values);
     }
 
+    public function and(fieldName: String):QueryFilterFieldBuilder {
+        return doc().field( fieldName );
+    }
+
+    public inline function doc():QueryFilterBuilder {
+        return q;
+    }
+
     public function regex(value: Dynamic):QueryFilterFieldBuilder {
         if (Arch.isRegExp( value ))
             return op(Regexp, value);
