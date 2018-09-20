@@ -71,6 +71,18 @@ class Cursor <Item> {
         return this;
     }
 
+    public function sortBy(fieldName:String, order:SortOrder):Cursor<Item> {
+        switch _sort {
+            case Some( sort ):
+                sort[fieldName] = order;
+                return this;
+
+            case None:
+                _sort = Some({});
+                return sortBy(fieldName, order);
+        }
+    }
+
     /**
       set the 'projection' of [this] Cursor
      **/
