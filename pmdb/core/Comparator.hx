@@ -15,6 +15,10 @@ abstract Comparator<T> (IComparator<T>) from IComparator<T> to IComparator<T> {
         return arrayComparator(this);
     }
 
+    public inline function toNullable():Comparator<Null<T>> {
+        return makeNullable( this );
+    }
+
     public inline function map<O>(f: T->O):Comparator<O> {
         return cast new MappedComparator(cast this, f);
     }
