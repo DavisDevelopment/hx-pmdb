@@ -429,8 +429,9 @@ class AVLTree<Key, Value> {
     /**
       iterator for all Nodes
      **/
-    public function nodes():Iterator<AVLTreeNode<Key, Value>> {
-        return _nodes( root );
+    public function nodes():TreeItr<Key, Value> /*Iterator<AVLTreeNode<Key, Value>>*/ {
+        //return _nodes( root );
+        return new TreeItr( this );
     }
 
     /**
