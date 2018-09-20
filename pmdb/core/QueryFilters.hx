@@ -164,7 +164,7 @@ class FilterValues {
         }
 
         if (ops.exists( GreaterThanEq )) {
-            max = switch ops[GreaterThanEq] {
+            min = switch ops[GreaterThanEq] {
                 case null: null;
                 case v: BoundingValue.Inclusive( v );
             }
