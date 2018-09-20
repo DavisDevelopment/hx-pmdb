@@ -116,13 +116,20 @@ class FilterValues {
 
     public static function testQueryOp<T>(name:String, doc:Anon<Anon<Dynamic>>, op:ColOpCode, value:Dynamic, store:Store<Any>):Bool {
         return switch op {
-            case LessThan: Ops.op_lt(cast doc.dotGet( name ), value, store.indexes.exists(name) ? store.indexes[name].key_comparator() : Comparator.any());
-            case LessThanEq: Ops.op_lte(cast doc.dotGet( name ), value, store.indexes.exists(name) ? store.indexes[name].key_comparator() : Comparator.any());
-            case GreaterThan: Ops.op_gt(cast doc.dotGet( name ), value, store.indexes.exists(name) ? store.indexes[name].key_comparator() : Comparator.any());
-            case GreaterThanEq: Ops.op_gte(cast doc.dotGet( name ), value, store.indexes.exists(name) ? store.indexes[name].key_comparator() : Comparator.any());
-            case In: Ops.op_in(cast doc.dotGet( name ), cast value, store.indexes.exists(name) ? store.indexes[name].item_equator() : Equator.any());
-            case NIn: Ops.op_nin(cast doc.dotGet( name ), cast value, store.indexes.exists(name) ? store.indexes[name].item_equator() : Equator.any());
-            case Regexp: Ops.op_regex(doc.dotGet( name ), cast value);
+            case LessThan: 
+                Ops.op_lt(cast doc.dotGet( name ), value, store.indexes.exists(name) ? store.indexes[name].key_comparator() : Comparator.cany());
+            case LessThanEq:
+                Ops.op_lte(cast doc.dotGet( name ), value, store.indexes.exists(name) ? store.indexes[name].key_comparator() : Comparator.cany());
+            case GreaterThan:
+                Ops.op_gt(cast doc.dotGet( name ), value, store.indexes.exists(name) ? store.indexes[name].key_comparator() : Comparator.cany());
+            case GreaterThanEq:
+                Ops.op_gte(cast doc.dotGet( name ), value, store.indexes.exists(name) ? store.indexes[name].key_comparator() : Comparator.cany());
+            case In:
+                Ops.op_in(cast doc.dotGet( name ), cast value, store.indexes.exists(name) ? store.indexes[name].item_equator() : Equator.any());
+            case NIn:
+                Ops.op_nin(cast doc.dotGet( name ), cast value, store.indexes.exists(name) ? store.indexes[name].item_equator() : Equator.any());
+            case Regexp:
+                Ops.op_regex(doc.dotGet( name ), cast value);
         }
     }
 
