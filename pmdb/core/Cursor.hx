@@ -38,6 +38,7 @@ class Cursor <Item> {
     public function new(store:Store<Item>, query:QueryFilter):Void {
         this.db = store;
         this.query = query;
+        this.cquery = null;
 
         _limit = None;
         _skip = None;
@@ -46,6 +47,10 @@ class Cursor <Item> {
     }
 
 /* === Instance Methods === */
+
+    public function compile() {
+        this.cquery = query.compile(cast db);
+    }
 
     /**
       set the pagination-limit of [this] Cursor
@@ -123,6 +128,10 @@ class Cursor <Item> {
         }
     }
 
+    private inline function _test(doc:Anon<Anon<Dynamic>>):Bool {
+        return query.match(doc, cast db);
+    }
+
     /**
       get the results of [this] Cursor's query
      **/
@@ -135,7 +144,7 @@ class Cursor <Item> {
 
         var candidates = db.getCandidates( query );
         for (i in 0...candidates.length) {
-            if (query.match(cast candidates[i], cast db)) {
+            if (_test(cast candidates[i])) {
                 if (_sort.isNone()) {
                     res.push(candidates[i]);
                 }
@@ -204,7 +213,9 @@ class Cursor <Item> {
     /**
       execute [this] Cursor
      **/
-    public function exec():Array<Item> {
+    public function exec(precompile:Bool = false):Array<Item> {
+        if ( precompile )
+            query.compile(cast db);
         return _exec();
     }
 
@@ -212,6 +223,7 @@ class Cursor <Item> {
 
     public var db(default, null): Store<Item>;
     public var query(default, null): QueryFilter;
+    private var cquery(default, null): Null<CompiledQueryFilter>;
 
     public var _limit(default, null): Option<Int>;
     public var _skip(default, null): Option<Int>;
@@ -221,6 +233,7 @@ class Cursor <Item> {
 
 typedef SortQuery = Anon<SortOrder>;
 typedef Projection = Anon<FieldFlag>;
+typedef CompiledQueryFilter = Anon<Anon<Dynamic>>->Bool;
 
 @:enum
 abstract SortOrder (Int) from Int to Int {

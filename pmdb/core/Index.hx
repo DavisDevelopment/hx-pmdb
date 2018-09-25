@@ -11,6 +11,7 @@ import pmdb.ql.ts.DataType;
 import pmdb.core.ds.AVLTree;
 import pmdb.core.ds.*;
 import pmdb.core.Comparator;
+import pmdb.ql.ast.BoundingValue;
 
 import haxe.ds.Either;
 import haxe.ds.Option;
@@ -147,6 +148,16 @@ class Index<Key, Item> {
     function revertUpdates(updates: Array<{oldDoc:Item, newDoc:Item}>) {
         updates = updates.map(u -> {oldDoc: u.newDoc, newDoc: u.oldDoc});
         updateMany( updates );
+    }
+
+    public inline function revertUpdate(oldDoc:Item, newDoc:Item) {
+        updateOne(newDoc, oldDoc);
+    }
+
+    public function revertAllUpdates(updates: Array<{oldDoc:Item, newDoc:Item}>) {
+        updateMany(updates.map(function(u) {
+            return {oldDoc:u.newDoc, newDoc:u.oldDoc};
+        }));
     }
 
     /**

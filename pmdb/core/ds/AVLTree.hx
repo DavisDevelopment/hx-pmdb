@@ -3,6 +3,8 @@ package pmdb.core.ds;
 import tannus.ds.Pair;
 import haxe.ds.Option;
 
+import pmdb.ql.ast.BoundingValue;
+
 import tannus.math.TMath as Math;
 import Slambda.fn;
 
@@ -184,7 +186,8 @@ class AVLTree<Key, Value> {
             // decrement [size] to account for it
             _size--;
             if ( unique ) {
-                throw 'IndexError: Unique-constraint violated';
+                trace(untyped [key, value]);
+                throw new Error('IndexError: Unique-constraint violated');
             }
             else {
                 root.data.push( value );
@@ -623,11 +626,6 @@ typedef BoundsSegment<T> = {
     v: T,
     // inclusivity
     eq: Bool
-}
-
-enum BoundingValue<T> {
-    Edge(v: T);
-    Inclusive(v: T);
 }
 
 typedef AVLTreeOptions<K, V> = {
