@@ -1,0 +1,35 @@
+
+-cp tannus/
+-cp pmdb/
+
+-lib slambda
+-lib utest
+-lib hscript
+
+-main TestAll
+
+--each
+
+# JavaScript (Monolithic ES5)
+-lib hxnodejs
+-D node
+-D js_es=6
+
+-debug
+-js ../build/js/test.js
+
+--next
+
+-lib hxnodejs
+-lib hxgenjs
+-D node
+-D js_es=6
+
+-debug
+-js ../build/js/es6/index.js
+
+--next
+
+# Python
+-debug
+-python ../build/py/test.py

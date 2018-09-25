@@ -1,0 +1,38 @@
+# build for staticly-typed targets
+
+-cp tannus/
+-cp pmdb/
+
+-lib slambda
+-lib hscript
+
+-main Main
+
+--each
+
+# Neko Build
+-debug
+-neko ../dist/neko/test.n
+
+--next
+
+# HashLink Build
+-debug
+-hl ../dist/hashlink/test.hl
+
+--next
+
+# Native C++ Build
+-debug
+-cpp ../dist/cpp/
+
+--next
+
+# Emscripten-Powered C++ Build (ultimately targetting JavaScript)
+-debug
+-D emscripten
+-cpp ../dist/emcpp/
+
+#--next
+
+# Java Build
