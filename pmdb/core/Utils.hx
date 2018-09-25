@@ -9,7 +9,7 @@ import tannus.ds.Ref;
 import tannus.math.TMath as M;
 
 import pmdb.ql.types.*;
-import pmdb.ql.types.DataType;
+import pmdb.ql.ts.DataType;
 
 import haxe.ds.Either;
 import haxe.ds.Option;

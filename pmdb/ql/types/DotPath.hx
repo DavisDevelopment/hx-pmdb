@@ -43,6 +43,13 @@ abstract DotPath (String) to String {
         return Arch.getDotValue(ctx, this);
     }
 
+    public static function compile(path: DotPath):Dynamic -> Dynamic {
+        return (function(fn: Dynamic -> Dynamic) {
+            Sys.println('WARNING: DotPath::compile');
+            return ctx -> fn( ctx );
+        })(cast Arch.getDotValue.bind(_, path));
+    }
+
 /* === Factory Methods === */
 
     @:from
