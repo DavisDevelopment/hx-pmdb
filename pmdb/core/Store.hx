@@ -50,7 +50,11 @@ class Store<Item> {
     /* Constructor Function */
     public function new(options: StoreOptions):Void {
         this.options = options;
+
         indexes = new Map();
+        schema = null;
+        if (options.schema != null)
+            schema = options.schema;
 
         _init_();
     }
@@ -78,8 +82,12 @@ class Store<Item> {
             sparse: false
         };
 
+        if (schema != null) {
+            pi.name = schema.id.name;
+            pi.type = schema.id.type;
+        }
         // merge [pi] with the options provided to the constructor (if any)
-        if (options.primary != null) {
+        else if (options.primary != null) {
             if (isType(options.primary, String)) {
                 pi.name = cast options.primary;
             }
@@ -98,7 +106,19 @@ class Store<Item> {
         primaryKey = pi.name;
         indexes[primaryKey] = buildIndex( pi );
 
-        if (options.indexes != null) {
+        if (schema != null) {
+            for (field in schema.properties) {
+                if (field.annotations.has(ANoIndex))
+                    continue;
+                ensureIndex({
+                    name: field.name,
+                    type: field.type,
+                    sparse: field.opt,
+                    unique: field.unique
+                });
+            }
+        }
+        else if (options.indexes != null) {
             for (idx in options.indexes) {
                 ensureIndex( idx );
             }
@@ -110,11 +130,23 @@ class Store<Item> {
     /**
       prepare the given Item for insertion into [this] Store
      **/
-    private inline function prepareForInsertion(doc: Item):Item {
-        return doc;
-        //var doc:Anon<Dynamic> = Anon.of(cast doc);
+    private function prepareForInsertion(doc: Item):Item {
+        var doc:Anon<Dynamic> = Anon.of(cast Arch.deepCopy(doc));
 
-        //return cast doc;
+        if (!doc.exists(primaryKey)) {
+            switch pid.fieldType {
+                case TAny|TScalar(TString):
+                    doc[primaryKey] = createNewId();
+
+                case TScalar(TBytes):
+                    doc[primaryKey] = ByteArray.ofString(createNewId());
+
+                case _:
+                    throw new Error();
+            }
+        }
+
+        return cast doc;
     }
 
     /**
@@ -326,7 +358,6 @@ class Store<Item> {
         var failingIndex:Int = -1,
         error: Dynamic = null,
         keys = indexes.keyArray();
-        trace( keys );
 
         for (i in 0...keys.length) {
             try {
@@ -344,6 +375,31 @@ class Store<Item> {
         if (error != null) {
             for (i in 0...failingIndex) {
                 indexes[keys[i]].removeMany( docs );
+            }
+
+            throw error;
+        }
+    }
+
+    public function updateIndexes(oldDoc:Item, newDoc:Item) {
+         var failingIndex:Int = -1,
+        error: Dynamic = null,
+        keys = indexes.keyArray();
+
+        for (i in 0...keys.length) {
+            try {
+                indexes[keys[i]].updateOne(oldDoc, newDoc);
+            }
+            catch (e: Dynamic) {
+                failingIndex = i;
+                error = e;
+                break;
+            }
+        }
+
+        if (error != null) {
+            for (i in 0...failingIndex) {
+                indexes[keys[i]].revertUpdate(oldDoc, newDoc);
             }
 
             throw error;
@@ -482,15 +538,15 @@ class Store<Item> {
     /**
       get all documents matched by [query]
      **/
-    public function find(query: Query):Array<Item> {
-        return cursor( query ).exec();
+    public function find(query:Query, ?precompile:Bool):Array<Item> {
+        return cursor( query ).exec( precompile );
     }
 
     /**
       return the first item that matches [query]
      **/
-    public function findOne(query: Query):Null<Item> {
-        var res = cursor( query ).limit( 1 ).exec();
+    public function findOne(query:Query, ?precompile:Bool):Null<Item> {
+        var res = cursor( query ).limit( 1 ).exec( precompile );
         return switch res {
             case null: null;
             case _: res[0];
@@ -524,27 +580,51 @@ class Store<Item> {
       the current api for creating and defining Update<T> objects 
       is merely a placeholder, and will be replaced with a less verbose, more performant one soon
      **/
-    public function update(fn: Update<Item> -> Void) {
+    public function update(fn:Update<Item>->Void, multiple:Bool=false) {
         var ud:Update<Item> = new Update();
         fn( ud );
 
         //TODO some sanity checks here
 
         var candidates = getCandidates( ud.pattern );
+        var mods = [];
+
         for (doc in candidates) {
+
             if (!ud.pattern.match(cast doc, cast this))
                 continue;
 
             switch ud.du {
                 case DModify(m):
                     //trace( doc );
-                    m.apply(doc, this);
+                    var newDoc = Arch.deepCopy( doc );
+                    m.apply(newDoc, this);
                     //trace( doc );
+                    mods.push({pre:doc, post:newDoc});
 
-                case DReplace(_):
-                    //
+
+                case DReplace(newDoc):
+                    _overwrite(doc, newDoc);
             }
+
+            if (!multiple)
+                break;
         }
+
+        for (mod in mods)
+            mod.with(updateIndexes(_.pre, _.post));
+    }
+
+    @:noCompletion
+    public function _overwrite(oldDoc:Item, newDoc:Item):Item {
+        var idKey = Reflect.field(oldDoc, primaryKey);
+        if (idKey == null)
+            throw new Error();
+        if (Reflect.hasField(newDoc, primaryKey) && !Arch.areThingsEqual(Reflect.field(newDoc, primaryKey), idKey))
+            throw new Error('Item($newDoc) has extra field "$primaryKey"');
+
+        Reflect.setField(newDoc, primaryKey, idKey);
+        return insertOne( newDoc );
     }
 
 /* === Computed Instance Fields === */
@@ -558,6 +638,9 @@ class Store<Item> {
     // Map of Indexes on [this] Store
     public var indexes(default, null): Map<String, Index<Any, Item>>;
 
+    // Object-Model of type-information for [Item]
+    public var schema(default, null): Null<DocumentSchema>;
+
     // name of primary index (defaults to "_id")
     public var primaryKey(default, null): String;
 
@@ -567,7 +650,8 @@ class Store<Item> {
 
 typedef StoreOptions = {
     ?primary: EitherType<String, StoreIndexOptions>,
-    ?indexes: Array<StoreIndexOptions>
+    ?indexes: Array<StoreIndexOptions>,
+    ?schema: DocumentSchema
     //?inMemoryOnly: Bool,
     //?filename: String,
 };
