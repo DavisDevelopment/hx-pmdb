@@ -37,13 +37,20 @@ using tannus.macro.MacroTools;
 @:forward
 abstract Check (CheckObject) from CheckObject to CheckObject {
     @:from
-    public static function checker(cm: Dynamic->Bool):Check return FCheck.make( cm );
+    public static function checkerUntyped(cm: Dynamic->Bool):Check return FCheck.make( cm );
+
+    @:from
+    public static function checkerTyped<T>(fn: T -> Bool):Check return TypedFunctionalCheck.make( fn );
 
     @:from
     public static function typeCheck(type: DataType):Check return new DataTypeCheck( type );
 
+    @:op(A & B)
     public static function and(left:Check, right:Check):Check return new AndCheck(left, right);
+
+    @:op(A | B)
     public static function or(left:Check, right:Check):Check return new OrCheck(left, right);
+
     public static function build(f: BagOfChecks -> Void):Check {
         var bag = new BagOfChecks();
         f( bag );
@@ -254,6 +261,28 @@ class FCheck extends CheckBase {
     public static function make(f: Dynamic->Bool):FCheck return new FCheck( f );
 
     var f(default, null): Dynamic->Bool;
+}
+
+class TypedFunctionalCheck<T> extends CheckBase {
+    public function new(fn: T -> Bool, ?tfn:Dynamic->Bool) {
+        this.f = fn;
+        if (tfn != null)
+            this.check_type = tfn;
+    }
+
+    dynamic function check_type(ctx: Dynamic):Bool {
+        return true;
+    }
+
+    override function check(o: Dynamic):Bool {
+        return check_type( o ) && f( o );
+    }
+
+    override function compile() return check.bind(_);
+    override function optimize() return null;
+    public static function make<T>(fn: T -> Bool, ?verifyType:Dynamic->Bool):TypedFunctionalCheck<T> return new TypedFunctionalCheck(fn, verifyType);
+
+    private var f(default, null): T -> Bool;
 }
 
 class CheckBase implements CheckObject {
