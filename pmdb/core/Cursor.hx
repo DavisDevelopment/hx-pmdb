@@ -6,7 +6,7 @@ import tannus.ds.Ref;
 import tannus.math.TMath as M;
 
 import pmdb.ql.types.*;
-import pmdb.ql.types.DataType;
+import pmdb.ql.ts.DataType;
 import pmdb.core.ds.AVLTree;
 import pmdb.core.ds.*;
 
@@ -30,7 +30,7 @@ using tannus.ds.DictTools;
 using tannus.ds.MapTools;
 using tannus.async.OptionTools;
 using tannus.FunctionTools;
-using pmdb.ql.types.DataTypes;
+using pmdb.ql.ts.DataTypes;
 using pmdb.core.Utils;
 
 class Cursor <Item> {

@@ -5,7 +5,7 @@ import tannus.io.*;
 import tannus.math.TMath as M;
 
 import pmdb.ql.types.*;
-import pmdb.ql.types.DataType;
+import pmdb.ql.ts.DataType;
 import pmdb.core.Comparator;
 import pmdb.core.Equator;
 import pmdb.core.Error;
@@ -28,7 +28,7 @@ using tannus.async.OptionTools;
 using tannus.FunctionTools;
 
 using pmdb.core.Utils;
-using pmdb.ql.types.DataTypes;
+using pmdb.ql.ts.DataTypes;
 
 using haxe.macro.Tools;
 using haxe.macro.ExprTools;

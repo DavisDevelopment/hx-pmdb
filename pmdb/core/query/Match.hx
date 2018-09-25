@@ -8,7 +8,7 @@ import tannus.ds.Ref;
 import tannus.math.TMath as M;
 
 import pmdb.ql.types.*;
-import pmdb.ql.types.DataType;
+import pmdb.ql.ts.DataType;
 import pmdb.core.ds.AVLTree;
 import pmdb.core.ds.*;
 import pmdb.core.*;
@@ -29,7 +29,7 @@ using tannus.ds.DictTools;
 using tannus.ds.MapTools;
 using tannus.async.OptionTools;
 using tannus.FunctionTools;
-using pmdb.ql.types.DataTypes;
+using pmdb.ql.ts.DataTypes;
 using pmdb.core.QueryFilters;
 
 @:access( pmdb.core.QueryFilter )
@@ -45,7 +45,10 @@ class Match {
       returns whether [this]'s QueryFilter matched the given document
      **/
     public function test(doc:Anon<Anon<Dynamic>>, ?store:Store<Any>):Bool {
-        return query.ast.queryMatch(doc, store);
+        if (query._compiled != null)
+            return query._compiled( doc );
+        else
+            return query.ast.queryMatch(doc, store);
     }
 
 /* === Variables === */

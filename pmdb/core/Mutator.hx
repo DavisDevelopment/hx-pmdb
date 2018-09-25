@@ -6,7 +6,7 @@ import tannus.ds.Ref;
 import tannus.math.TMath as M;
 
 import pmdb.ql.types.*;
-import pmdb.ql.types.DataType;
+import pmdb.ql.ts.DataType;
 import pmdb.core.ds.AVLTree;
 import pmdb.core.ds.*;
 import pmdb.core.Cursor;
@@ -115,6 +115,7 @@ abstract Mutator<Item, R> (MutatorObject<Item, R>) from MutatorObject<Item, R> t
             case "$push": push;
             case "$pull": pull;
             case "$pop": cast pop;
+            case "$addToSet": cast addToSet;
 
             case _:
                 throw new Error('Invalid update-token ${token.type}');

@@ -6,7 +6,7 @@ import tannus.ds.Ref;
 import tannus.math.TMath as M;
 
 import pmdb.ql.types.*;
-import pmdb.ql.types.DataType;
+import pmdb.ql.ts.DataType;
 import pmdb.core.ds.AVLTree;
 import pmdb.core.ds.*;
 import pmdb.core.Cursor;

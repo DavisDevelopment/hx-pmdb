@@ -7,7 +7,7 @@ import tannus.math.TMath as M;
 
 import pmdb.ql.types.*;
 import pmdb.ql.types.DotPath;
-import pmdb.ql.types.DataType;
+import pmdb.ql.ts.DataType;
 import pmdb.core.ds.AVLTree;
 import pmdb.core.ds.*;
 import pmdb.core.Comparator;
@@ -24,7 +24,7 @@ using tannus.ds.DictTools;
 using tannus.ds.MapTools;
 using tannus.async.OptionTools;
 using tannus.FunctionTools;
-using pmdb.ql.types.DataTypes;
+using pmdb.ql.ts.DataTypes;
 
 @:access(pmdb.core.ds.AVLTree)
 class Index<Key, Item> {
@@ -56,7 +56,6 @@ class Index<Key, Item> {
     public function removeOne(doc: Item) {
         //var key = getDocKey( doc );
         var key:Key = _fn.follow( doc );
-        trace( doc );
         if (key == null) {
             if ( sparse ) {
                 return ;
@@ -67,6 +66,7 @@ class Index<Key, Item> {
         } 
 
         tree.delete(key, doc);
+        //trace(tree.get(key));
     }
 
     /**
@@ -75,6 +75,7 @@ class Index<Key, Item> {
     public function updateOne(oldDoc:Item, newDoc:Item) {
         // delete the document to be updated
         removeOne( oldDoc );
+
         try {
             // attempt to insert the replacement document
             insertOne( newDoc );
@@ -206,8 +207,8 @@ class Index<Key, Item> {
                 fieldType = t;
                 sparse = v;
 
-            default:
-                //
+            case [v, _]:
+                sparse = v;
         }
 
         if (_fn == null)

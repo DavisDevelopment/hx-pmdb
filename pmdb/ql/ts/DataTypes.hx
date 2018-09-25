@@ -1,4 +1,4 @@
-package pmdb.ql.types;
+package pmdb.ql.ts;
 
 import tannus.ds.Anon;
 import tannus.ds.Dict;
@@ -12,7 +12,7 @@ import pmdb.core.Check;
 import pmdb.core.Comparator;
 import pmdb.core.Equator;
 import pmdb.core.Error;
-import pmdb.ql.types.DataType;
+import pmdb.ql.ts.DataType;
 
 import Slambda.fn;
 import Std.is as stdIs;
@@ -43,7 +43,7 @@ class DataTypes {
                 case TBoolean: TypeChecks.is_boolean;
                 case TInteger: TypeChecks.is_integer;
                 case TDouble: TypeChecks.is_double;
-                case TString: TypeChecks.is_string;
+                case TString|TBytes: TypeChecks.is_string;
                 case TDate: TypeChecks.is_date;
             }
             case _: throw new Error("nope");
@@ -64,13 +64,14 @@ class DataTypes {
                 case TBoolean: stdIs(value, Bool);
                 case TInteger: stdIs(value, Int);
                 case TDouble: stdIs(value, Float);
-                case TString: stdIs(value, String);
+                case TString|TBytes: stdIs(value, String);
                 case TDate: (stdIs(value, Date) || stdIs(value, Float));
             }
             case TAnon(null): Reflect.isObject( value );
             case TAnon(o): Reflect.isObject(value) && checkObjectType(o, value);
             case TUnion(left, right): checkValue(left, value) || checkValue(right, value);
-            case TClass(type): stdIs(value, type);
+            case TClass(type): type.isInstance( value );
+            case TStruct(type): throw 'checkValue(Struct(_), _)) not implemented';
         }
     }
 
@@ -98,11 +99,14 @@ class DataTypes {
                 case TDouble: Comparator.cfloat();
                 case TString: Comparator.cstring();
                 case TDate: Comparator.cdate();
-                case _: throw 'unex';
+                case TBytes: Comparator.cbytes();
             }
             case TArray(item): Comparator.arrayComparator(getTypedComparator(item));
             case TNull(utype): Comparator.makeNullable(getTypedComparator( utype ));
-            case _: throw 'unex';
+            case TAnon(otype): Comparator.cany();
+            case TClass(ctype): Comparator.cany();
+            case TStruct(type): throw 'getTypedComparator(Struct(_), _)) not implemented';
+            case TUnion(_, _): throw 'Betty';
         }
     }
 
@@ -181,7 +185,7 @@ class Anons {
   simple-static methods for type-checking
  **/
 @:noUsing
-class TypeChecks {
+private class TypeChecks {
     public static inline function is_any(v: Dynamic):Bool {
         return true;
     }
