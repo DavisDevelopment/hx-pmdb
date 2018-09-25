@@ -51,11 +51,11 @@ class Arch {
         return pmdb.nedb.NModel.getDotValue(o, field);
     }
 
-    public static function areThingsEqual(left:Dynamic, right:Dynamic):Bool {
+    public static inline function areThingsEqual(left:Dynamic, right:Dynamic):Bool {
         return pmdb.nedb.NModel.areThingsEqual(left, right);
     }
 
-    public static function compareThings(left:Dynamic, right:Dynamic):Int {
+    public static inline function compareThings(left:Dynamic, right:Dynamic):Int {
         return SortingTools.compareAny(left, right);
     }
 
