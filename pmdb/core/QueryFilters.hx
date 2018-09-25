@@ -5,11 +5,13 @@ import tannus.ds.Set;
 import tannus.ds.Anon;
 import tannus.ds.Lazy;
 import tannus.ds.Ref;
+import tannus.ds.Pair;
 import tannus.math.TMath as M;
 
 import pmdb.ql.types.*;
-import pmdb.ql.types.DataType;
+import pmdb.ql.ts.DataType;
 import pmdb.core.ds.AVLTree;
+import pmdb.ql.ast.BoundingValue;
 import pmdb.core.ds.*;
 import pmdb.core.*;
 import pmdb.core.QueryFilter;
@@ -28,8 +30,9 @@ using tannus.ds.ArrayTools;
 using tannus.ds.DictTools;
 using tannus.ds.MapTools;
 using tannus.async.OptionTools;
+using tannus.ds.IteratorTools;
 using tannus.FunctionTools;
-using pmdb.ql.types.DataTypes;
+using pmdb.ql.ts.DataTypes;
 using pmdb.core.Utils;
 
 class QueryFilters {
@@ -63,6 +66,13 @@ class QueryAsts {
                 fn( expr );
         }
     }
+
+    public static function compileQuery(expr:QueryAst, store:Store<Any>):Anon<Anon<Dynamic>>->Bool {
+        return switch expr {
+            case Expr(e): Filters.compileQuery(e, store);
+            case Flow(o): Flows.compileLogOp(o, store);
+        }
+    }
 }
 
 class Flows {
@@ -78,9 +88,29 @@ class Flows {
             case LOr( queries ):
                 return queries.any(QueryAsts.queryMatch.bind(_, doc, store));
 
+            case LWhere( check ):
+                return check(cast doc);
+
             case other:
                 throw new Error('Unsupported logical operator $other');
         }
+    }
+
+    public static function compileLogOp(expr:LogOp, store:Store<Any>):Anon<Anon<Dynamic>>->Bool {
+        return (switch expr {
+            case LNot(query): ((test, doc:Doc) -> !test(doc)).bind(QueryAsts.compileQuery(query, store), _);
+            case LAnd(queries):
+                queries.map(e -> QueryAsts.compileQuery(e, store)).reduce(function(acc:Doc->Bool, check:Doc->Bool) {
+                    return (doc -> acc(doc) && check(doc));
+                }, (x -> true));
+            case LOr(queries):
+                queries.map(e -> QueryAsts.compileQuery(e, store)).reduce(function(acc:Doc->Bool, check:Doc->Bool) {
+                    return (doc -> acc(doc) || check(doc));
+                }, (x -> true));
+            case LWhere(check):
+                // there may be a better way?
+                return check.bind(_);
+        });
     }
 }
 
@@ -94,6 +124,19 @@ class Filters {
 
         return true;
     }
+
+    /**
+      iteratively reduces the set of query-criteria down to a singe predicate function
+     **/
+    public static function compileQuery(expr:FilterExpr<Any>, store:Store<Any>):Anon<Anon<Dynamic>>->Bool {
+        return expr.keys().array()
+        .map(k -> new Pair(k, expr.get(k)))
+        .reduce(function(check:Doc->Bool, kv:Pair<String, FilterExprValue<Any>>):Doc->Bool {
+            return (function(kvc: Doc->Bool) {
+                return (function(doc: Doc) return check(doc) && kvc(doc));
+            }) (FilterValues.compileQuery(kv.right, kv.left, store));
+        }, (doc -> true));
+    }
 }
 
 class FilterValues {
@@ -105,6 +148,21 @@ class FilterValues {
         }
     }
 
+    public static function compileQuery<T>(expr:FilterExprValue<T>, name:String, store:Store<Any>):Anon<Anon<Dynamic>>->Bool {
+        return switch expr {
+            case VIs(value): 
+                (function(eq, name:String):Doc->Bool {
+                    return doc -> eq(doc.dotGet(name));
+                })(Arch.areThingsEqual.bind(value, _), name);
+
+            case VOps( ops ):
+                return compileQueryOps(ops, name, store);
+                //(function(check: ):Doc->Bool {
+
+                //})(compileQueryOps(ops, name, store));
+        }
+    }
+
     public static function testQueryOps<T>(name:String, doc:Anon<Anon<Dynamic>>, ops:Map<ColOpCode, Dynamic>, store:Store<Any>):Bool {
         for (op in ops.keys()) {
             if (!testQueryOp(name, doc, op, ops[op], store)) {
@@ -112,6 +170,20 @@ class FilterValues {
             }
         }
         return true;
+    }
+
+    /**
+      [=NOTE=] uses mystical sorcery to 'compile' query-filter-ops into a single function
+     **/
+    public static function compileQueryOps<T>(ops:Map<ColOpCode, Dynamic>, name:String, store:Store<Any>):Anon<Anon<Dynamic>>->Bool {
+        return ops.keyArray().map(function(op: ColOpCode) {
+            return compileQueryOp(op, name, ops[op], store);
+        })
+        .compose(function(a:Doc->Bool, b:Doc->Bool):Doc->Bool {
+            return (function(a:Doc->Bool, b:Doc->Bool, doc:Doc) {
+                return (a( doc ) && b( doc ));
+            }).bind(a, b, _);
+        }, FunctionTools.identity);
     }
 
     public static function testQueryOp<T>(name:String, doc:Anon<Anon<Dynamic>>, op:ColOpCode, value:Dynamic, store:Store<Any>):Bool {
@@ -130,6 +202,36 @@ class FilterValues {
                 Ops.op_nin(cast doc.dotGet( name ), cast value, store.indexes.exists(name) ? store.indexes[name].item_equator() : Equator.any());
             case Regexp:
                 Ops.op_regex(doc.dotGet( name ), cast value);
+        }
+    }
+
+    public static function compileQueryOp(op:ColOpCode, name:String, value:Dynamic, store:Store<Any>):Anon<Anon<Dynamic>>->Bool {
+        var idx = store.indexes[name],
+        comp = fn(_.key_comparator()),
+        eq = fn(_.item_equator());
+
+        switch op {
+            case LessThan:
+                return Ops.op_lt.bind(_, cast value, (idx != null ? comp(idx) : Comparator.cany()))
+                    .wrap(function(_, doc:Anon<Anon<Dynamic>>):Bool return _(cast doc.dotGet(name)));
+            case LessThanEq:
+                return Ops.op_lte.bind(_, cast value, (idx != null ? comp(idx) : Comparator.cany()))
+                    .wrap(function(_, doc:Anon<Anon<Dynamic>>):Bool return _(cast doc.dotGet(name)));
+            case GreaterThan:
+                return Ops.op_gt.bind(_, cast value, (idx != null ? comp(idx) : Comparator.cany()))
+                    .wrap(function(_, doc:Anon<Anon<Dynamic>>):Bool return _(cast doc.dotGet(name)));
+            case GreaterThanEq:
+                return Ops.op_gte.bind(_, cast value, (idx != null ? comp(idx) : Comparator.cany()))
+                    .wrap(function(_, doc:Anon<Anon<Dynamic>>):Bool return _(cast doc.dotGet(name)));
+            case In:
+                return Ops.op_in.bind(_, cast value, (idx != null ? eq(idx) : Equator.any()))
+                    .wrap(function(_, doc:Anon<Anon<Dynamic>>):Bool return _(cast doc.dotGet(name)));
+            case NIn:
+                return Ops.op_nin.bind(_, cast value, (idx != null ? eq(idx) : Equator.any()))
+                    .wrap(function(_, doc:Anon<Anon<Dynamic>>):Bool return _(cast doc.dotGet(name)));
+            case Regexp:
+                return Ops.op_regex.bind(_, cast value)
+                    .wrap((_, doc:Anon<Anon<Dynamic>>) -> _(doc.dotGet(name)));
         }
     }
 
@@ -254,3 +356,5 @@ class Ops {
         }
     }
 }
+
+private typedef Doc = Anon<Anon<Dynamic>>;

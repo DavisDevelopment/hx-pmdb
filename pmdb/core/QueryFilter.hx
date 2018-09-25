@@ -45,6 +45,7 @@ class QueryFilter {
         this.position = pos;
         this.raw = null;
         this._match = null;
+        this._compiled = null;
     }
 
 /* === Methods === */
@@ -57,6 +58,13 @@ class QueryFilter {
             _match = new Match( this );
         }
         return _match.test(doc, store);
+    }
+
+    /**
+      'compile' [this] QueryFilter
+     **/
+    public function compile(store: Store<Any>):Anon<Anon<Dynamic>>->Bool {
+        return _compiled = ast.compileQuery( store );
     }
 
     public function iterFilters(fn: FilterExpr<Any>->Void):Void {
@@ -90,6 +98,10 @@ class QueryFilter {
         return new QueryFilter(Flow(LAnd([ast, other.ast])));
     }
 
+    public static function where(check: Dynamic->Bool):QueryFilter {
+        return new QueryFilter(Flow(LWhere(check)));
+    }
+
 /* === Statics === */
 
     /**
@@ -117,6 +129,7 @@ class QueryFilter {
     private var position(default, null): PosInfos;
 
     private var _match(default, null): Null<Match>;
+    private var _compiled(default, null): Null<Anon<Anon<Dynamic>> -> Bool>;
 }
 
 enum QueryAst {
