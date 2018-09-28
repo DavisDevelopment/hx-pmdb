@@ -2,7 +2,10 @@ package pmdb.ql.ast;
 
 import pmdb.ql.ast.Value;
 
-enum PredicateToken {
+enum PredicateExpr {
+    // * ({})
+    PNoOp;
+
     // && ({$and: [...])
     POpBoolAnd(a:SubPredicate, b:SubPredicate);
 
@@ -61,4 +64,4 @@ enum PredicateToken {
     POpElemMatch(column:ValueExpr, predicate:ValueExpr);
 }
 
-private typedef SubPredicate = Dynamic;
+private typedef SubPredicate = PredicateExpr;
