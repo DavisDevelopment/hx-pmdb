@@ -64,4 +64,4 @@ enum PredicateExpr {
     POpElemMatch(column:ValueExpr, predicate:ValueExpr);
 }
 
-private typedef SubPredicate = PredicateExpr;
+typedef SubPredicate = PredicateExpr;

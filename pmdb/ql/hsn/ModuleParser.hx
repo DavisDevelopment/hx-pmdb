@@ -206,8 +206,8 @@ class ModuleParser {
 
     private function parseCType(type: CType):DataType {
         return switch type {
-            case CTPath([typeName='Bool'|'Float'|'Int'|'String'|'Bytes'|'ByteArray'|'Date'], null):
-                switch typeName {
+            case CTPath(_.join('.')=>fullName, null):
+                switch fullName {
                     case 'Bool': TScalar(TBoolean);
                     case 'Float': TScalar(TDouble);
                     case 'Int': TScalar(TInteger);
@@ -217,6 +217,7 @@ class ModuleParser {
                     case _: TAny;
                 }
 
+            //case CTPath(['UId'], [CTPath([''])])
             case CTPath(['Array'|'List'], [elem]): TArray(parseCType(elem));
             case CTPath(['Null'], [value]): TNull(parseCType(value));
             case CTPath(['Either'|'EitherType'], [left, right]): TUnion(parseCType(left), parseCType(right));
