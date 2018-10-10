@@ -51,10 +51,16 @@ class Arch {
         return pmdb.nedb.NModel.getDotValue(o, field);
     }
 
+    /**
+      check whether the two given values can be considered equivalent
+     **/
     public static inline function areThingsEqual(left:Dynamic, right:Dynamic):Bool {
         return pmdb.nedb.NModel.areThingsEqual(left, right);
     }
 
+    /**
+      numerically compare the two given values
+     **/
     public static inline function compareThings(left:Dynamic, right:Dynamic):Int {
         return SortingTools.compareAny(left, right);
     }
@@ -81,14 +87,23 @@ class Arch {
         );
     }
 
+    /**
+      check whether the given value is an Array value
+     **/
     public static inline function isArray(x: Dynamic):Bool {
         return isType(x, Array);
     }
 
+    /**
+      check whether the given value is an Object
+     **/
     public static inline function isObject(x: Dynamic):Bool {
         return Reflect.isObject( x );
     }
 
+    /**
+      check whether the given value is a regular expression
+     **/
     public static inline function isRegExp(x: Dynamic):Bool {
         #if hre
         return isType(x, EReg) || isType(x, hre.RegExp);
@@ -97,14 +112,23 @@ class Arch {
         #end
     }
 
+    /**
+      check whether the given value is a Date
+     **/
     public static inline function isDate(x: Dynamic):Bool {
         return isType(x, Date);
     }
 
+    /**
+      check whether the given value is a function 
+     **/
     public static inline function isFunction(x: Dynamic):Bool {
         return Reflect.isFunction( x );
     }
 
+    /**
+      create and return a deep copy of the given value
+     **/
     public static function deepCopy<T>(value:T, ?target:T, structs:Bool=true):T {
         return copy(value, target, structs);
     }
