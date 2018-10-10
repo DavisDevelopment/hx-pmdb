@@ -34,6 +34,9 @@ using haxe.rtti.CType.TypeApi;
 class DataTypes {
 /* === Methods === */
 
+    /**
+      generates and returns a lambda that will validate a value against a given type-pattern
+     **/
     public static function valueChecker(type: DataType):Dynamic->Bool {
         return switch type {
             case TAny: TypeChecks.is_any;
@@ -75,6 +78,9 @@ class DataTypes {
         }
     }
 
+    /**
+      validate a given Object against the given Object-type pattern
+     **/
     public static function checkObjectType(type:CObjectType, value:Anon<Dynamic>):Bool {
         for (prop in type.fields) {
             if (!checkObjectProperty(prop, value)) {
@@ -84,12 +90,18 @@ class DataTypes {
         return true;
     }
 
+    /**
+      check a given property of an object
+     **/
     public static function checkObjectProperty(property:Property, value:Anon<Dynamic>):Bool {
         if (!value.exists(property.name))
             return false;
         return checkValue(property.type, value.get(property.name));
     }
 
+    /**
+      given a DataType value [type], produce a Comparator<Dynamic> object that will compare two values of the given type
+     **/
     public static function getTypedComparator(type:DataType, guard:Bool=false):Comparator<Dynamic> {
         return switch type {
             case TAny: Comparator.cany();
@@ -110,18 +122,41 @@ class DataTypes {
         }
     }
 
+    public static function typed(v: Dynamic):TypedData {
+        return switch Type.typeof( v ) {
+            case TNull: DNull;
+            case TUnknown|ValueType.TFunction: DAny(v);
+            case TInt: DInteger(cast(v, Int));
+            case TFloat: DDouble(cast(v, Float));
+            case TBool: DBoolean(cast(v, Bool));
+            case TClass(Array): DArray(cast(v, Array<Dynamic>).map( typed ));
+            case TClass(Date): DDate(cast(v, Date));
+            case TClass(haxe.io.Bytes): DBytes(cast(v, haxe.io.Bytes));
+            case TClass(cl): TypedData.DClass(cl, cast v);
+            case TEnum(e): TypedData.DEnum(e, cast v);
+            case TObject: DObject([for (k in Reflect.fields(v)) {name:k, value:typed(Reflect.field(v, k))}]);
+    
+        }
+    }
+
 /* === Variables === */
 }
 
 class ValueTypes {
     static var v2dCache:Dict<ValueType, DataType> = new Dict();
 
+    /**
+      convert the given ValueType into a DataType value
+     **/
     public static function toDataType(type: ValueType):DataType {
         if (v2dCache.exists( type ))
             return v2dCache[type];
         return v2dCache[type] = _toDataType(type);
     }
     
+    /**
+      
+     **/
     static function _toDataType(type: ValueType):DataType {
         switch (type) {
             case TUnknown|TNull|TFunction:
@@ -149,29 +184,11 @@ class ValueTypes {
                 return TArray(TAny);
 
             case TClass(type):
-                if (Rtti.hasRtti( type )) {
-                    return fromClassdef(Rtti.getRtti( type ));
-                }
-                else {
-                    return TAnon(null);
-                }
+                return TAnon(null);
 
             case _:
                 return TAny;
         }
-    }
-
-    static inline function fromClassdef(ctype: Classdef):DataType {
-        return TAnon(new CObjectType(properties(ctype.fields)));
-    }
-
-    static function properties(fields: Array<ClassField>):Array<Property> {
-        var prop:Null<Property>;
-        return [for (f in fields) if (f.isPublic && f.type.isVar()) property( f )];
-    }
-
-    static inline function property(f: ClassField):Property {
-        return new Property(f.name, TAny);
     }
 }
 
