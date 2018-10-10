@@ -17,6 +17,8 @@ abstract Object<T> (DynamicAccess<T>) from Dynamic<T> to Dynamic<T> from Dynamic
     @:arrayAccess
     public inline function get(key: String):Null<T> return this.get(key);
 
+    public inline function dotGet<O>(key: String):Null<O> return Arch.getDotValue(this, key);
+
     @:arrayAccess
     public inline function set(key:String, value:T):Null<T> return this.set(key, value);
 
