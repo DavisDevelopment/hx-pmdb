@@ -60,6 +60,9 @@ class DocumentSchema {
                             throw new Error('multiple properties cannot be primary');
                         primary = i;
 
+                    case AAutoIncrement:
+                        continue;
+
                     case ARelation(_, _):
                         continue;
 
