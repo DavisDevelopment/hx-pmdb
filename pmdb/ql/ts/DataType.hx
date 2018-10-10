@@ -2,6 +2,7 @@ package pmdb.ql.ts;
 
 enum DataType {
     TAny;
+    //TUId(ut: DataType);
     TScalar(type: ScalarDataType);
     TNull(type: DataType);
     TArray(type: DataType);
