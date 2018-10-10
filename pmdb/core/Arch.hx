@@ -73,6 +73,27 @@ class Arch {
     }
 
     /**
+      check whether the given value is iterable
+     **/
+    public static function isIterable(x: Dynamic):Bool {
+        return (
+            isObject( x )
+            && isFunction( x.iterator )
+        );
+    }
+
+    /**
+      check whether the given value is an iterator
+     **/
+    public static function isIterator(x: Dynamic):Bool {
+        return (
+            isObject( x ) &&
+            (Reflect.hasField(x, 'hasNext') && Reflect.hasField(x, 'next')) &&
+            (isFunction(x.hasNext) && isFunction(x.next))
+        );
+    }
+
+    /**
       Tells if an object is a primitive type or a "real" object
       Arrays are considered primitive
      **/
