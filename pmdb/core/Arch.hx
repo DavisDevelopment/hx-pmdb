@@ -70,6 +70,13 @@ class Arch {
     }
 
     /**
+      do dat type-checking
+     **/
+    public static macro function isType(value, type) {
+        return macro Std.is($value, ${type});
+    }
+
+    /**
       Tells whether a value is an "atomic" (true primitive) value
      **/
     public static inline function isAtomic(x: Dynamic):Bool {
@@ -95,6 +102,18 @@ class Arch {
             (Reflect.hasField(x, 'hasNext') && Reflect.hasField(x, 'next')) &&
             (isFunction(x.hasNext) && isFunction(x.next))
         );
+    }
+
+    public static function isBool(x: Dynamic):Bool {
+        return isType(x, Bool);
+    }
+
+    public static function isString(x: Dynamic):Bool {
+        return isType(x, String);
+    }
+
+    public static function isBinary(x: Dynamic):Bool {
+        return isType(x, haxe.io.Bytes);
     }
 
     /**
