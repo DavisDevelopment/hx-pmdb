@@ -278,6 +278,7 @@ class Index<Key, Item> {
     public var fieldName(default, null): String;
     public var fieldType(default, null): DataType;
     public var sparse(default, null): Bool;
+
     @:noCompletion
     public var tree(default, null): AVLTree<Key, Item>;
 
