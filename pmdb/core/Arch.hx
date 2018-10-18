@@ -51,6 +51,10 @@ class Arch {
         return pmdb.nedb.NModel.getDotValue(o, field);
     }
 
+    public static function setDotValue(o:DynamicAccess<Dynamic>, field:String, value:Dynamic):Void {
+        return pmdb.nedb.NModel.setDotValue(o, field, value);
+    }
+
     /**
       check whether the two given values can be considered equivalent
      **/
