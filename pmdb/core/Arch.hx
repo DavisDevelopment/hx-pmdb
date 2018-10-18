@@ -176,4 +176,32 @@ class Arch {
     public static function deepCopy<T>(value:T, ?target:T, structs:Bool=true):T {
         return copy(value, target, structs);
     }
+
+    /**
+      compiles a Regular Expression from a String
+     **/
+    public static function compileRegexp(pattern:String, ?flags:String):EReg {
+        return switch [pattern, flags] {
+            case [pattern, null]:
+                var literal = ~/~?\/(.+?)\/([igm]+)?/g;
+                if (literal.match( pattern )) {
+                    switch (literal.matched(2)) {
+                        case null|'':
+                            flags = '';
+
+                        case x:
+                            flags = x;
+                    }
+                    pattern = literal.matched(1);
+                }
+                else {
+                    flags = '';
+                }
+
+                return compileRegexp(pattern, flags);
+
+            case [_, _]:
+                return new EReg(pattern, flags);
+        }
+    }
 }
