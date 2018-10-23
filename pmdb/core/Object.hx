@@ -4,7 +4,7 @@ import haxe.DynamicAccess;
 
 import Reflect as O;
 
-@:runtimeValue
+//@:runtimeValue
 @:forward
 abstract Object<T> (DynamicAccess<T>) from Dynamic<T> to Dynamic<T> from DynamicAccess<T> to DynamicAccess<T> {
     /* Constructor Function */
@@ -21,6 +21,12 @@ abstract Object<T> (DynamicAccess<T>) from Dynamic<T> to Dynamic<T> from Dynamic
 
     @:arrayAccess
     public inline function set(key:String, value:T):Null<T> return this.set(key, value);
+
+    public inline function dotSet<O>(key:String, val:O):Void {
+        Arch.setDotValue(this, key, val);
+    }
+
+    public inline function dotExists(key: String):Bool return dotGet(key) != null;
 
     public inline function copy():Object<T> {
         return this.copy();
