@@ -4,15 +4,16 @@ enum DataType {
     TAny;
     //TUId(ut: DataType);
     TScalar(type: ScalarDataType);
-    TNull(type: DataType);
     TArray(type: DataType);
     TUnion(left:DataType, right:DataType);
     TStruct(schema: DocumentSchema);
     TAnon(type: Null<CObjectType>);
 
     // should these even be here?
-    TClass(c: DataTypeClass);
+    //TClass(c: DataTypeClass);
+    TClass<T>(c: Class<T>);
     //TEnum(etype: Enum<Dynamic>);
+    TNull(type: DataType);
 }
 
 enum ScalarDataType {
