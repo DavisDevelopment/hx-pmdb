@@ -459,3 +459,16 @@ class FComparator<T> implements IComparator<T> {
     }
     public function compare(a:T, b:T):Int return f(a, b);
 }
+
+class InvertedComparator<T> implements IComparator<T> {
+    /* Constructor Function */
+    public function new(c) {
+        this.c = c;
+    }
+
+    public function compare(a:T, b:T):Int {
+        return -c.compare(a, b);
+    }
+
+    var c(default, null): Comparator<T>;
+}
