@@ -7,6 +7,7 @@ import tannus.math.TMath as M;
 import pmdb.core.Comparator;
 import pmdb.core.Equator;
 import pmdb.core.Check;
+import pmdb.ql.ts.TypeCasts;
 
 import haxe.DynamicAccess;
 import haxe.ds.Either;
@@ -17,6 +18,8 @@ import haxe.PosInfos;
 
 import haxe.macro.Expr;
 import haxe.macro.Context;
+
+import Type.ValueType;
 
 import Slambda.fn;
 import tannus.ds.AnonTools.deepCopy as copy;
@@ -65,8 +68,19 @@ class Arch {
     /**
       numerically compare the two given values
      **/
-    public static inline function compareThings(left:Dynamic, right:Dynamic):Int {
-        return SortingTools.compareAny(left, right);
+    public static function compareThings(left:Dynamic, right:Dynamic):Int {
+        inline function b2i(v: Bool) return (v ? 1 : 0);
+        inline function str(v: Dynamic) return ('' + v);
+
+        try {
+            return SortingTools.compareAny(left, right);
+        }
+        catch (error: Dynamic) {
+            switch ([Type.typeof(left), Type.typeof(right)]) {
+                case [ltype, rtype]:
+                    throw 'Compare($ltype, $rtype) unsupported';
+            }
+        }
     }
 
     /**
