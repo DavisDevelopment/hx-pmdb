@@ -12,13 +12,19 @@ using tannus.async.OptionTools;
 class Error {
     /* Constructor Function */
     public function new(?msg:Lazy<String>, ?position:PosInfos) {
+        name = 'Error';
         this.position = position;
-        this._msg = (msg != null ? msg : Lazy.ofFunc(prettyPrintStackTrace.bind()));
-        _cstack = None;
-        _estack = None;
+        this._msg = (msg != null ? msg : Lazy.ofFunc(() -> defaultMessage()));
+        //_cstack = None;
+        //_estack = None;
+        captureStacks();
     }
 
 /* === Instance Methods === */
+
+    function defaultMessage():String {
+        return prettyPrintStackTrace();
+    }
 
     public function prettyPrintStackTrace():String {
         if (exceptionStack == null)
@@ -26,16 +32,28 @@ class Error {
         return CallStack.toString( exceptionStack );
     }
 
+    public function toString():String {
+        return '$name: $message';
+    }
+
     @:noCompletion
-    public function captureStacks() {
+    public inline function captureStacks() {
         _cstack = Some(CallStack.callStack());
         _estack = Some(CallStack.exceptionStack());
+    }
+
+    static function __init__() {
+        //#if js
+        //js.Object.defineProperty(untyped Error.prototype, 'message', {
+            //get: untyped Error.prototype.get_message
+        //});
+        //#end
     }
 
 /* === Calculated Instance Fields === */
 
     public var message(get, never): String;
-    inline function get_message():String return _msg.get();
+    @:keep function get_message():String return _msg.get();
 
     public var callStack(get, never): Null<Array<StackItem>>;
     inline function get_callStack():Null<Array<StackItem>> return _cstack.getValue();
@@ -46,6 +64,7 @@ class Error {
 /* === Instance Fields === */
 
     public var position(default, null): PosInfos;
+    public var name(default, null): String;
 
     private var _msg(default, null): Lazy<String>;
 
