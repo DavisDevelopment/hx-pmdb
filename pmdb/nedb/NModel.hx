@@ -9,6 +9,7 @@ import pmdb.core.Error;
 
 using Slambda;
 using StringTools;
+using tannus.ds.StringUtils;
 
 /**
   direct, one-to-one port of nedb's "lib/model.js" module without any type-safety 
@@ -116,8 +117,8 @@ class NModel {
             dollarFirstChars = _.filter(firstChars, function (c) { return c === '$'; });*/
         if (queryValue != null && isObject(queryValue) && !isRegExp(queryValue) && isType(queryValue, Array)) {
             keys = Reflect.fields( queryValue );
-            firstChars = keys.map.fn(_.charAt(0));
-            dollarFirstChars = firstChars.filter.fn("$" == _);
+            firstChars = keys.map(k -> k.charAt(0));
+            dollarFirstChars = firstChars.filter(c -> "$" == c);
 
             /*if (dollarFirstChars.length !== 0 && dollarFirstChars.length !== firstChars.length) {
                 throw new Error("You cannot mix operators and normal fields");
@@ -217,6 +218,41 @@ class NModel {
         } 
         else {
             return getDotValue(obj[fieldParts[0]], fieldParts.slice(1));
+        }
+    }
+
+    public static function setDotValue(obj:DynamicAccess<Dynamic>, key:String, value:Dynamic):Void {
+        return setDotValueStep(obj, key.split('.'), value);
+    }
+
+    private static function setDotValueStep(obj:DynamicAccess<Dynamic>, parts:Array<String>, value:Dynamic):Void {
+        if (obj == null)
+            return ;
+        if (parts.length == 0)
+            return ;
+
+        if ((!obj.exists(parts[0]))||obj[parts[0]]==null) {
+            obj[parts[0]] = {};
+        }
+
+        if (parts.length == 1) {
+            if (isType(obj, Array)) {
+                if (parts[0].isNumeric()) {
+                    cast(obj, Array<Dynamic>)[Std.parseInt(parts[0])] = value;
+                }
+                else {
+                    for (o in cast(obj, Array<Dynamic>)) {
+                        setDotValueStep(cast o, parts, value);
+                    }
+                }
+            }
+            else {
+                obj.set(parts[0], value);
+            }
+        }
+
+        else {
+            setDotValueStep(cast obj[parts[0]], parts.slice(1), value);
         }
     }
 
