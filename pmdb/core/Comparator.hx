@@ -1,24 +1,45 @@
 package pmdb.core;
 
 import tannus.io.ByteArray;
+import tannus.ds.Dict;
 
 import tannus.math.TMath as Math;
 
+import haxe.io.Bytes;
+
+import pmdb.ql.ts.DataType;
+import pmdb.ql.ts.TypedData;
+import pmdb.ql.ts.TypeChecks;
+import pmdb.ql.ts.TypeCasts;
+import pmdb.ql.ts.TypeSystemError;
+
+import pmdb.ql.ts.TypeChecks.*;
+
 using tannus.ds.SortingTools;
 using tannus.FunctionTools;
+using pmdb.ql.ts.DataTypes;
 
 @:forward(compare)
 abstract Comparator<T> (IComparator<T>) from IComparator<T> to IComparator<T> {
 /* === Instance Methods === */
 
+    /**
+      create and return a Comparator for comparing arrays of the same value that [this] Comparator compares
+     **/
     public inline function toArrayComparator():Comparator<Array<T>> {
         return arrayComparator(this);
     }
 
+    /**
+      make [this] Comparator nullable
+     **/
     public inline function toNullable():Comparator<Null<T>> {
         return makeNullable( this );
     }
 
+    /**
+      'map' [this] Comparator
+     **/
     public inline function map<O>(f: T->O):Comparator<O> {
         return cast new MappedComparator(cast this, f);
     }
@@ -27,30 +48,63 @@ abstract Comparator<T> (IComparator<T>) from IComparator<T> to IComparator<T> {
 
 /* === Factories === */
 
-    @:noUsing
-    public static inline function cboolean():Comparator<Bool> return BooleanComparator.make();
+    /**
+      Boolean comparison
+     **/
+    @:noUsing public static inline function cboolean():Comparator<Bool> {
+        return BooleanComparator.make();
+    }
 
-    @:noUsing
-    public static inline function cint():Comparator<Int> return IntComparator.make();
+    /**
+      Int comparison
+     **/
+    @:noUsing public static inline function cint():Comparator<Int> {
+        return IntComparator.make();
+    }
 
-    @:noUsing
-    public static inline function cfloat():Comparator<Float> return FloatComparator.make();
+    /**
+      Float comparison
+     **/
+    @:noUsing public static inline function cfloat():Comparator<Float> {
+        return FloatComparator.make();
+    }
 
-    @:noUsing 
-    public static inline function cstring():Comparator<String> return StringComparator.make();
+    /**
+      String comparison
+     **/
+    @:noUsing public static inline function cstring():Comparator<String> {
+        return StringComparator.make();
+    }
 
-    @:noUsing
-    public static inline function cbytes():Comparator<ByteArray> return BytesComparator.make();
+    /**
+      ByteArray comparison
+     **/
+    @:noUsing public static inline function cbytes():Comparator<ByteArray> {
+        return BytesComparator.make(); 
+    }
 
+    /**
+      Date comparison
+     **/
     public static inline function cdate():Comparator<Date> return new DateComparator();
+
+    /**
+      Dynamic comparison
+     **/
     public static inline function cany<T>():Comparator<T> return cast AnyComparator.make();
     
+    /**
+      <T> comparison
+     **/
     @:from
     @:noUsing
-    public static function create<T>(compare:T->T->Int):Comparator<T> {
+    public static function create<T>(compare: T->T->Int):Comparator<T> {
         return new FComparator( compare );
     }
 
+    /**
+      Array<T> comparison
+     **/
     @:noUsing
     public static function arrayComparator<T>(itemComparator: Comparator<T>):Comparator<Array<T>> {
         return new ArrayComparator( itemComparator );
@@ -62,6 +116,9 @@ abstract Comparator<T> (IComparator<T>) from IComparator<T> to IComparator<T> {
     }
 }
 
+/**
+  the interface which defines comparisons
+ **/
 interface IComparator<T> {
     function compare(a:T, b:T):Int;
 }
@@ -149,7 +206,7 @@ private class ArrayComparator<T> implements IComparator<Array<T>> {
     }
 }
 
-private class BytesComparator implements IComparator<ByteArray> {
+class ByteArrayComparator implements IComparator<ByteArray> {
     /* Constructor Function */
     public function new() {
         c = IntComparator.make();
