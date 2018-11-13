@@ -236,9 +236,44 @@ class ByteArrayComparator implements IComparator<ByteArray> {
 
 /* === Statics === */
 
-    private static var i(default, null): BytesComparator = new BytesComparator();
+    private static var i(default, null): ByteArrayComparator = new ByteArrayComparator();
 
-    public static function make():BytesComparator return i;
+    public static function make():ByteArrayComparator return i;
+}
+
+class BytesComparator implements IComparator<ByteArray> {
+    /* Constructor Function */
+    public function new() {
+        c = IntComparator.make();
+    }
+
+/* === Instance Methods === */
+
+    public function compare(a:ByteArray, b:ByteArray):Int {
+        var comp: Int;
+
+        for (i in 0...Math.min(a.length, b.length)) {
+            comp = c.compare(a[i], b[i]);
+            switch comp {
+                case 0:
+                    //
+                case _:
+                    return comp;
+            }
+        }
+
+        return c.compare(a.length, b.length);
+    }
+
+/* === Instance Fields === */
+
+    var c(default, null): Comparator<Int>;
+
+/* === Statics === */
+
+    private static var i(default, null): ByteArrayComparator = new ByteArrayComparator();
+
+    public static function make():ByteArrayComparator return i;
 }
 
 /**
@@ -246,19 +281,162 @@ class ByteArrayComparator implements IComparator<ByteArray> {
   this class should be adaptive, checking the first argument's type and then assuming:
    - that the second argument will be of a compatible type
    - that subsequent invokations will involve values of the same type as the first invokation
+---
+
+  [= Comparison Precedence =]
+  - Null
+  - Bool (true > false)
+  - Int (1 > 0)
+  - Float (1.1 > 1.0)
+  - String (lexicographical order)
+  (compound values)
+  - EnumValue
+  - Array<Any>
+  - Object<Any>
+  - ClassInstance
  **/
-private class AnyComparator<T> implements IComparator<T> {
+class AnyComparator<T> implements IComparator<T> {
     /* Constructor Function */
-    function new() {}
-    public function compare(x:T, y:T):Int {
-        return SortingTools.compareAny(x, y);
+    function new() {
+        /*
+        subs = new Map();
+        var scalars = ScalarDataType.createAll();
+        for (type in scalars) {
+            var tcomp = subs[hashType(TScalar(type))] = type.getTypedComparator();
+            subs[hashType(TNull(TScalar(type)))] = tcomp.toNullable();
+        }
+        */
     }
 
+    var subs:Map<String, Comparator<Dynamic>>;
+
+    function comparatorFor(type: DataType):Comparator<Dynamic> {
+        var key = hashType(type);
+        if (subs.exists( key ))
+            return subs[key];
+        makeCompFor(type, key);
+        return subs[key];
+    }
+
+    function makeCompFor(type:DataType, ?key:String) {
+        if (key == null)
+            key = hashType(type);
+        switch type {
+            //
+            default:
+                throw new Error('No Comparator for $type');
+        }
+    }
+
+    function hashType(type: DataType):String {
+        return switch ( type ) {
+            case TAny: 'TAny';
+            case TScalar(type): Std.string(type);
+            case TAnon(null): 'TObject';
+            case TAnon(anon): hashAnon(anon);
+            case TArray(type): '[${hashType(type)}]';
+            case TClass(cl): Type.getClassName(cl);
+            case TNull(type): '?${hashType(type)}';
+            case TUnion(a, b): '${hashType(a)}|${hashType(b)}';
+            case TStruct(_): throw new Error('TStruct(_) not supported');
+        }
+    }
+
+    function hashAnon(anon: CObjectType):String {
+        var b = new StringBuf();
+        b.add('TAnon');
+        if (anon.params != null) {
+            b.add('<' + anon.params.join(',') + '>');
+        }
+        b.add('({');
+        for (i in 0...anon.fields.length) {
+            var field = anon.fields[i];
+            if ( field.opt )
+                b.add('?');
+            b.add('${field.name}: ');
+            b.add(hashType( field.type ));
+            if (i < anon.fields.length - 1)
+                b.add(',');
+        }
+        return b.toString();
+    }
+
+    public function compare(x:T, y:T):Int {
+        if (x == y)
+            return 0;
+        else return switch [x, y] {
+            case [null, _]: -1;
+            case [_, null]:  1;
+            default: Arch.compareThings(x, y);
+        }
+        //return Arch.compareThings(x, y);
+    }
+
+    function typedCompare(x:TypedData, y:TypedData):Int {
+        return 0;
+        //return switch [x, y] {
+            //case [TypedData.DNull, TypedData.DNull]: 0;
+            //case [TypedData.DNull, _]: -1;
+            //case [_, TypedData.DNull]:  1;
+            //case [DAny(x), y], [y, DAny(x)]: Arch.compareThings(x, y.getUnderlyingValue());
+            //case [DBool(x), DBool(y)]: 
+            //case [DArray(xtype, xa), DArray(ytype, ya)]:
+                //if (xtype.unify( ytype )) {
+                    //array.compare(xa, ya);
+                //}
+                //else {
+                    //throw new Error('$xtype and $ytype do not unify');
+                //}
+            //case [TypedData.DNull]
+        //}
+    }
+
+/* === Props === */
+
+    //var cb(get, never): BooleanComparator;
+    //var ci(get, never): IntComparator;
+    //var cf(get, never): FloatComparator;
+    //var cs(get, never): StringComparator;
+    //var cba(get, never): BytesComparator;
+    //var array(get, never): ArrayComparator<Dynamic>;
+
+    //var _cb: BooleanComparator = null;
+    //var _ci: IntComparator = null;
+    //var _cf: FloatComparator = null;
+    //var _cs: StringComparator = null;
+    //var _cba: BytesComparator = null;
+    //var _array: ArrayComparator<Dynamic> = null;
+
+    //inline function get_cb() {
+        //return _cb == null ? _cb = BooleanComparator.make() : _cb;
+    //}
+
+    //inline function get_ci() {
+        //return _ci == null ? _ci = IntComparator.make() : _ci;
+    //}
+
+    //inline function get_cf() {
+        //return _cf == null ? _cf = FloatComparator.make() : _cf;
+    //}
+
+    //inline function get_cs() {
+        //return _cs == null ? _cs = StringComparator.make() : _cs;
+    //}
+
+    //inline function get_cba() {
+        //return _cba == null ? _cba = BytesComparator.make() : _cba;
+    //}
+
+    //inline function get_array() {
+        //return _array == null ? _array = new ArrayComparator(this) : _array;
+    //}
+
+/* === Fields === */
     static var i:AnyComparator<Any> = new AnyComparator();
     public static inline function make():AnyComparator<Any> return i;
 }
 
-private class MappedComparator<TFrom, TTo> implements IComparator<TFrom> {
+class MappedComparator<TFrom, TTo> implements IComparator<TFrom> {
     /* Constructor Function */
     public function new(c, f) {
         this.c = c;
