@@ -100,11 +100,11 @@ class Flows {
         return (switch expr {
             case LNot(query): ((test, doc:Doc) -> !test(doc)).bind(QueryAsts.compileQuery(query, store), _);
             case LAnd(queries):
-                queries.map(e -> QueryAsts.compileQuery(e, store)).reduce(function(acc:Doc->Bool, check:Doc->Bool) {
+                queries.map(e -> QueryAsts.compileQuery(e, store)).nireduce(function(acc:Doc->Bool, check:Doc->Bool) {
                     return (doc -> acc(doc) && check(doc));
                 }, (x -> true));
             case LOr(queries):
-                queries.map(e -> QueryAsts.compileQuery(e, store)).reduce(function(acc:Doc->Bool, check:Doc->Bool) {
+                queries.map(e -> QueryAsts.compileQuery(e, store)).nireduce(function(acc:Doc->Bool, check:Doc->Bool) {
                     return (doc -> acc(doc) || check(doc));
                 }, (x -> true));
             case LWhere(check):
@@ -131,11 +131,11 @@ class Filters {
     public static function compileQuery(expr:FilterExpr<Any>, store:Store<Any>):Anon<Anon<Dynamic>>->Bool {
         return expr.keys().array()
         .map(k -> new Pair(k, expr.get(k)))
-        .reduce(function(check:Doc->Bool, kv:Pair<String, FilterExprValue<Any>>):Doc->Bool {
-            return (function(kvc: Doc->Bool) {
-                return (function(doc: Doc) return check(doc) && kvc(doc));
-            }) (FilterValues.compileQuery(kv.right, kv.left, store));
-        }, (doc -> true));
+        .nireduce(
+            function(check:Doc->Bool, kv:Pair<String, FilterExprValue<Any>>):Doc->Bool {
+                return ((kvc, doc:Doc) -> (check(doc) && kvc(doc))).bind(FilterValues.compileQuery(kv.right, kv.left, store), _);
+            }, (doc -> true)
+        );
     }
 }
 
@@ -176,9 +176,10 @@ class FilterValues {
       [=NOTE=] uses mystical sorcery to 'compile' query-filter-ops into a single function
      **/
     public static function compileQueryOps<T>(ops:Map<ColOpCode, Dynamic>, name:String, store:Store<Any>):Anon<Anon<Dynamic>>->Bool {
-        return ops.keyArray().map(function(op: ColOpCode) {
+        return ops.keys().map(function(op: ColOpCode) {
             return compileQueryOp(op, name, ops[op], store);
         })
+        .array()
         .compose(function(a:Doc->Bool, b:Doc->Bool):Doc->Bool {
             return (function(a:Doc->Bool, b:Doc->Bool, doc:Doc) {
                 return (a( doc ) && b( doc ));
