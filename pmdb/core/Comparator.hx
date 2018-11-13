@@ -23,6 +23,40 @@ using pmdb.ql.ts.DataTypes;
 abstract Comparator<T> (IComparator<T>) from IComparator<T> to IComparator<T> {
 /* === Instance Methods === */
 
+    /* a < b */
+    public inline function lt(a:T, b:T):Bool {
+        return this.compare(a, b) < 0;
+    }
+
+    /* a <= b */
+    public inline function lte(a:T, b:T):Bool {
+        return this.compare(a, b) <= 0;
+    }
+
+    /* a > b */
+    public inline function gt(a:T, b:T):Bool {
+        return this.compare(a, b) > 0;
+    }
+
+    /* a >= b */
+    public inline function gte(a:T, b:T):Bool {
+        return this.compare(a, b) >= 0;
+    }
+
+    /* a == b */
+    public inline function eq(a:T, b:T):Bool {
+        return (this.compare(a, b) == 0);
+    }
+
+    public function invert():Comparator<T> {
+        if ((this is InvertedComparator<Dynamic>)) {
+            return cast (@:privateAccess cast(this, InvertedComparator<Dynamic>).c);
+        }
+        else {
+            return new InvertedComparator( this );
+        }
+    }
+
     /**
       create and return a Comparator for comparing arrays of the same value that [this] Comparator compares
      **/
