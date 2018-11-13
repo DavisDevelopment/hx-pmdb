@@ -27,6 +27,7 @@ abstract Object<T> (DynamicAccess<T>) from Dynamic<T> to Dynamic<T> from Dynamic
     }
 
     public inline function dotExists(key: String):Bool return dotGet(key) != null;
+    public inline function dotRemove(key: String):Bool return this.remove( key );
 
     public inline function copy():Object<T> {
         return this.copy();
