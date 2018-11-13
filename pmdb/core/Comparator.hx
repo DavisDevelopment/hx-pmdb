@@ -451,7 +451,7 @@ class MappedComparator<TFrom, TTo> implements IComparator<TFrom> {
     var value(default, null): TFrom -> TTo;
 }
 
-private class FComparator<T> implements IComparator<T> {
+class FComparator<T> implements IComparator<T> {
     var f(default, null): T->T->Int;
     /* Constructor Function */
     public function new(f) {
