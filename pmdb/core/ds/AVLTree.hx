@@ -528,7 +528,7 @@ class AVLTree<Key, Value> {
     public var unique(default, null): Bool;
 
     // the root node
-    private var root(default, null): Null<AVLTreeNode<Key, Value>>;
+    public var root(default, null): Null<AVLTreeNode<Key, Value>>;
 
     private var model(default, null): TreeModel<Key, Value>;
 
