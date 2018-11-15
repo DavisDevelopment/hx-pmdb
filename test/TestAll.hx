@@ -1,8 +1,5 @@
 package ;
 
-import utest.Assert;
-//import utest.UTest;
-
 class TestAll {
     /* Constructor Function */
     public function new() {

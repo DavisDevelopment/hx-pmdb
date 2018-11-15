@@ -1,0 +1,11 @@
+-cp tannus/
+-cp pmdb/
+
+-lib slambda
+-lib hscript
+-lib format
+
+-debug
+-D eval-stack
+
+-main TestAll

@@ -1,6 +1,6 @@
 
--cp tannus/
--cp pmdb/
+-cp ../../tannus/
+-cp ../../pmdb/
 
 -lib slambda
 -lib utest
