@@ -542,9 +542,37 @@ class Arch {
     /**
       create and return a deep copy of the given value
      **/
+    @:deprecated('use .clone() instead')
     public static function deepCopy<T>(value:T, ?target:T, structs:Bool=true):T {
         return copy(value, target, structs);
     }
+
+    public static function clone<T>(value:T, method:CloneMethod=Deep):T {
+        return dclone(value, method);
+    }
+
+    public static function dclone(value:Dynamic, method:CloneMethod = Deep):Dynamic {
+        if (isAtomic( value ))
+            return value;
+
+        if (isObject( value ))
+            return clone_object(value, method);
+
+        if (isArray( value ))
+            return (clone_array(untyped value, method));
+
+        return value;
+    }
+
+    public static function clone_object<T>(o:T, ?method:CloneMethod):T {
+        return o;
+    }
+
+    public static function clone_array<T>(arr:Array<T>, ?method:CloneMethod):Array<T> {
+        return arr.copy();
+    }
+
+
 
     /**
       compiles a Regular Expression from a String
