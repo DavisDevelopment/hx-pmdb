@@ -186,7 +186,6 @@ class AVLTree<Key, Value> {
             // decrement [size] to account for it
             _size--;
             if ( unique ) {
-                trace(untyped [key, value]);
                 throw new Error('IndexError: Unique-constraint violated');
             }
             else {

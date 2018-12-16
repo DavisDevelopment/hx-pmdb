@@ -17,8 +17,8 @@ import haxe.Unserializer;
 class StructSchema {
     /* Constructor Function */
     public function new() {
-        fields = new Dictionary<StructSchemaField>();
-        indexes = new Dictionary<IndexDefinition>();
+        fields = new Dictionary();
+        indexes = new Dictionary();
 
         _init();
     }
@@ -26,12 +26,11 @@ class StructSchema {
 /* === Methods === */
 
     function _init() {
-        //addField('_id', String, [Primary, Unique]);
         inline _refresh();
     }
 
     function _refresh() {
-        if (_pk == null || !hasField(_pk) || !fields[_pk].primary) {
+        if (_pk == null || !hasField(_pk) || !fields.get( _pk ).primary) {
             _findPrimary();
         }
     }
@@ -57,7 +56,7 @@ class StructSchema {
         return field;
     }
 
-    public function addField(name, type:ValType, ?flags) {
+    public function addField(name:String, type:ValType, ?flags:Array<FieldFlag>):StructSchemaField {
         return createField(name, type, flags)
             .tap(function(field) {
                 insertField(field);
@@ -76,7 +75,7 @@ class StructSchema {
 
     public function dropField(field: EitherType<String, Int>) {
         if ((field is Int))
-            fields.remove(fields[(field : Int)].name);
+            fields.remove(fields.getByIndex((field : Int)).name);
         else
             fields.remove((field : String));
     }
@@ -86,7 +85,7 @@ class StructSchema {
     }
 
     public inline function field(name: String):StructSchemaField {
-        return fields[name];
+        return cast(fields.get(name), StructSchemaField);
     }
 
     public inline function fieldNames():Array<String> {
@@ -122,9 +121,6 @@ class StructSchema {
                 case TScalar(TBytes):
                     doc[primaryKey] = haxe.io.Bytes.ofString(Arch.createNewIdString());
 
-                //case TScalar(TInteger):
-                    //doc[primaryKey] = incrementId();
-
                 case _:
                     throw new Error('Cannot auto-generate doc\'s primary-key, as the assigned column ("$primaryKey") is declared as a ${fieldType(primaryKey)} value');
             }
@@ -137,7 +133,7 @@ class StructSchema {
         return new IndexDefinition(this, kind, name, algo, type);
     }
 
-    public function putIndex(kind, ?name, algo=IndexAlgo.AVLIndex, ?type:ValType) {
+    public function putIndex(kind, ?name, ?algo, ?type:ValType) {
         var idx = createIndex(kind, name, algo, type);
         insertIndex( idx );
         return idx;
@@ -204,10 +200,10 @@ class StructSchema {
     public function fieldType(name: String):Null<DataType> {
         var path = name.split('.');
         if (path.length == 1) {
-            return fields[path[0]].type;
+            return fields.get(path[0]).type;
         }
         else {
-            return lookupLoopType(fields[path.shift()], path);
+            return lookupLoopType(fields.get(path.shift()), path);
         }
     }
 
@@ -401,7 +397,7 @@ class IndexDefinition {
         this.owner = schema;
         this.kind = kind;
         this.name = name == null ? kindName(kind) : name;
-        this.algorithm = algo == null ? AVLIndex : algo;
+        this.algorithm = algo == null ? IndexAlgo.AVLIndex : algo;
         this.type = kindType(owner, kind);
     }
 
@@ -436,7 +432,7 @@ class IndexDefinition {
 
     static function kindType(schema:StructSchema, k:IndexType):DataType {
         return switch k {
-            case Simple(path) if (path.path.length == 1): schema.fields[path.pathName].type;
+            case Simple(path) if (path.path.length == 1): schema.fields.get(path.pathName).type;
             case Simple(_.pathName => key): schema.fieldType( key );
             case Expression(_): TAny;
             case Compound(arr): TTuple(arr.map(x -> kindType(schema, x)));
@@ -446,6 +442,7 @@ class IndexDefinition {
 /* === Fields === */
 
     public var name(default, null): String;
+    @:keep
     public var algorithm(default, null): IndexAlgo;
     public var type(default, null): DataType;
     public var kind(default, null): IndexType;
@@ -454,15 +451,16 @@ class IndexDefinition {
     public var owner(default, null): StructSchema;
 }
 
+@:keep
 enum IndexType {
     Simple(path: DotPath);
     Compound(types: Array<IndexType>);
     Expression(expr: ValueExpr);
 }
 
-enum IndexAlgo {
-    AVLIndex;
-    //BTreeIndex;
+@:keep
+enum abstract IndexAlgo (String) from String to String {
+    var AVLIndex;
 }
 
 typedef TypedAttr = {

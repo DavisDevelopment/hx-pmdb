@@ -124,8 +124,10 @@ class QueryCompiler {
         return switch pe {
             case Pe.POpBoolAnd(left, right):
                 new ConjunctionCheck(compilePredExpr(left), compilePredExpr(right), pe);
+
             case Pe.POpBoolOr(left, right):
                 new DisjunctionCheck(compilePredExpr(left), compilePredExpr(right), pe);
+
             case Pe.POpBoolNot(check):
                 new NegatedCheck(compilePredExpr(check), pe);
 
@@ -137,26 +139,31 @@ class QueryCompiler {
 
             case Pe.POpNotEq(left, right):
                 new NEqCheck(null, vnode(left), vnode(right), pe);
+
             case Pe.POpIn(left, right):
                 new InCheck(null, vnode(left), vnode(right), pe);
+
             case Pe.POpNotIn(left, right):
                 new NInCheck(null, vnode(left), vnode(right), pe);
+
             case Pe.POpContains(left, right):
                 new ContainsCheck(null, vnode(left), vnode(right), pe);
+
             case Pe.POpGt(l, r):
-                //new GtCheck(null, vnode(l), vnode(r), pe);
                 new ComparisonCheck(null, vnode(l), vnode(r), 'gt', pe);
+
             case Pe.POpGte(l, r):
-                //new GteCheck(null, vnode(l), vnode(r), pe);
                 new ComparisonCheck(null, vnode(l), vnode(r), 'gte', pe);
+
             case Pe.POpLt(l, r):
-                //new LtCheck(null, vnode(l), vnode(r), pe);
                 new ComparisonCheck(null, vnode(l), vnode(r), 'lt', pe);
+
             case Pe.POpLte(l, r):
-                //new LteCheck(null, vnode(l), vnode(r), pe);
                 new ComparisonCheck(null, vnode(l), vnode(r), 'lte', pe);
+
             case Pe.POpExists(col):
                 new ExistsCheck(vnode(col), pe);
+
             case Pe.POpRegex(l, r):
                 new RegexpCheck(vnode(l), vnode(r), pe);
 
@@ -326,7 +333,10 @@ class QueryCompiler {
                     }
             }
 
-            case TEAnon(fields): DataType.TAnon(new CObjectType(fields.map(f -> new Property(f.name, compileConcreteTypeExpr(f.t)))));
+            case TEAnon(fields):
+                DataType.TAnon(
+                    new CObjectType(fields.map(f -> new Property(f.name, compileConcreteTypeExpr(f.t))))
+                );
             case TEResolved(type): type;
         }
     }

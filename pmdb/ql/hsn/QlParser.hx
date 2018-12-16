@@ -601,3 +601,4 @@ class ParserCtx {
     @:optional
     public var current_clause: Null<String>;
 }
+

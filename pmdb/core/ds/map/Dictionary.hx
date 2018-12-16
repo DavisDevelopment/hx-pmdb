@@ -30,8 +30,8 @@ using tannus.ds.IteratorTools;
  */
 @:forward 
 abstract Dictionary<V>(DictionaryType<V>) to DictionaryType<V> from DictionaryType<V> {
-    public function new() {
-        this = new DictionaryType<V>();
+    public inline function new() {
+        this = new DictionaryType();
     }
     
     @:arrayAccess 
@@ -68,7 +68,7 @@ abstract Dictionary<V>(DictionaryType<V>) to DictionaryType<V> from DictionaryTy
 }
 
 
-private class DictionaryType<V> implements IMap<String, V> {
+private class DictionaryType<V> {
     public function new() {
         arr = [];
         map = new Map<String, V>();

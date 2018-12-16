@@ -251,20 +251,20 @@ class DateComparator extends RootComparator<Date> {
 
 class NullableComparator<T> extends RootComparator<Null<T>> {
     /* Constructor Function */
-    public function new(c) {
+    public function new(c: Comparator<T>) {
         super();
 
         this.c = c;
-        cmp = c.apply(rc -> (x, y) -> rc.compare(x, y));
+        cmp = (x:T, y:T) -> this.c.compare(x, y);
         
         if (!is_instance(c, NullableComparator)) {
-            cmp = cmp.wrap(function(_, x, y):Int {
-                if (x == null) 
-                    return (y == null) ? 0 : -1;
-                else if (y == null)
-                    return 1;
-                else return _(x, y);
-            });
+            var _ = cmp;
+            cmp = function(x:T, y:T):Int {
+                return if (x == null)
+                    (if (y == null) 0 else -1)
+                else if (y == null) 1
+                else _(x, y);
+            }
         }
     }
 

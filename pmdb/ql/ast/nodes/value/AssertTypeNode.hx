@@ -35,7 +35,6 @@ class AssertTypeNode extends ValueNode {
     }
 
     override function compile() {
-        //return ((index: Int) -> ((c: QueryInterp) -> c.parameters[index]))(i);
         return value.compile();
     }
 

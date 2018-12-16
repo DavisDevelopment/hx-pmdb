@@ -27,15 +27,7 @@ using tannus.ds.MapTools;
 using tannus.async.OptionTools;
 using tannus.FunctionTools;
 
-class Utils {
-    @:generic
-    @:noUsing
-    public static function setOf<T:DictKey>(values: Iterable<T>):Set<T> {
-        var res:Set<T> = new Set();
-        res.pushMany( values );
-        return res;
-    }
-}
+class Utils {}
 
 class Anons {
     public static inline function dotGet<T>(o:Anon<T>, key:String):T {
