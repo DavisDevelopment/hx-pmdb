@@ -35,28 +35,28 @@ using pmdb.core.Utils;
 
 class Cursor <Item> {
     /* Constructor Function */
-    public function new(store:Store<Item>, query:QueryFilter):Void {
+    public function new(store:Store<Item>):Void {//, query:QueryFilter):Void {
         this.db = store;
-        this.query = query;
-        this.cquery = null;
+        //this.query = query;
+        //this.cquery = null;
 
-        _limit = None;
-        _skip = None;
-        _sort = None;
-        _projection = None;
+        //_limit = None;
+        //_skip = None;
+        //_sort = None;
+        //_projection = None;
     }
 
 /* === Instance Methods === */
 
     public function compile() {
-        this.cquery = query.compile(cast db);
+        //this.cquery = query.compile(cast db);
     }
 
     /**
       set the pagination-limit of [this] Cursor
      **/
     public function limit(n: Int):Cursor<Item> {
-        _limit = Some( n );
+        //_limit = Some( n );
         return this;
     }
 
@@ -64,7 +64,7 @@ class Cursor <Item> {
       set the pagination-offset of [this] Cursor
      **/
     public function skip(n: Int):Cursor<Item> {
-        _skip = Some( n );
+        //_skip = Some( n );
         return this;
     }
 
@@ -72,167 +72,133 @@ class Cursor <Item> {
       set the sorting of [this] Cursor
      **/
     public function sort(q: SortQuery):Cursor<Item> {
-        _sort = Some( q );
+        //_sort = Some( q );
         return this;
     }
 
     public function sortBy(fieldName:String, order:SortOrder):Cursor<Item> {
-        switch _sort {
-            case Some( sort ):
-                sort[fieldName] = order;
-                return this;
+        //switch _sort {
+            //case Some( sort ):
+                //sort[fieldName] = order;
+                //return this;
 
-            case None:
-                _sort = Some({});
-                return sortBy(fieldName, order);
-        }
+            //case None:
+                //_sort = Some({});
+                //return sortBy(fieldName, order);
+        //}
+        return this;
     }
 
     /**
       set the 'projection' of [this] Cursor
      **/
     public function projection(p: Projection) {
-        _projection = Some( p );
+        //_projection = Some( p );
         return this;
     }
 
-    public function project(items: Array<Item>):Array<Item> {
-        switch _projection {
-            case None:
-                return items;
+    //*
+      //get the results of [this] Cursor's query
+     //**/
+    //@:noCompletion
+    //public function _exec():Array<Item> {
+        //var res:Array<Item> = [];
+        //var added:Int = 0;
+        //var skipped:Int = 0;
+        //var i:Int, keys:Array<String>, key:String;
 
-            case Some( select ):
-                var res = [],
-                keepId:Bool = true,
-                action = null, keys;
+        //var candidates = db.getCandidates( query );
+        //for (i in 0...candidates.length) {
+            //if (_test(cast candidates[i])) {
+                //if (_sort.isNone()) {
+                    //res.push(candidates[i]);
+                //}
+                //else {
+                    //switch _skip {
+                        //case Some(skip) if (skip > skipped):
+                            //skipped++;
 
-                keepId = switch select[db.primaryKey] {
-                    case Omit: false;
-                    default: true;
-                }
+                        //case None:
+                            //res.push(candidates[i]);
+                            //added++;
 
-                select.remove( db.primaryKey );
-                keys = select.keys();
-                for (key in keys) {
-                    if (action != null && select[key] != action) {
-                        throw new Error('Cannot both keep and omit fields except for the primary key');
-                    }
-                    action = select[key];
-                }
+                            //switch _limit {
+                                //case Some(limit) if (limit <= added):
+                                    //break;
 
-                for (item in items) {
-                    res.push( item );
-                }
+                                //case _:
+                                    
+                            //}
 
-                return res;
-        }
-    }
+                        //case _:
+                            
+                    //}
+                //}
+            //}
+        //}
 
-    private inline function _test(doc:Anon<Anon<Dynamic>>):Bool {
-        return query.match(doc, cast db);
-    }
+        //switch _sort {
+            //case Some(sort):
+                //var keys = sort.keys();
+                //var criteria = [];
+                //for (i in 0...keys.length) {
+                    //criteria.push({
+                        //key: keys[i],
+                        //direction: sort[keys[i]]
+                    //});
+                //}
 
-    /**
-      get the results of [this] Cursor's query
-     **/
-    @:noCompletion
-    public function _exec():Array<Item> {
-        var res:Array<Item> = [];
-        var added:Int = 0;
-        var skipped:Int = 0;
-        var i:Int, keys:Array<String>, key:String;
+                //res.sort(cast function(a:Anon<Dynamic>, b:Anon<Dynamic>):Int {
+                    //for (criterion in criteria) {
+                        //var compare = criterion.direction * Arch.compareThings(a.dotGet(criterion.key), b.dotGet(criterion.key));
+                        //if (compare != 0) {
+                            //return compare;
+                        //}
+                    //}
+                    //return 0;
+                //});
 
-        var candidates = db.getCandidates( query );
-        for (i in 0...candidates.length) {
-            if (_test(cast candidates[i])) {
-                if (_sort.isNone()) {
-                    res.push(candidates[i]);
-                }
-                else {
-                    switch _skip {
-                        case Some(skip) if (skip > skipped):
-                            skipped++;
+            //case _:
+                
+        //}
 
-                        case None:
-                            res.push(candidates[i]);
-                            added++;
+        //var limit:Int = _limit.or( res.length );
+        //var skip:Int = _skip.or( 0 );
 
-                            switch _limit {
-                                case Some(limit) if (limit <= added):
-                                    break;
+        //res = res.slice(skip, skip + limit);
 
-                                case _:
-                                    //
-                            }
+         //apply projection
+        //if (_projection.isSome()) {
+            //res = project( res );
+        //}
 
-                        case _:
-                            //
-                    }
-                }
-            }
-        }
-
-        switch _sort {
-            case Some(sort):
-                var keys = sort.keys();
-                var criteria = [];
-                for (i in 0...keys.length) {
-                    criteria.push({
-                        key: keys[i],
-                        direction: sort[keys[i]]
-                    });
-                }
-
-                res.sort(cast function(a:Anon<Dynamic>, b:Anon<Dynamic>):Int {
-                    for (criterion in criteria) {
-                        var compare = criterion.direction * Arch.compareThings(a.dotGet(criterion.key), b.dotGet(criterion.key));
-                        if (compare != 0) {
-                            return compare;
-                        }
-                    }
-                    return 0;
-                });
-
-            case _:
-                //
-        }
-
-        var limit:Int = _limit.or( res.length );
-        var skip:Int = _skip.or( 0 );
-
-        res = res.slice(skip, skip + limit);
-
-        // apply projection
-        if (_projection.isSome()) {
-            res = project( res );
-        }
-
-        return res;
-    }
+        //return res;
+    //}
 
     /**
       execute [this] Cursor
      **/
     public function exec(precompile:Bool = false):Array<Item> {
-        if ( precompile )
-            query.compile(cast db);
-        return _exec();
+        //if ( precompile )
+            //query.compile(cast db);
+        //return _exec();
+        return [];
     }
 
 /* === Instance Fields === */
 
     public var db(default, null): Store<Item>;
-    public var query(default, null): QueryFilter;
-    private var cquery(default, null): Null<CompiledQueryFilter>;
+    //public var query(default, null): QueryFilter;
+    //private var cquery(default, null): Null<CompiledQueryFilter>;
 
-    public var _limit(default, null): Option<Int>;
-    public var _skip(default, null): Option<Int>;
-    public var _sort(default, null): Option<SortQuery>;
-    public var _projection(default, null): Option<Projection>;
+    //public var _limit(default, null): Option<Int>;
+    //public var _skip(default, null): Option<Int>;
+    //public var _sort(default, null): Option<SortQuery>;
+    //public var _projection(default, null): Option<Projection>;
 }
 
 typedef SortQuery = Anon<SortOrder>;
-typedef Projection = Anon<FieldFlag>;
+typedef Projection = Anon<ProjectedFieldFlag>;
 typedef CompiledQueryFilter = Anon<Anon<Dynamic>>->Bool;
 
 @:enum
@@ -242,7 +208,7 @@ abstract SortOrder (Int) from Int to Int {
 }
 
 @:enum
-abstract FieldFlag (Int) {
+abstract ProjectedFieldFlag (Int) {
     var Omit = 0;
     var Take = 1;
 }

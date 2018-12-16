@@ -9,8 +9,6 @@ import pmdb.ql.types.*;
 import pmdb.ql.ts.DataType;
 import pmdb.core.ds.AVLTree;
 import pmdb.core.ds.*;
-import pmdb.core.Cursor;
-import pmdb.core.QueryFilter;
 import pmdb.core.Alter;
 
 import haxe.ds.Either;
@@ -269,7 +267,7 @@ class CompEqMutator<I, V> extends BaseMutator<I, V> {
 
         if (veq == null) {
             veq = switch index(fieldName) {
-                case null: cast Equator.any();
+                case null: cast Equator.anyEq();
                 case i: cast i.item_equator();
             }
         }

@@ -4,44 +4,64 @@ import tannus.ds.Lazy;
 
 import hscript.Expr;
 
+import pmdb.ql.ast.TypeExpr;
+import pmdb.ql.ts.TypedData;
+
 //import pmdb.core.Error;
 
 @:forward
-abstract Value<T> (EValue<T>) from EValue<T> to EValue<T> {
-    @:to
-    public static function get<T>(v: Value<T>):T {
-        return switch v {
-            case VConstant(c): c;
-            case VComputed(c): switch c {
-                case CVLazy(v): v.get();
-                //case CVDerived()
-            }
-        }
-    }
-}
-
-enum EValue<T> {
-    VConstant(value: T):EValue<T>;
-    VComputed(value: EComputedValue<T>):EValue<T>;
-}
-
-enum EComputedValue<T> {
-    CVLazy(v: Lazy<T>):EComputedValue<T>;
-    //CVDerived(fn: T -> Value<T>):EComputedValue<T>;
+abstract Value (ValueExpr) from ValueExpr to ValueExpr {
+    
 }
 
 enum ValueExpr {
-    EReificate(ident: String);
-    ETabColRef(table:String, col:EValueExpr);
+    EVoid;
+    EReificate(i: Int);
+
+    // constant values
+    EConst(c: ConstExpr);
+
+    // column references
     ECol(column: String);
-    ECall(args: Array<EValueExpr>);
-    EUnop(op:EvUnop, e:EValueExpr);
-    EBinop(op:EvBinop, l:EValueExpr, r:EValueExpr);
+
+    // <ValueExpr>[$index]
+    EArrayAccess(value:ValueExpr, index:ValueExpr);
+
+    // $min...$max
+    ERange(min:ValueExpr, max:ValueExpr);
+
+    // $func($args...)
+    ECall(func:String, args:Array<ValueExpr>);
+
+    EList(values: Array<ValueExpr>);
+    EObject(fields: Array<{k:String, v:ValueExpr}>);
+    EUnop(op:EvUnop, e:ValueExpr);
+    EBinop(op:EvBinop, l:ValueExpr, r:ValueExpr);
+    ECast(e:ValueExpr, t:TypeExpr);
+}
+
+enum ConstExpr {
+    CNull;
+    CBool(b: Bool);
+    CInt(i: Int);
+    CFloat(n: Float);
+    CString(s: String);
+    CRegexp(re: EReg);
+
+    //CTuple(t: Array<ConstExpr>);
+
+    /**
+      CCompiled(...) values represent values which have been computed from the AST,
+      and which have been determined to be constants (not subject to change during query-execution)
+      by the compiler/optimizer during the compilation phase. This will only be created if the executable node-tree structure
+      is transformed back to an AST for some reason
+     **/
+    CCompiled(value: TypedData);
 }
 
 enum EvUnop {
-    UInc;
-    UDec;
+    //UInc;
+    //UDec;
     UNeg;
 }
 
@@ -58,6 +78,6 @@ enum EvBinop {
     OpShr;
     OpUShr;
     OpMod;
-    OpInterval;
+    //OpInterval;
     OpArrow;
 }

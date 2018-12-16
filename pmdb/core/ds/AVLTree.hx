@@ -156,7 +156,7 @@ class AVLTree<Key, Value> {
             return (function(k: Key):Bool {
                 return (compareKeys(k, cutoff) < n);
             });
-        }(inclusive ? 1 : 0));
+        })(inclusive ? 1 : 0);
     }
 
     /**

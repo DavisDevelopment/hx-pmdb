@@ -30,13 +30,18 @@ using pmdb.ql.ts.DataTypes;
 @:access(pmdb.core.ds.AVLTree)
 class Index<Key, Item> {
     /* Constructor Function */
-    public function new(options: IndexOptions) {
+    public function new(options: IndexOptions<Key, Item>):Void {
         this.options = options;
+
         init();
         reset();
     }
 
 /* === Instance Methods === */
+
+    private inline function pullOptions(o: IndexOptions<Key, Item>):Void {
+        //
+    }
 
     /**
       insert a single Item onto [this] Index
@@ -150,13 +155,22 @@ class Index<Key, Item> {
         updateMany( updates );
     }
 
+    /**
+      reverse a singular 'update' operation
+     **/
     public inline function revertUpdate(oldDoc:Item, newDoc:Item) {
         updateOne(newDoc, oldDoc);
     }
 
+    /**
+      revert an entire list of update-operations
+     **/
     public function revertAllUpdates(updates: Array<{oldDoc:Item, newDoc:Item}>) {
         updateMany(updates.map(function(u) {
-            return {oldDoc:u.newDoc, newDoc:u.oldDoc};
+            return {
+                oldDoc: u.newDoc,
+                newDoc: u.oldDoc
+            };
         }));
     }
 
@@ -224,6 +238,8 @@ class Index<Key, Item> {
 
         if (_fn == null)
             _fn = DotPath.parse( fieldName );
+
+        pullOptions( options );
     }
 
     /**
@@ -238,17 +254,24 @@ class Index<Key, Item> {
      **/
     function init_tree():Void {
         tree = null;
+
         var kc:Comparator<Key> = key_comparator();
-        if ( sparse )
+        if ( sparse ) {
             kc = Comparator.makeNullable( kc );
-        var ie:Equator<Item> = item_equator();
+        }
+
+        _kc = kc;
+        _ie = item_equator();
 
         tree = new FAVLTree({
             unique: options.unique,
-            model: TreeModel.of(kc, ie)
+            model: TreeModel.of(kc, _ie)
         });
     }
 
+    /**
+      get the 'Key' for the given Item
+     **/
     public inline function getDocKey(doc: Item):Null<Key> {
         return _fn.follow( doc );
     }
@@ -257,15 +280,21 @@ class Index<Key, Item> {
       creates and returns [this] Index's Key-Comparator
      **/
     public function key_comparator():Comparator<Key> {
-        //return dt_comparator( fieldType );
-        return cast fieldType.getTypedComparator();
+        if (_kc == null) {
+            _kc = cast fieldType.getTypedComparator();
+        }
+        return _kc;
     }
 
     /**
       creates and returns [this] Index's item equator
      **/
     public function item_equator():Equator<Item> {
-        return cast Equator.any();
+        if (_ie == null) {
+            _ie = cast Equator.anyEq();
+        }
+
+        return _ie;
     }
 
 /* === Computed Instance Fields === */
@@ -282,14 +311,19 @@ class Index<Key, Item> {
     @:noCompletion
     public var tree(default, null): AVLTree<Key, Item>;
 
-    private var options(default, null): IndexOptions;
+    public var options(default, null): IndexOptions<Key, Item>;
 
     var _fn: Null<DotPath>;
+    var _kc: Null<Comparator<Key>>;
+    var _ie: Null<Equator<Item>>;
 }
 
-typedef IndexOptions = {
+typedef IndexOptions<Key, Item> = {
     fieldName: String,
     ?fieldType: DataType,
+    ?keyComparator: Comparator<Key>,
+    ?itemEquator: Equator<Item>,
+    ?getItemKey: Item -> Key,
     ?unique: Bool,
     ?sparse: Bool
 };

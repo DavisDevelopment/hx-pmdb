@@ -118,7 +118,6 @@ class TypeChecks {
         return stdIs(v, Array);
     }
 
-    #if !no_inline_typechecks inline #end
     public static function is_array(v:Dynamic, check_type:Dynamic->Bool):Bool {
         //return (is_uarray(v) && checkArray(cast(v, Array<Dynamic>), check_type, 0));
         if (!is_uarray( v ))
@@ -135,5 +134,48 @@ class TypeChecks {
     #if !no_inline_typechecks inline #end
     public static function is_callable(v: Dynamic):Bool {
         return Reflect.isFunction( v );
+    }
+
+    #if !no_inline_typechecks inline #end
+    public static function has_method(o:Dynamic, m:String):Bool {
+        return is_callable(Reflect.field(o, m));
+    }
+
+    #if !no_inline_typechecks inline #end
+    public static function is_iterable(o: Dynamic):Bool {
+        return is_anon(o) && has_method(o, 'iterator');
+    }
+
+    #if !no_inline_typechecks inline #end
+    public static function is_iterator(o: Dynamic):Bool {
+        return (
+            is_anon( o ) &&
+            has_method(o, 'hasNext') &&
+            has_method(o, 'next')
+        );
+    }
+
+    public static inline function valuetype(v: Dynamic):ValueType {
+        return Type.typeof( v );
+    }
+
+    //#if !no_inline_typechecks inline #end
+    public static function classof<T>(instance: T):Null<Class<T>> {
+        var type = valuetype( instance );
+        return switch (type) {
+            case TClass(classType): (cast classType : Class<T>);
+            default: null;
+        }
+    }
+
+    public static function sametypeas(b:Dynamic, a:Dynamic):Bool {
+        /*TODO make this method work for any type */
+        var aClass:Class<Dynamic>, bClass:Class<Dynamic>;
+        aClass = classof( a );
+        
+        if (aClass == null) return classof( b ) == null;
+        bClass = classof( b );
+        if (bClass == null) return (aClass == null);
+        return stdIs(b, aClass);
     }
 }

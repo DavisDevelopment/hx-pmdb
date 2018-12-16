@@ -4,6 +4,7 @@ import tannus.ds.Set;
 
 import pmdb.core.Error;
 import pmdb.ql.ts.DataType;
+import pmdb.ql.ts.DataTypes;
 import pmdb.ql.types.DotPath;
 
 //import hscript.Expr;
@@ -94,8 +95,25 @@ class DocumentSchema {
     public function prepare(pmql: String) {
         return pmdb.ql.hsn.QlParser.run( pmql );
     }
+
+    public function validate(value: Dynamic):Bool {
+        for (prop in properties) {
+            if (!validateProperty(value, prop)) {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    private inline function validateProperty(value:Dynamic, property:DocumentProperty):Bool {
+        return DataTypes.checkObjectProperty(property, value);
+    }
+
 /* === Factory Methods === */
 
+    /**
+      create and return a DocumentSchema from the given String
+     **/
     public static function parseString(code: String):DocumentSchema {
         return pmdb.ql.hsn.ModuleParser.run( code );
     }

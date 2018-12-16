@@ -9,8 +9,6 @@ import pmdb.ql.types.*;
 import pmdb.ql.ts.DataType;
 import pmdb.core.ds.AVLTree;
 import pmdb.core.ds.*;
-import pmdb.core.Cursor;
-import pmdb.core.QueryFilter;
 
 import haxe.ds.Either;
 import haxe.extern.EitherType;
@@ -36,7 +34,7 @@ using tannus.FunctionTools;
 class Update<T> {
     /* Constructor Function */
     public function new(?update:DocumentUpdate<T>, ?options: UpdateOptions<T>) {
-        this.pattern = null;
+        //this.pattern = null;
         
         if (options == null)
             options = {};
@@ -53,10 +51,10 @@ class Update<T> {
 
 /* === Methods === */
 
-    public function where(pattern: QueryFilter):Update<T> {
-        this.pattern = pattern;
-        return this;
-    }
+    //public function where(pattern: QueryFilter):Update<T> {
+        //this.pattern = pattern;
+        //return this;
+    //}
 
     public function update(uq: DocumentUpdate<T>):Update<T> {
         this.du = uq;
@@ -65,7 +63,7 @@ class Update<T> {
 
 /* === Variables === */
 
-    public var pattern(default, null): Null<QueryFilter>;
+    //public var pattern(default, null): Null<QueryFilter>;
     public var du(default, null): Null<DocumentUpdate<T>>;
     public var options(default, null): UpdateOptions<T>;
 }

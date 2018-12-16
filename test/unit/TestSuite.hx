@@ -94,6 +94,8 @@ class TestSuite {
     private function _subtests_() {
         var names = Type.getInstanceFields(Type.getClass(this));
         names = names.filter(x -> x.startsWith('test'));
+        cases = new Array();
+        caseMap = new Map();
 
         for (name in names) {
             cases.push(caseMap[name] = new TestCase(this, name, tcwrap(function() {

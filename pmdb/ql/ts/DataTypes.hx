@@ -7,12 +7,15 @@ import tannus.ds.Set;
 
 import haxe.rtti.Rtti;
 import haxe.rtti.CType;
+import haxe.io.Bytes;
 
 import pmdb.core.Check;
 import pmdb.core.Comparator;
 import pmdb.core.Equator;
 import pmdb.core.Error;
+import pmdb.core.Object;
 import pmdb.ql.ts.DataType;
+import pmdb.ql.ts.TypedData;
 
 import Slambda.fn;
 import Std.is as stdIs;
@@ -25,6 +28,7 @@ using tannus.ds.ArrayTools;
 using tannus.ds.MapTools;
 using tannus.ds.DictTools;
 using tannus.FunctionTools;
+using pmdb.ql.ts.TypeChecks;
 
 using haxe.rtti.CType.TypeApi;
 
@@ -33,6 +37,29 @@ using haxe.rtti.CType.TypeApi;
  **/
 class DataTypes {
 /* === Methods === */
+
+    /**
+      checks whether the two given DataTypes unify
+     **/
+    public static function unifyLeft(left:DataType, right:DataType):Bool {
+        return switch ([left, right]) {
+            case [TAny, _]: true;
+            case [TNull(left), right]: left.equals(right);
+            case [TScalar(TString), TClass(String)]: true;
+            case [TScalar(TBytes), TClass(bt=haxe.io.Bytes)]: true;
+            case [TScalar(TDate), TClass(Date)]: true;
+            case [TUnion(left_a, left_b), _]: unifyLeft(left_a, right) || unifyLeft(left_b, right);
+            case _: left.equals( right );
+        }
+    }
+
+    public static inline function unify(a:DataType, b:DataType):Bool {
+        return (unifyLeft(a, b) || unifyRight(a, b));
+    }
+
+    public static inline function unifyRight(left:DataType, right:DataType):Bool {
+        return unifyLeft(right, left);
+    }
 
     /**
       generates and returns a lambda that will validate a value against a given type-pattern
@@ -58,23 +85,35 @@ class DataTypes {
      **/
     public static function checkValue(type:DataType, value:Dynamic):Bool {
         return switch type {
-            case TAny: true;
-            case TNull(type): (value == null || checkValue(type, value));
-            case TArray(type): (stdIs(value, Array) && cast(value, Array<Dynamic>).all(function(item: Dynamic) {
-                return checkValue(type, item);
-            }));
-            case TScalar(stype): switch stype {
-                case TBoolean: stdIs(value, Bool);
-                case TInteger: stdIs(value, Int);
-                case TDouble: stdIs(value, Float);
-                case TString|TBytes: stdIs(value, String);
-                case TDate: (stdIs(value, Date) || stdIs(value, Float));
-            }
-            case TAnon(null): Reflect.isObject( value );
-            case TAnon(o): Reflect.isObject(value) && checkObjectType(o, value);
+            case TAny|TMono(null): true;
+            case TMono(type): checkValue(type, value);
+            case TNull(type): (checkValue(type, value) || value == null);
+            case TArray(type): value.is_array(x -> checkValue(type, x));
+            case TScalar(stype): ScalarDataTypes.checkValue(stype, value);
+            case TAnon(null): value.is_anon();
+            case TAnon(o): value.is_anon() && checkObjectType(o, value);
             case TUnion(left, right): checkValue(left, value) || checkValue(right, value);
-            case TClass(type): type.isInstance( value );
-            case TStruct(type): throw 'checkValue(Struct(_), _)) not implemented';
+            case TClass(type): stdIs(value, type);
+            case TStruct(_): throw new Error('DocumentSchema is deprecated');
+            case TTuple(items): value.is_uarray() && checkTupleType(items, value);
+        }
+    }
+
+    public static function checkTupleType(items:Array<DataType>, values:Array<Dynamic>):Bool {
+        if (items.length != values.length)
+            return false;
+        for (index in 0...items.length) {
+            if (!checkValue(items[index], values[index])) {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    public static inline function makeNullable(type: DataType):DataType {
+        return switch type {
+            case TNull(_): type;
+            case _: TNull(type);
         }
     }
 
@@ -104,7 +143,7 @@ class DataTypes {
      **/
     public static function getTypedComparator(type:DataType, guard:Bool=false):Comparator<Dynamic> {
         return switch type {
-            case TAny: Comparator.cany();
+            case TAny|TMono(_): Comparator.cany();
             case TScalar(stype): switch stype {
                 case TBoolean: Comparator.cboolean();
                 case TInteger: Comparator.cint();
@@ -119,23 +158,90 @@ class DataTypes {
             case TClass(ctype): Comparator.cany();
             case TStruct(type): throw 'getTypedComparator(Struct(_), _)) not implemented';
             case TUnion(_, _): throw 'Betty';
+            case TTuple(_): throw new Error('ass');
         }
     }
 
+    public static function getTypedEquator(type: DataType):Equator<Dynamic> {
+        throw 'Unimpl';
+    }
+
+    /**
+      convert [v] a TypedData value
+     **/
     public static function typed(v: Dynamic):TypedData {
-        return switch Type.typeof( v ) {
+        return switch (Type.typeof( v )) {
             case TNull: DNull;
-            case TUnknown|ValueType.TFunction: DAny(v);
-            case TInt: DInteger(cast(v, Int));
-            case TFloat: DDouble(cast(v, Float));
-            case TBool: DBoolean(cast(v, Bool));
-            case TClass(Array): DArray(cast(v, Array<Dynamic>).map( typed ));
-            case TClass(Date): DDate(cast(v, Date));
-            case TClass(haxe.io.Bytes): DBytes(cast(v, haxe.io.Bytes));
-            case TClass(cl): TypedData.DClass(cl, cast v);
+            case TUnknown: DAny( v );
+            case TInt: DInt(cast(v, Int));
+            case TFloat: DFloat(cast(v, Float));
+            case TBool: DBool(cast(v, Bool));
+            case TClass(Array): type_array(cast(v, Array<Dynamic>));
+            case TClass(cl): DClass(cl, cast v);
+            case TEnum(TypedData): (v : TypedData);// => pretyped): pretyped;
             case TEnum(e): TypedData.DEnum(e, cast v);
-            case TObject: DObject([for (k in Reflect.fields(v)) {name:k, value:typed(Reflect.field(v, k))}]);
-    
+            //case TObject: DObject([for (k in Reflect.fields(v)) {name:k, value:typed(Reflect.field(v, k))}]);
+            case TObject: type_object(cast v);    
+            case TFunction:
+                throw new Error('TFunction type not implemented');
+        }
+    }
+
+    private static function type_object(o: Object<Dynamic>):TypedData {
+        var fields = new Array();
+        for (field in o.keys()) {
+            fields.push({
+                name: field,
+                value: typed(o.get(field))
+            });
+        }
+        return DObject(fields, o);
+    }
+
+    private static function type_array(a: Array<Dynamic>):TypedData {
+        if (a.empty()) {
+            return DArray(TAny, []);
+        }
+        else {
+            var _nul = false;
+            var type: Null<DataType> = null;
+            for (x in a) {
+                switch (Type.typeof( x )) {
+                    case TNull:
+                        if (type != null)
+                            type = makeNullable(type);
+                        else
+                            _nul = true;
+
+                    case concreteType:
+                        if (type == null) {
+                            type = ValueTypes.toDataType( concreteType );
+                            if ( _nul ) {
+                                type = makeNullable( type );
+                                _nul = false;
+                            }
+                        }
+                        else {
+                            var cdType = ValueTypes.toDataType(concreteType);
+                            if (!unifyLeft(type, cdType)) {
+                                throw new pmdb.ql.ts.TypeSystemError.DataTypeError(x, type);
+                            }
+                        }
+                }
+            }
+            return TypedData.DArray(type, a);
+        }
+    }
+
+    public static function isConcrete(type: DataType):Bool {
+        return switch type {
+            case TMono(_), TUnion(_, _): false;
+            case TAnon(null): false;
+            case TArray(e): e.isConcrete();
+            case TTuple(vals): vals.every(t -> t.isConcrete());
+            case TAnon(type): type.fields.every(f -> f.type.isConcrete());
+            case TNull(type): type.isConcrete();
+            default: true;
         }
     }
 
@@ -148,10 +254,11 @@ class ValueTypes {
     /**
       convert the given ValueType into a DataType value
      **/
-    public static function toDataType(type: ValueType):DataType {
-        if (v2dCache.exists( type ))
-            return v2dCache[type];
-        return v2dCache[type] = _toDataType(type);
+    public static inline function toDataType(type: ValueType):DataType {
+        //if (v2dCache.exists( type ))
+            //return v2dCache[type];
+        //return v2dCache[type] = _toDataType(type);
+        return _toDataType( type );
     }
     
     /**
@@ -192,82 +299,53 @@ class ValueTypes {
     }
 }
 
-class Anons {
-    public static inline function dataTypeOf(value: Dynamic):DataType {
-        return ValueTypes.toDataType(Type.typeof( value ));
+class TypedDatas {
+    public static function getUnderlyingValue(typed: TypedData):Dynamic {
+        return switch typed {
+            case DNull: null;
+            case DAny(x), DBool((_ : Dynamic) => x), DInt((_ : Dynamic) => x), DFloat((_ : Dynamic) => x): x;
+            case DArray(_, (_ : Dynamic) => x), DTuple(_, (_ : Dynamic) => x): x;
+            case DObject(_, x): x;
+            case DClass(_, (_ : Dynamic) => x): x;
+            case DEnum(_, (_ : Dynamic) => x): x;
+        }
+    }
+
+    public static inline function isNull(d: TypedData):Bool {
+        return d.match(DNull);
+    }
+
+    public static inline function isScalar(d: TypedData):Bool {
+        return d.match(DNull|DBool(_)|DInt(_)|DFloat(_)|DClass(String,_)|DClass(Date,_)|DClass(haxe.io.Bytes,_));
     }
 }
 
-/**
-  simple-static methods for type-checking
- **/
-@:noUsing
-private class TypeChecks {
-    public static inline function is_any(v: Dynamic):Bool {
-        return true;
+class ScalarDataTypes {
+    public static function getTypedComparator(type: ScalarDataType):Comparator<Dynamic> {
+        return switch type {
+            case TBoolean: Comparator.cboolean();
+            case TInteger: Comparator.cint();
+            case TDouble: Comparator.cfloat();
+            case TDate: Comparator.cdate();
+            case TString: Comparator.cstring();
+            case TBytes: Comparator.cbytes();
+        }
     }
 
-    public static inline function is_primitive(v: Dynamic):Bool {
-        return (is_boolean(v) || is_number(v) || is_string(v) || is_date(v));
+    public static function checkValue(type:ScalarDataType, value:Dynamic):Bool {
+        return switch type {
+            case TBoolean: value.is_boolean();
+            case TInteger: value.is_integer();
+            case TDouble: value.is_double();
+            case TString: value.is_string();
+            case TBytes: stdIs(value, Bytes);
+            case TDate: value.is_date();
+        }
     }
+}
 
-    public static inline function is_boolean(v: Dynamic):Bool {
-        return (v is Bool);
-    }
-
-    public static inline function is_number(v: Dynamic):Bool {
-        return (v is Float) || (v is Int);
-    }
-
-    public static inline function is_double(v: Dynamic):Bool {
-        return (v is Float);
-    }
-
-    public static inline function is_integer(v: Dynamic):Bool {
-        return (v is Int);
-    }
-
-    public static inline function is_string(v: Dynamic):Bool {
-        return (v is String);
-    }
-
-    public static inline function is_date(v: Dynamic):Bool {
-        return (v is Date);
-    }
-
-    public static inline function is_nullable(v:Dynamic, check_type:Dynamic->Bool):Bool {
-        return (v == null || check_type( v ));
-    }
-
-    public static inline function is_union(v:Dynamic, check_left:Dynamic->Bool, check_right:Dynamic->Bool):Bool {
-        return (check_left( v ) || check_right( v ));
-    }
-
-    public static inline function is_anon(v: Dynamic):Bool {
-        return Reflect.isObject( v );
-    }
-
-    public static inline function is_struct(v:Dynamic, o:CObjectType):Bool {
-        return (is_anon(v) && (o.fields.length == 0 || checkStruct(v, o.fields.iterator())));
-    }
-
-    private static function checkStruct(v:Dynamic, props:Iterator<Property>):Bool {
-        if (!props.hasNext()) return true;
-        return DataTypes.checkObjectProperty(props.next(), v) && checkStruct(v, props);
-    }
-
-    public static inline function is_uarray(v: Dynamic):Bool {
-        return stdIs(v, Array);
-    }
-
-    public static function is_array(v:Dynamic, check_type:Dynamic->Bool):Bool {
-        return (is_uarray(v) && checkArray(cast(v, Array<Dynamic>), check_type, 0));
-    }
-
-    static function checkArray(array:Array<Dynamic>, check:Dynamic->Bool, index:Int):Bool {
-        if (array.length == 0) return true;
-        if (index < 0 || index >= array.length)
-            throw new Error('index outside range(0, ${array.length - 1})');
-        return check(array[index]) && checkArray(array, check, ++index);
+class Anons {
+    public static inline function dataTypeOf(value: Dynamic):DataType {
+        return ValueTypes.toDataType(Type.typeof( value ));
     }
 }

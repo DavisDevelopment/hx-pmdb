@@ -44,7 +44,7 @@ class Macros {
     static function elve<T>(e: Expr):ExprOf<Void -> Void> {
         return macro (() -> {
             ${e};
-            FunctionTools.noop();
+            tannus.FunctionTools.noop();
         });
     }
 

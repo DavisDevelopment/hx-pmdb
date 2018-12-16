@@ -1,29 +1,66 @@
 package pmdb.ql.ts;
 
+import pmdb.core.StructSchema;
+
+@:using(pmdb.ql.ts.DataTypes)
 enum DataType {
+    TMono(type: Null<DataType>);
+
     TAny;
-    //TUId(ut: DataType);
     TScalar(type: ScalarDataType);
     TArray(type: DataType);
+    TTuple(types: Array<DataType>);
     TUnion(left:DataType, right:DataType);
-    TStruct(schema: DocumentSchema);
+    TStruct(schema: StructSchema);
     TAnon(type: Null<CObjectType>);
 
-    // should these even be here?
-    //TClass(c: DataTypeClass);
     TClass<T>(c: Class<T>);
-    //TEnum(etype: Enum<Dynamic>);
     TNull(type: DataType);
 }
 
+@:using(pmdb.ql.ts.DataTypes.ScalarDataTypes)
 enum ScalarDataType {
     TBoolean;
     TInteger;
     TDouble;
     TString;
     TBytes;
-
     TDate;
+}
+
+class CEnumOf<T> {
+    public function new() {
+        constructs = new Array();
+    }
+
+/* === Methods === */
+
+    public inline function addConstruct(name, value) {
+        return constructs[constructs.push(new CEnumOfConstruct(this, name, constructs.length, value)) - 1];
+    }
+
+/* === Fields === */
+
+    public var constructs(default, null): Array<CEnumOfConstruct<T>>;
+}
+
+class CEnumOfConstruct<T> {
+    public function new(e:CEnumOf<T>, id:String, idx:Int, v:T):Void {
+        tenum = e;
+        name = id;
+        index = idx;
+        value = v;
+    }
+
+    public inline function getEnum():CEnumOf<T> {
+        return tenum;
+    }
+
+    public var name(default, null): String;
+    public var index(default, null): Int;
+    public var value(default, null): T;
+
+    private var tenum(default, null): CEnumOf<T>;
 }
 
 class CObjectType {

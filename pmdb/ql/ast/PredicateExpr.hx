@@ -39,11 +39,16 @@ enum PredicateExpr {
     // !(A in B)
     POpNotIn(col:ValueExpr, seq:ValueExpr);
 
+    // has(A, B) OR A.has(B) OR (B in A)
+    POpContains(col:ValueExpr, val:ValueExpr);
+
+    POpInRange(col:ValueExpr, min:ValueExpr, max:ValueExpr);
+
     // <RegExp Pattern>.match(<column>)
     POpRegex(col:ValueExpr, pattern:ValueExpr);
 
     // (<column> LIKE '<GLOB patterns>')
-    POpLike(col:ValueExpr, pattern:ValueExpr);
+    POpMatch(col:ValueExpr, pattern:PatternExpr);
 
     // (<column> is <DataType>)
     POpIs(col:ValueExpr, type:ValueExpr);
@@ -52,7 +57,7 @@ enum PredicateExpr {
     POpExists(column: ValueExpr);
 
     // len(<column>[]) == <const integer>
-    POpSizeEq(col:ValueExpr, right:ValueExpr);
+    //POpSizeEq(col:ValueExpr, right:ValueExpr);
 
     /*
      {match_element,matchElement}(
@@ -65,3 +70,9 @@ enum PredicateExpr {
 }
 
 typedef SubPredicate = PredicateExpr;
+
+enum PatternExpr {
+    PatRegexp(re: EReg);
+    PatGlob(glob: Dynamic); //TODO
+    PatNoop; //[=Not yet Used=]
+}

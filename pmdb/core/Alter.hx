@@ -9,8 +9,6 @@ import pmdb.ql.types.*;
 import pmdb.ql.ts.DataType;
 import pmdb.core.ds.AVLTree;
 import pmdb.core.ds.*;
-import pmdb.core.Cursor;
-import pmdb.core.QueryFilter;
 
 import haxe.ds.Either;
 import haxe.extern.EitherType;

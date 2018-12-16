@@ -1,22 +1,27 @@
 package pmdb.ql.ast;
 
 import pmdb.core.Object;
+import pmdb.ql.ast.Value;
 
 enum UpdateOp {
-    USet(key:String, value:Dynamic);
+    USet(key:String, value:ValueExpr);
     UDelete(key: String);
-    UInc(key:String, value:Dynamic);
-    UMin(key:String, value:Dynamic);
-    UMax(key:String, value:Dynamic);
-    UMul(key:String, value:Dynamic);
+    //UInc(key:String, value:ValueExpr);
+    //UMin(key:String, value:ValueExpr);
+    //UMax(key:String, value:ValueExpr);
+    //UMul(key:String, value:ValueExpr);
     URename(oldKey:String, newKey:String);
 
 /* === Array Operations === */
 
-    UPush(key:String, value:PushValue<Dynamic>);
-    UAddToSet(key:String, value:PushValue<Dynamic>);
-    UPop(key:String, value:Int);
-    UPull(key:String, value:Dynamic);
+    //UPush(key:String, value:PushValue<ValueExpr>);
+    //UAddToSet(key:String, value:PushValue<ValueExpr>);
+    //UPop(key:String, value:Int);
+    //UPull(key:String, value:ValueExpr);
+
+/* === Combinators === */
+
+    UCombine(a:UpdateOp, b:UpdateOp);
 }
 
 enum PushValue<T> {
@@ -32,5 +37,5 @@ class PushMany<T> {
     @:optional public var sort(default, null): Sorting;
 }
 
-@:build(pmdb.ql.aif.EnumBuilders.enumCopyWithoutFirstArg('pmdb.ql.aif.UpdateOp'))
+#if !macro @:build(pmdb.ql.ast.EnumBuilders.enumCopyWithoutFirstArg('pmdb.ql.ast.UpdateOp')) #end
 enum KeyUpdateOp {}

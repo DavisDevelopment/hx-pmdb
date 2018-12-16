@@ -35,24 +35,34 @@ using haxe.macro.ExprTools;
 using tannus.macro.MacroTools;
 
 @:forward
-abstract Check (CheckObject) from CheckObject to CheckObject {
+abstract Constraint (ConstraintObject) from ConstraintObject to ConstraintObject {
     @:from
-    public static function checkerUntyped(cm: Dynamic->Bool):Check return FCheck.make( cm );
+    public static inline function checkerUntyped(cm: Dynamic->Bool):Constraint {
+        return FConstraint.make( cm );
+    }
 
     @:from
-    public static function checkerTyped<T>(fn: T -> Bool):Check return TypedFunctionalCheck.make( fn );
+    public static inline function checkerTyped<T>(fn: T -> Bool):Constraint {
+        return TypedFunctionalConstraint.make( fn );
+    }
 
     @:from
-    public static function typeCheck(type: DataType):Check return new DataTypeCheck( type );
+    public static function typeConstraint(type: ValType):Constraint {
+        return new DataTypeConstraint( type );
+    }
 
     @:op(A & B)
-    public static function and(left:Check, right:Check):Check return new AndCheck(left, right);
+    public static function and(left:Constraint, right:Constraint):Constraint {
+        return new AndConstraint(left, right);
+    }
 
     @:op(A | B)
-    public static function or(left:Check, right:Check):Check return new OrCheck(left, right);
+    public static function or(left:Constraint, right:Constraint):Constraint {
+        return new OrConstraint(left, right);
+    }
 
-    public static function build(f: BagOfChecks -> Void):Check {
-        var bag = new BagOfChecks();
+    public static function build(f: BagOfConstraints -> Void):Constraint {
+        var bag = new BagOfConstraints();
         f( bag );
         return bag;
     }
@@ -60,23 +70,23 @@ abstract Check (CheckObject) from CheckObject to CheckObject {
 
 /**
   NOT for type-checking!
-  Is the root interface for entire Check module, and is typed
+  Is the root interface for entire Constraint module, and is typed
  **/
-interface TypedCheckObject<CType> {
+interface TypedConstraintObject<CType> {
     function check(context: CType):Bool;
-    //function copy():Check;
-    function optimize():Null<Check>;
+    //function copy():Constraint;
+    function optimize():Null<Constraint>;
     function compile():CType->Bool;
     function toString():String;
 }
 
-interface CheckObject extends TypedCheckObject<Dynamic> {}
+interface ConstraintObject extends TypedConstraintObject<Dynamic> {}
 typedef TypedSubject<T> = T;
 typedef Subject = TypedSubject<Dynamic>;
 
-class BagOfChecks extends CheckBase {
+class BagOfConstraints extends ConstraintBase {
     /* Constructor Function */
-    public function new(?init: Array<Check>) {
+    public function new(?init: Array<Constraint>) {
         checks = new Array();
         if (init != null)
             checks.append( init );
@@ -87,14 +97,14 @@ class BagOfChecks extends CheckBase {
 
 /* === Methods === */
 
-    public function append(c: Check):BagOfChecks {
+    public function append(c: Constraint):BagOfConstraints {
         if ( _locked_ )
             return this;
         checks.push( c );
         return this;
     }
 
-    public function prepend(c: Check):BagOfChecks {
+    public function prepend(c: Constraint):BagOfConstraints {
         if ( _locked_ )
             return this;
         checks.unshift( c );
@@ -124,7 +134,7 @@ class BagOfChecks extends CheckBase {
         return true;
     }
 
-    public function lock():BagOfChecks {
+    public function lock():BagOfConstraints {
         if ( _locked_ ) 
             return this;
 
@@ -136,7 +146,7 @@ class BagOfChecks extends CheckBase {
     /**
       [= NEEDS PERFORMANCE TESTING =]
      **/
-    function _inPlaceCompile():BagOfChecks {
+    function _inPlaceCompile():BagOfConstraints {
         if ( _locked_ )
             return this;
 
@@ -145,7 +155,7 @@ class BagOfChecks extends CheckBase {
             _compiled = (x -> true);
         }
 
-        _compiled_ops = checks.map(function(ch: Check) {
+        _compiled_ops = checks.map(function(ch: Constraint) {
             return ch.compile();
         });
 
@@ -155,7 +165,7 @@ class BagOfChecks extends CheckBase {
                 return (o -> left(o) && right(o));
             }, FunctionTools.identity);
             return _compiled;
-        }());
+        })();
         return this;
 
         // ... versus this:
@@ -177,7 +187,7 @@ class BagOfChecks extends CheckBase {
 
 /* === Fields === */
 
-    var checks(default, null): Array<Check>;
+    var checks(default, null): Array<Constraint>;
     var _compiled_ops(default, null): Null<Array<Dynamic -> Bool>>;
     var _compiled(default, null): Null<Dynamic -> Bool>;
 
@@ -187,17 +197,17 @@ class BagOfChecks extends CheckBase {
 /**
   perform a type-check using DataType
  **/
-class DataTypeCheck extends FCheck {
+class DataTypeConstraint extends FConstraint {
     public function new(type: DataType) {
         //NOTE: this is structured this way to minimize overhead from scope lookups
         super((function(t: DataType) {
             return t.valueChecker();
-        }(type)));
+        })(type));
     }
 }
 
-/* OR (||) Check */
-class OrCheck extends FJoinCheck {
+/* OR (||) Constraint */
+class OrConstraint extends FJoinConstraint {
     public function new(l, r) {
         super(l, r, function(o, a, b) {
             return a.check(o) || b.check(o);
@@ -205,8 +215,8 @@ class OrCheck extends FJoinCheck {
     }
 }
 
-/* AND (&&) Check */
-class AndCheck extends FJoinCheck {
+/* AND (&&) Constraint */
+class AndConstraint extends FJoinConstraint {
     public function new(l, r) {
         super(l, r, function(o, a, b) {
             return a.check(o) && b.check(o);
@@ -214,18 +224,18 @@ class AndCheck extends FJoinCheck {
     }
 }
 
-class FJoinCheck extends JoinCheck {
-    var f(default, null): Dynamic->Check->Check->Bool;
+class FJoinConstraint extends JoinConstraint {
+    var f(default, null): Dynamic->Constraint->Constraint->Bool;
     /* Constructor Function */
     public function new(l, r, f) {
         super(l, r);
         this.f = f;
     }
-    override function join_check(o:Dynamic, l:Check, r:Check):Bool return f(o, l, r);
+    override function join_check(o:Dynamic, l:Constraint, r:Constraint):Bool return f(o, l, r);
 }
 
-class JoinCheck extends CheckBase {
-    public function new(l:Check, r:Check) {
+class JoinConstraint extends ConstraintBase {
+    public function new(l:Constraint, r:Constraint) {
         cp = new Pair(l, r);
     }
     override function check(o: Dynamic):Bool {
@@ -236,20 +246,20 @@ class JoinCheck extends CheckBase {
     }
     override function optimize() return join_optimize(cp.left, cp.right);
 
-    function join_check(ctx:Dynamic, left:Check, right:Check):Bool {
+    function join_check(ctx:Dynamic, left:Constraint, right:Constraint):Bool {
         throw new NotImplementedError();
     }
-    function join_optimize(l:Check, r:Check):Null<Check> {
+    function join_optimize(l:Constraint, r:Constraint):Null<Constraint> {
         return null;
     }
-    function join_compile(l:Check, r:Check):Dynamic->Bool {
+    function join_compile(l:Constraint, r:Constraint):Dynamic->Bool {
         throw new NotImplementedError();
     }
 
-    var cp(default, null): Pair<Check, Check>;
+    var cp(default, null): Pair<Constraint, Constraint>;
 }
 
-class FCheck extends CheckBase {
+class FConstraint extends ConstraintBase {
     public function new(f: Dynamic->Bool) {
        this.f = f; 
     }
@@ -257,13 +267,13 @@ class FCheck extends CheckBase {
     override function check(o: Dynamic):Bool return f( o );
     override function compile() return f;
     override function optimize() return null;
-    override function toString():String return 'Check($f)';
-    public static function make(f: Dynamic->Bool):FCheck return new FCheck( f );
+    override function toString():String return 'Constraint($f)';
+    public static function make(f: Dynamic->Bool):FConstraint return new FConstraint( f );
 
     var f(default, null): Dynamic->Bool;
 }
 
-class TypedFunctionalCheck<T> extends CheckBase {
+class TypedFunctionalConstraint<T> extends ConstraintBase {
     public function new(fn: T -> Bool, ?tfn:Dynamic->Bool) {
         this.f = fn;
         if (tfn != null)
@@ -280,14 +290,14 @@ class TypedFunctionalCheck<T> extends CheckBase {
 
     override function compile() return check.bind(_);
     override function optimize() return null;
-    public static function make<T>(fn: T -> Bool, ?verifyType:Dynamic->Bool):TypedFunctionalCheck<T> return new TypedFunctionalCheck(fn, verifyType);
+    public static function make<T>(fn: T -> Bool, ?verifyType:Dynamic->Bool):TypedFunctionalConstraint<T> return new TypedFunctionalConstraint(fn, verifyType);
 
     private var f(default, null): T -> Bool;
 }
 
-class CheckBase implements CheckObject {
+class ConstraintBase implements ConstraintObject {
     public function check(o: Dynamic):Bool throw new NotImplementedError();
-    public function optimize():Null<Check> return null;
+    public function optimize():Null<Constraint> return null;
     public function compile():Dynamic->Bool { return check.bind(_); }
-    public function toString():String return 'CheckBase';
+    public function toString():String return 'ConstraintBase';
 }

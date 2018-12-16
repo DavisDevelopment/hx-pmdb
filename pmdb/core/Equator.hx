@@ -3,11 +3,16 @@ package pmdb.core;
 import tannus.ds.Comparable;
 import tannus.math.TMath as Math;
 
+import pmdb.core.Object;
+import pmdb.core.Comparator;
+
+import haxe.io.Bytes;
+
 using tannus.ds.SortingTools;
 using tannus.FunctionTools;
 
 @:forward
-abstract Equator<T> (IEquator<T>) from IEquator<T> {
+abstract Equator<T> (BaseEquator<T>) from BaseEquator<T> {
 /* === Instance Methods === */
 
     public inline function map<Out>(f: Out -> T):Equator<Out> {
@@ -16,96 +21,148 @@ abstract Equator<T> (IEquator<T>) from IEquator<T> {
 
 /* === Factory Methods === */
 
-    public static inline function any():Equator<Any> {
-        return BaseEquator.make();
-    }
-
     @:from @:noUsing
     public static function create<T>(feq: T->T->Bool):Equator<T> {
         return new FEquator( feq );
     }
 
-    @:noUsing
-    public static function numeric<T:Float>(?epsilon: Float):Equator<T> {
-        return new NumericalEquator( epsilon );
+    public static function anyEq<T>():Equator<T> { return new AnyEquator(); }
+    public static function boolEq():Equator<Bool> { return new BoolEquator(); }
+    public static function floatEq():Equator<Float> return new FloatEquator();
+    public static function intEq():Equator<Int> return new IntEquator();
+    public static function stringEq():Equator<String> return new StringEquator();
+    public static function bytesEq():Equator<Bytes> return new BytesEquator();
+    public static function dateEq():Equator<Date> return new DateEquator();
+
+    @:noUsing @:from
+    public static function typedArrayEquator<T>(e: Equator<T>):Equator<Array<T>> {
+        return new TypedArrayEquator( e );
     }
 
-    @:to @:noUsing
-    public static function array<T>(item: Equator<T>):Equator<Array<T>> {
-        return new ArrayEquator( item );
+    @:noUsing @:from
+    public static function funcTypedArrayEquator<T>(fn: T -> T -> Bool):Equator<Array<T>> {
+        return new FTypedArrayEquator( fn );
+    }
+
+    public static function structEq<T:{}>():Equator<T> {
+        return new StructEquator<T>();
     }
 
     @:noUsing
-    public static function enumValue<E:EnumValue>(e: Enum<E>):Equator<E> {
-        return new EnumValueEquator( e );
+    public static function enumValueEq<E:EnumValue>(e: Enum<E>):Equator<E> { return new EnumValueEquator( e ); }
+}
+
+class BaseEquator<T> {
+    /* Constructor Function */
+    public function new() {
+        neq = null;
+        eq = function(a:T, b:T):Bool {
+            return (a == b);
+        }
+    }
+
+/* === Methods === */
+
+    public inline function equals(a:T, b:T):Bool {
+        return eq(a, b);
+    }
+
+    public function nequals(a:T, b:T):Bool {
+        return neq == null ? !equals(a, b) : neq(a, b);
+    }
+
+/* === Fields === */
+
+    private var eq:T -> T -> Bool;
+    private var neq:Null<T -> T -> Bool>;
+}
+
+class FEquator<T> extends BaseEquator<T> {
+    public function new(fn) {
+        super();
+        eq = fn;
     }
 }
 
-class BaseEquator<T> implements IEquator<T> {
-    /* Constructor Function */
-    public function new() { }
-    public function equals(a:T, b:T):Bool {
-        return (a == b);
+class BoolEquator extends FEquator<Bool> {
+    public function new() {
+        super((a:Bool, b:Bool) -> Arch.boolEquality(a, b));
     }
+}
 
-    private static var inst:BaseEquator<Dynamic> = new BaseEquator();
-    public static inline function make<T>():BaseEquator<T> {
-        return cast inst;
+class StringEquator extends FEquator<String> {
+    public function new() {
+        super((a:String, b:String) -> Arch.stringEquality(a, b));
+    }
+}
+
+class BytesEquator extends FEquator<Bytes> {
+    public function new() {
+        super((a:Bytes, b:Bytes) -> Arch.bytesEquality(a, b));
+    }
+}
+
+class DateEquator extends FEquator<Date> {
+    public function new() {
+        super((a:Date, b:Date) -> Arch.dateEquality(a, b));
+    }
+}
+
+class TypedArrayEquator<T> extends DerivedEquator<T, Array<T>> {
+    public function new(eeq: Equator<T>) {
+        super(eeq);
+
+        this.eq = (x, y) -> Arch.typedArrayEquality(x, y, (x, y) -> from.equals(x, y));
+    }
+}
+
+class FTypedArrayEquator<T> extends TypedArrayEquator<T> {
+    public function new(fn: T -> T -> Bool) {
+        super(new FEquator<T>( fn ));
     }
 }
 
 class ArrayEquator<T> extends BaseEquator<Array<T>> {
-    /* Constructor Function */
-    public function new(item) {
+    public function new() {
         super();
-
-        this.item = item;
+        eq = (x, y) -> Arch.arrayEquality(x, y);
     }
-
-    override function equals(a:Array<T>, b:Array<T>):Bool {
-        if (super.equals(a, b)) {
-            return true;
-        }
-
-        if (a.length != b.length)
-            return false;
-        var step:Bool;
-        for (i in 0...a.length) {
-            step = item.equals(a[i], b[i]);
-            if ( !step ) {
-                return false;
-            }
-        }
-        return true;
-    }
-
-    var item(default, null): Equator<T>;
 }
 
 class EnumValueEquator<T:EnumValue> extends BaseEquator<T> {
-    var enumType(default, null): Enum<T>;
-    public function new(e) {
+    public function new(e: Enum<T>) {
         super();
-        this.enumType = e;
+
+        enumType = e;
+        eq = function(a:T, b:T):Bool {
+            return (
+                Type.getEnum(a) == enumType &&
+                Type.getEnum(b) == enumType &&
+                Arch.enumValueEquality(a, b)
+            );
+        }
     }
-    override function equals(a:T, b:T):Bool {
-        return super.equals(a, b) || a.equals(b);
-    }
+
+    private var enumType(default, null): Enum<T>;
 }
 
 class NumericalEquator<T:Float> extends BaseEquator<T> {
     /* Constructor Function */
-    public function new(?e: Float) {
+    public function new(e: Bool = false) {
         super();
-        this.epsilon = e != null ? e : EPSILON;
+
+        useEpsilon = e;
+        eq = function(a:T, b:T):Bool {
+            return almostEquals(a, b, useEpsilon);
+        }
     }
 
-    override function equals(a:T, b:T):Bool {
-        return almostEquals(a, b, epsilon);
-    }
-
-    static function almostEquals(a:Float, b:Float, ?epsilon:Float):Bool {
-        if (epsilon == null) {
+    /**
+      algorithm for determining approximate equality between two floating-point numbers
+      [=NOTE=] approximate equality is useful because of the loss of precision in floats past certain platform-specific values
+     **/
+    static function almostEquals(a:Float, b:Float, useEpsilon:Bool=false):Bool {
+        if (!useEpsilon) {
             return (a == b);
         }
 
@@ -123,43 +180,70 @@ class NumericalEquator<T:Float> extends BaseEquator<T> {
                 return true;
             }
             else {
-                return (diff <= Math.max(Math.abs(a), Math.abs(b)) * epsilon);
+                return (diff <= Math.max(Math.abs(a), Math.abs(b)) * EPSILON);
             }
         }
 
         return false;
     }
 
-    var epsilon(default, null): Float;
+    private var useEpsilon(default, null): Bool;
+
     static inline var EPSILON:Float = 2.2204460492503130808472633361816e-16;
 }
 
-class MappedEquator<TIn, TOut> implements IEquator<TOut> {
+class IntEquator extends FEquator<Int> {
+    public function new() {
+        super((x, y) -> Arch.intEquality(x, y));
+    }
+}
+
+class FloatEquator extends NumericalEquator<Float> {
+    public function new() {
+        super(true);
+    }
+}
+
+class StructEquator<T:{}> extends FEquator<T> {
+    public function new() {
+        super((a:T, b:T) -> Arch.objectEquality(cast a, cast b));
+    }
+}
+
+class DerivedEquator<TFrom, T> extends BaseEquator<T> {
+    private var from(default, null): Equator<TFrom>;
     /* Constructor Function */
-    public function new(eq:Equator<TIn>, map:TOut->TIn) {
-        this.eq = eq;
-        this.map = map;
-    }
-
-    public function equals(a:TOut, b:TOut):Bool {
-        return (a == b || eq.equals(map(a), map(b)));
-    }
-
-    var eq(default, null): Equator<TIn>;
-    var map(default, null): TOut->TIn;
-}
-
-class FEquator<T> extends BaseEquator<T> {
-    var f(default, null): T->T->Bool;
-    public function new(f) {
+    public function new(e: Equator<TFrom>):Void {
         super();
-        this.f = f;
-    }
-    override function equals(a:T, b:T):Bool {
-        return super.equals(a, b) || f(a, b);
+
+        from = e;
     }
 }
 
-interface IEquator<T> {
-    function equals(a:T, b:T):Bool;
+class MappedEquator<A, B> extends DerivedEquator<A, B> {
+    /* Constructor Function */
+    public function new(eq:Equator<A>, map:B -> A):Void {
+        super( eq );
+
+        this.map = map;
+        this.eq = function(a:B, b:B):Bool {
+            return from.equals(map(a), map(b));
+        }
+        this.neq = function(a:B, b:B):Bool {
+            return from.nequals(map(a), map(b));
+        }
+    }
+
+    var map(default, null): B -> A;
+}
+
+/**
+  Equator for testing equality between any two values of any two types
+  [=NOTE=] I'm actually not quite sure why this class takes a type parameter; I just put it there because it feels right
+ **/
+class AnyEquator<T> extends BaseEquator<T> {
+    public function new() {
+        super();
+        eq = (x:T, y:T) -> Arch.areThingsEqual(x, y);
+    }
 }

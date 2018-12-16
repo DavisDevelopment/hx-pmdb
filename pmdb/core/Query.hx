@@ -1,16 +1,13 @@
 package pmdb.core;
 
-import tannus.ds.Anon;
 import tannus.ds.Lazy;
-import tannus.ds.Ref;
-import tannus.math.TMath as M;
 
 import pmdb.ql.types.*;
 import pmdb.ql.ts.DataType;
 import pmdb.core.ds.AVLTree;
+import pmdb.core.query.Criterion;
+import pmdb.core.query.QueryResult;
 import pmdb.core.ds.*;
-import pmdb.core.Cursor;
-import pmdb.core.QueryFilter;
 
 import haxe.ds.Either;
 import haxe.extern.EitherType;
@@ -20,9 +17,13 @@ import haxe.PosInfos;
 import haxe.macro.Expr;
 import haxe.macro.Context;
 
+import pmdb.core.ds.Ref;
+import pmdb.core.Object;
+
 import pmdb.core.Error;
 import Slambda.fn;
 import Std.is as isType;
+import tannus.math.TMath as M;
 
 using StringTools;
 using tannus.ds.StringUtils;
@@ -32,168 +33,118 @@ using tannus.ds.DictTools;
 using tannus.ds.MapTools;
 using tannus.async.OptionTools;
 using tannus.FunctionTools;
-//using pmdb.ql.types.DataTypes;
 
 /**
   abstract type for representing a Store query in general
  **/
 @:forward
-abstract Query (CQuery) from CQuery to CQuery {
-    /* Constructor Function */
-    public inline function new(?q: QueryFilter) {
-        this = new CQuery( q );
+abstract Query<Item> (CQuery<Item>) from CQuery<Item> to CQuery<Item> {
+    public inline function new(src) {
+        this = new CQuery(src);
     }
 
 /* === Casting Methods === */
 
-    @:from
-    public static inline function of(o: Dynamic):Query {
-        return CQuery.of( o );
+    public static function make<Item>(?src:QuerySrc<Item>, ?filter:Criterion<Item>):Query<Item> {
+        return CQuery.make(src, filter);
     }
 }
 
 /**
   represents a SELECT-type query
  **/
-class CQuery {
+class CQuery<Item> {
     /* Constructor Function */
-    public function new(?filter: QueryFilter) {
-        this.filter = filter;
-        sorting = null;
-        selection = null;
-        pagination = null;
+    public function new(src):Void {
+        source = src;
+        store = QuerySrcs.getRoot(source);
+
+        filter = null;
+        ordering = null;
+        paging = null;
     }
 
 /* === Methods === */
 
-    /**
-      define some filter criteria
-     **/
-    public function where(query: Dynamic):Query {
-        filter = createQueryFilter( query );
+    //inline function sub<T>(out: QueryOut<Out, T>):Query<Out, T> {
+        //return make(QuerySrc.Results(this), out);
+    //}
+
+    public function where(filter: Criterion<Item>):Query<Item> {
+        return withFilter( filter );
+    }
+
+    public inline function result():QueryResult<Item> {
+        return _res();
+    }
+
+    //public function map<T>(fn: Out -> T):Query<, T> {
+        //return sub(Map(output, fn));
+    //}
+
+    public inline function pullFrom(src: QuerySrc<Item>) {
+        source = src;
+    }
+
+    public inline function withSource(src: QuerySrc<Item>):Query<Item> {
+        pullFrom( src );
         return this;
     }
 
-    public function skip(n: Option<Int>):Query {
-        if (pagination == null) {
-            switch n {
-                case Some(v):
-                    pagination = {
-                        skip: v,
-                        limit: null
-                    };
-
-                case None:
-                    //
-            }
-
-            return this;
-        }
-        else {
-            switch n {
-                case Some(v):
-                    pagination.skip = v;
-
-                case None:
-                    pagination.skip = null;
-            }
-
-            return this;
-        }
+    public inline function withFilter(fi: Criterion<Item>) {
+        _filter( fi );
+        return this;
     }
 
-    public function limit(n: Option<Int>):Query {
-         if (pagination == null) {
-            switch n {
-                case Some(v):
-                    pagination = {
-                        skip: null,
-                        limit: v
-                    };
-
-                case None:
-                    //
-            }
-
-            return this;
-        }
-        else {
-            switch n {
-                case Some(v):
-                    pagination.limit = v;
-
-                case None:
-                    pagination.limit = null;
-            }
-
-            return this;
-        }       
+    @:noCompletion
+    public function _filter(clause: Criterion<Item>) {
+        this.filter = clause;
+        return this;
     }
 
-    public function join(other: Query):Query {
-        var sum:Query = new Query();
-        sum.filter = switch [filter, other.filter] {
-            case [null, v]|[v, null]: v;
-            case [a, b]: a.join( b );
-        }
-        return sum;
+    inline function _res():QueryResult<Item> {
+        /**
+          TODO move the actual filtering into this class. Store.getCandidates is actually getting the filtered list
+         **/
+        var candidates = store.getCandidates(filter != null ? filter : cast Criterion.noop());
+        //TODO process further
+
+        return new QueryResult( this );
     }
 
-    public function applyToCursor(cursor: Cursor<Any>) {
-        if (pagination != null) {
-            if (pagination.skip != null)
-                cursor.skip( pagination.skip );
-            if (pagination.limit != null)
-                cursor.limit( pagination.limit );
-        }
-
-        if (sorting != null) {
-            cursor.sort( sorting );
-        }
-
-        if (selection != null) {
-            cursor.projection( selection );
-        }
-    }
-
-    public static function createQueryFilter(query: Dynamic):QueryFilter {
-        if (isType(query, QueryFilter)) {
-            return cast query;
-        }
-        else if (isType(query, QueryAst)) {
-            return new QueryFilter(cast(query, QueryAst));
-        }
-        else if (isType(query, CQuery)) {
-            return cast(query, CQuery).filter;
-        }
-        else if (Arch.isFunction( query )) {
-            var builder = new QueryFilterBuilder();
-            var tmp = untyped query( builder );
-            if (isType(tmp, QueryFilterBuilder))
-                builder = cast tmp;
-            return builder.toQueryFilter();
-        }
-        else if (Arch.isObject( query )) {
-            return QueryFilter.ofAnon( query );
-        }
-        else {
-            throw new Error('Cannot create QueryFilter from $query');
-        }
-    }
-
-    public static function of(value: Dynamic):CQuery {
-        if (isType(value, CQuery)) {
-            return cast value;
-        }
-        else {
-            return new CQuery(createQueryFilter( value ));
-        }
+    public static function make<A>(src, ?filter):CQuery<A> {
+        var ret = new CQuery(src);
+        ret.filter = filter;
+        return ret;
     }
 
 /* === Variables === */
 
-    public var filter(default, null): Null<QueryFilter>;
-    public var sorting(default, null): Null<SortQuery>;
-    public var selection(default, null): Null<Projection>;
-    public var pagination(default, null): Null<{?skip:Int, ?limit:Int}>;
+    public var source(default, null): Null<QuerySrc<Item>>;
+    //public var output(default, null): Null<QueryOut<In, Out>>;
+    public var filter(default, null): Null<Criterion<Item>>;
+
+    public var ordering(default, null): Null<QueryOrder>;
+    public var paging(default, null): Null<Paging>;
+
+    private var store(default, null): Null<Store<Item>>;
 }
+
+@:using(pmdb.core.Query.QuerySrcs)
+enum QuerySrc<T> {
+    Store(store: Store<T>):QuerySrc<T>;
+    Results(query: Query<T>):QuerySrc<T>;
+}
+
+class QuerySrcs {
+    public static function getRoot<T>(src: QuerySrc<T>):Store<T> {
+        return switch src {
+            case Store(x): x;
+            case Results(x): getRoot( x.source );
+        }
+    }
+}
+
+typedef QueryOrder = Dynamic<Int>;
+typedef Paging = {?offset:Int, ?limit:Int};
+

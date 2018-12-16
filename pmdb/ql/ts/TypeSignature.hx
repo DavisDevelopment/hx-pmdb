@@ -84,9 +84,6 @@ class TypeSignature implements IComparable<TypeSignature> {
             switch [headString.matched(1), headString.matched(2)] {
                 case [ret, args]:
                     return new TypeSignature(parseInputString(args), TypeDesc.parseString(ret));
-
-                case other:
-                    throw new Error('Unexpected $other');
             }
         }
         else {
@@ -480,12 +477,12 @@ class Td {
                     type: (x -> p.opt ? TNull(x) : x)(describeDataType( p.type ))//.with(p.opt ? TNull(_) : _)
                 }));
             case Dt.TUnion(a, b): TEither(describeDataType(a), describeDataType(b));
-            case Dt.TStruct(schema):
-                TAnon(schema.properties
-                .map(p -> {
-                    name: p.name,
-                    type: (x -> p.opt ? TNull(x) : x)(describeDataType( p.type ))//.with(p.opt ? TNull(_) : _)
-                }));
+            case Dt.TStruct(schema): throw new Error('pigeon chins');
+                //TAnon(schema.properties
+                //.map(p -> {
+                    //name: p.name,
+                    //type: (x -> p.opt ? TNull(x) : x)(describeDataType( p.type ))//.with(p.opt ? TNull(_) : _)
+                //}));
             case Dt.TNull(t): TNull(describeDataType(t));
             case Dt.TScalar(s): switch s {
                 case ScalarDataType.TBoolean: TBool;
@@ -495,7 +492,10 @@ class Td {
                 case ScalarDataType.TBytes: TClass(haxe.io.Bytes, true);
                 case ScalarDataType.TDate: TClass(Date, true);
             }
+            case Dt.TTuple(_): TClass(Array, true);
             case Dt.TArray(_): TClass(Array, true);
+
+            default: throw 'Cannot describe';
         }
     }
 

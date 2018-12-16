@@ -279,10 +279,8 @@ class TypedFunction {
       create and return a new Impl object
      **/
     static inline function makeImpl(id:TypeSignature, fn:Function, cc:Int=0):Impl {
-        return im(id, fn, cc);
+        return {id:id, fn:fn, cc:cc};
     }
-
-    static var im = Make.constructor(Impl);
 }
 
 private typedef Impl = {

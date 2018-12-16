@@ -198,9 +198,9 @@ class FilterValues {
             case GreaterThanEq:
                 Ops.op_gte(cast doc.dotGet( name ), value, store.indexes.exists(name) ? store.indexes[name].key_comparator() : Comparator.cany());
             case In:
-                Ops.op_in(cast doc.dotGet( name ), cast value, store.indexes.exists(name) ? store.indexes[name].item_equator() : Equator.any());
+                Ops.op_in(cast doc.dotGet( name ), cast value, store.indexes.exists(name) ? store.indexes[name].item_equator() : Equator.anyEq());
             case NIn:
-                Ops.op_nin(cast doc.dotGet( name ), cast value, store.indexes.exists(name) ? store.indexes[name].item_equator() : Equator.any());
+                Ops.op_nin(cast doc.dotGet( name ), cast value, store.indexes.exists(name) ? store.indexes[name].item_equator() : Equator.anyEq());
             case Regexp:
                 Ops.op_regex(doc.dotGet( name ), cast value);
         }
@@ -225,10 +225,10 @@ class FilterValues {
                 return Ops.op_gte.bind(_, cast value, (idx != null ? comp(idx) : Comparator.cany()))
                     .wrap(function(_, doc:Anon<Anon<Dynamic>>):Bool return _(cast doc.dotGet(name)));
             case In:
-                return Ops.op_in.bind(_, cast value, (idx != null ? eq(idx) : Equator.any()))
+                return Ops.op_in.bind(_, cast value, (idx != null ? eq(idx) : Equator.anyEq()))
                     .wrap(function(_, doc:Anon<Anon<Dynamic>>):Bool return _(cast doc.dotGet(name)));
             case NIn:
-                return Ops.op_nin.bind(_, cast value, (idx != null ? eq(idx) : Equator.any()))
+                return Ops.op_nin.bind(_, cast value, (idx != null ? eq(idx) : Equator.anyEq()))
                     .wrap(function(_, doc:Anon<Anon<Dynamic>>):Bool return _(cast doc.dotGet(name)));
             case Regexp:
                 return Ops.op_regex.bind(_, cast value)

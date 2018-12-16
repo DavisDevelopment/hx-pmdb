@@ -15,8 +15,9 @@ import haxe.ds.Option;
 import haxe.PosInfos;
 
 import tannus.math.TMath as M;
-import pmdb.Globals.*;
-import pmdb.Macros.*;
+import Slambda.fn;
+//import pmdb.Globals.*;
+//import pmdb.Macros.*;
 
 using Slambda;
 using tannus.ds.ArrayTools;
@@ -90,12 +91,16 @@ class StdIndexItemCaret<Item> implements IndexItemCaretObject<Item> {
     }
 
     public function nextItem():Null<Item> {
+        /**
+          TODO) trace python's route through this function
+         **/
         if (_items == null) {
             var leaf = nextLeaf();
             if (leaf == null) {
                 return null;
             }
             else {
+                //trace('got next Leaf<?> reference');
                 visitLeaf( leaf );
                 if (validateLeaf( leaf )) {
                     _items = leaf.data.filter(x -> validateItem( x ));
@@ -103,15 +108,28 @@ class StdIndexItemCaret<Item> implements IndexItemCaretObject<Item> {
                         _items = null;
                     }
                 }
+                //trace('consumed Leaf<?>');
                 return nextItem();
             }
         }
         else {
             var ret = _items.shift();
-            if (_items.empty()) {
+            //trace('consumed item');
+            if (_items.length == 0) {
                 _items = null;
+                //trace('nullified [_items]');
             }
             return ret;
+        }
+    }
+
+    private function _consumeLeaf(l: Leaf<Item>) {
+        visitLeaf( l );
+        if (validateLeaf( l )) {
+            _items = leaf.data.filter(x -> validateItem( x ));
+            if (_items.length == 0) {
+                _items = null;
+            }
         }
     }
 
@@ -297,7 +315,7 @@ class IndexItemCaretIterator<Item> {
             !(iic.isEmpty()) &&
             switch (ensureItem()) {
                 case Some(null): false;
-                case None: false;
+                case Option.None: false;
                 case _: true;
             }
         );
@@ -309,21 +327,26 @@ class IndexItemCaretIterator<Item> {
             case Some(null):
                 throw new Invalid(null, 'Item');
 
-            case None:
-                throw new Invalid(None, 'Some(Item)');
+            case Option.None:
+                throw new Invalid(Option.None, 'Some(Item)');
 
             case Some(item):
                 ret = item;
-                _item = None;
+                _item = Option.None;
                 return ret;
         }
     }
 
-    private inline function ensureItem():Option<Null<Item>> {
-        if (_item.equals(None)) {
-            _item = Some(iic.nextItem());
+    private function ensureItem():Option<Null<Item>> {
+        try {
+            if (_item.equals(Option.None)) {
+                _item = Some(iic.nextItem());
+            }
+            return _item;
         }
-        return _item;
+        catch (err: Dynamic) {
+            throw new Error('Infinite recursion was triggered');
+        }
     }
 
     var iic: IndexItemCaret<Item>;
