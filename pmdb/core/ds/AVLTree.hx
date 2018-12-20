@@ -127,12 +127,6 @@ class AVLTree<Key, Value> {
         }
     }
 
-    //@:native('t') 
-    static function _affirmative<T>(x: T):Bool return true;
-
-    //@:native('f') 
-    static function _negative<T>(x: T):Bool return false;
-
     /**
       tester for lower boundary key
      **/
@@ -482,14 +476,16 @@ class AVLTree<Key, Value> {
       the 'minimum' key in [this] tree
      **/
     public function findMinimum():Key {
-        return minValueNode(root).key;
+        final node = inline minValueNode(root);
+        return node.key;
     }
 
     /**
       the 'maximum' key in [this] tree
      **/
     public function findMaximum():Key {
-        return maxValueNode(root).key;
+        final node = inline maxValueNode(root);
+        return node.key;
     }
 
     /**
@@ -506,6 +502,7 @@ class AVLTree<Key, Value> {
         return size() == 0;
     }
 
+    @:allow( pmdb.core.ds.AVLTree.AVLTreeNode )
     private static function minValueNode<K,V>(node: Node<K, V>):Node<K, V> {
         var current = node;
         while (current.left != null) {
@@ -514,6 +511,7 @@ class AVLTree<Key, Value> {
         return current;
     }
 
+    @:allow( pmdb.core.ds.AVLTree.AVLTreeNode )
     private static function maxValueNode<K,V>(node: Node<K, V>):Node<K, V> {
         var current = node;
         while (current.right != null) {
@@ -521,6 +519,9 @@ class AVLTree<Key, Value> {
         }
         return current;
     }
+
+    static function _affirmative<T>(x: T):Bool return true;
+    static function _negative<T>(x: T):Bool return false;
 
 /* === Instance Fields === */
 
