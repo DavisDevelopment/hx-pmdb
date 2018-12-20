@@ -188,7 +188,7 @@ class Cursor <Item> {
 /* === Instance Fields === */
 
     public var db(default, null): Store<Item>;
-    //public var query(default, null): QueryFilter;
+    public var query(default, null): Query<Item>;
     //private var cquery(default, null): Null<CompiledQueryFilter>;
 
     //public var _limit(default, null): Option<Int>;

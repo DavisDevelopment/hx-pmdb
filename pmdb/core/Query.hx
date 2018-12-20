@@ -66,21 +66,23 @@ class CQuery<Item> {
 
 /* === Methods === */
 
-    //inline function sub<T>(out: QueryOut<Out, T>):Query<Out, T> {
-        //return make(QuerySrc.Results(this), out);
-    //}
-
     public function where(filter: Criterion<Item>):Query<Item> {
         return withFilter( filter );
     }
 
-    public inline function result():QueryResult<Item> {
-        return _res();
+    public inline function withFilter(fi: Criterion<Item>) {
+        return _filter( fi );
     }
 
-    //public function map<T>(fn: Out -> T):Query<, T> {
-        //return sub(Map(output, fn));
-    //}
+    @:noCompletion
+    public function _filter(clause: Criterion<Item>) {
+        this.filter = clause;
+        return this;
+    }
+
+    public function result():QueryResult<Item> {
+        return _res();
+    }
 
     public inline function pullFrom(src: QuerySrc<Item>) {
         source = src;
@@ -91,25 +93,13 @@ class CQuery<Item> {
         return this;
     }
 
-    public inline function withFilter(fi: Criterion<Item>) {
-        _filter( fi );
-        return this;
-    }
-
-    @:noCompletion
-    public function _filter(clause: Criterion<Item>) {
-        this.filter = clause;
-        return this;
-    }
-
-    inline function _res():QueryResult<Item> {
+    function _res():QueryResult<Item> {
         /**
           TODO move the actual filtering into this class. Store.getCandidates is actually getting the filtered list
          **/
-        var candidates = store.getCandidates(filter != null ? filter : cast Criterion.noop());
-        //TODO process further
+        var candidates = store.getCandidates(store.q.getSearchIndex(store.q.check( filter )));
 
-        return new QueryResult( this );
+        return new QueryResult(this, candidates);
     }
 
     public static function make<A>(src, ?filter):CQuery<A> {
@@ -127,6 +117,7 @@ class CQuery<Item> {
     public var ordering(default, null): Null<QueryOrder>;
     public var paging(default, null): Null<Paging>;
 
+    @:allow( pmdb.core.query.QueryResult )
     private var store(default, null): Null<Store<Item>>;
 }
 

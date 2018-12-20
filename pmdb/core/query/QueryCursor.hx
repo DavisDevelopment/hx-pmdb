@@ -46,8 +46,8 @@ using pmdb.ql.ast.Predicates;
 @:access(pmdb.core.query.StoreQueryInterface)
 class QueryCursor<Item, ExeOut> extends QueryCursorBase<Item> {
     /* Constructor Function */
-    public function new(q) {
-        super( q );
+    public function new(store) {
+        super(store);
     }
 
     public function exec():ExeOut {
@@ -55,14 +55,20 @@ class QueryCursor<Item, ExeOut> extends QueryCursorBase<Item> {
     }
 }
 
+@:access(pmdb.core.Store)
 @:access(pmdb.core.query.StoreQueryInterface)
 class QueryCursorBase<Item> {
     /* Constructor Function */
-    public function new(qi: QInterface<Item>):Void {
-        this.qi = qi;
-        this.store = qi_store( qi );
+    public function new(store: Store<Item>):Void {
+        this.store = store;
+        this.qi = store.q;
         this.searchIndex = null;
-        this.filter = null;
+        this.criterion = null;
+        this.checkNode = null;
+
+        this.predicate = function(ctx, item:Item) {
+            return checkNode.eval(ctx.setDoc(item.asObject()));
+        }
     }
 
 /* === Methods === */
@@ -71,7 +77,8 @@ class QueryCursorBase<Item> {
       method which is invoked to 'begin' execution of the associated Query
      **/
     public function init() {
-        assert(filter != null, new Invalid(filter, Check));
+        assert(criterion != null, new Invalid(criterion, Check));
+        assert(checkNode != null, new Invalid(checkNode, Check));
         
         if (searchIndex == null) {
             initSearchIndex();
@@ -85,8 +92,7 @@ class QueryCursorBase<Item> {
       method invoked to initialize the search index
      **/
     private function initSearchIndex() {
-        //filter = filter.or((Criterion.fromPredicateExpr(PredicateExpr.PNoOp)));
-        searchIndex = qi.getSearchIndex( filter );
+        searchIndex = qi.getSearchIndex( checkNode );
     }
 
     /**
@@ -94,11 +100,12 @@ class QueryCursorBase<Item> {
       in such a way that it [filter]'s pre-assignment value was "null",
       and obtains a post-assignment value that qualifies as non-null
      **/
-    private function onFilterAssigned() {
-        assert(filter != null, new Invalid(filter, Check));
+    private function onCriterionAssigned() {
+        assert(criterion != null, new Invalid(criterion, Check));
 
-        filter = ensureFilter( filter );
-        searchIndex = qi.getSearchIndex( filter );
+        checkNode = compileCriterion( criterion );
+        searchIndex = qi.getSearchIndex( checkNode );
+
         onSearchIndexObtained( searchIndex );
     }
 
@@ -108,12 +115,6 @@ class QueryCursorBase<Item> {
     private function onSearchIndexObtained(idx: QueryIndex<Dynamic, Item>) {
         assert(idx != null, new Invalid(idx, QueryIndex));
 
-        //var ii = IndexItemCaret.make(
-            //qid.index,
-            //new QueryCaret( qid ),
-            //null,
-            //(iic, item:Item) -> filter.eval(QInterface.globalCtx.setDoc( item ))
-        //);
         var ii = createIndexItemCaret();
 
         // ...
@@ -126,10 +127,11 @@ class QueryCursorBase<Item> {
      **/
     private function createIndexItemCaret():IndexItemCaret<Item> {
         var qc:QueryCaret<Item> = createQueryCaret();
-        var check = ensureFilter( filter );
-        qc.shouldYield = (function(item: Item):Bool {
-            return check.eval(QInterface.globalCtx.setDoc(cast item));
-        });
+
+        qc.shouldYield = function(item: Item):Bool {
+            //return check.eval(QInterface.globalCtx.setDoc(cast item));
+            return predicate(qi.ctx, item);
+        };
 
         return qc;
     }
@@ -156,8 +158,15 @@ class QueryCursorBase<Item> {
     /**
       ensure that [filter] is properly and entirely initialized
      **/
-    inline function ensureFilter(filter: Criterion<Item>):Check {
+    inline function compileCriterion(filter: Criterion<Item>):Check {
         return qi.check( filter );
+    }
+
+    /**
+      get the query result-candidates
+     **/
+    function candidates():Array<Item> {
+        return store.getCandidates(cast searchIndex);
     }
 
     static inline function qi_store<T>(q: QInterface<T>):Store<T> {
@@ -166,17 +175,21 @@ class QueryCursorBase<Item> {
 
 /* === Properties === */
 
-    public var filter(default, null): Criterion<Item>;
+    public var criterion(default, null): Null<Criterion<Item>> = null;
+    public var checkNode(default, null): Null<Check> = null;
     public var caret(default, null): IndexItemCaret<Item>;
 
 /* === Variables === */
 
+    /* the Store from which [this] Cursor was selected */
     public var store(default, null): Store<Item>;
+
+    /* the search index being employed by [this] QueryCursor */
     public var searchIndex(default, null):QueryIndex<Dynamic, Item>;
     public var qi(default, null): QInterface<Item>;
-    //public var iic(default, null): Null<IndexItemCaret<Item>>;
 
     private var canIterate(default, null): Bool = false;
+    private var predicate(default, null): (ctx:QueryInterp, doc:Item)->Bool;
 }
 
 typedef QInterface<T> = pmdb.core.query.StoreQueryInterface<T>;

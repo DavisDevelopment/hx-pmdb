@@ -2,6 +2,8 @@ package pmdb.core;
 
 import haxe.DynamicAccess;
 
+import pmdb.core.Arch;
+
 import Reflect as O;
 
 //@:runtimeValue

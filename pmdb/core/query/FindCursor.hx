@@ -44,14 +44,16 @@ using pmdb.ql.ast.Predicates;
  **/
 @:access(pmdb.core.query.StoreQueryInterface)
 class FindCursor<Item> extends QueryCursor<Item, Array<Item>> {
-    public function new(qi, ?check:Criterion<Item>, compile = false, noInit = false) {
-        super( qi );
+    public function new(store, ?crit:Criterion<Item>, compile = false, noInit = false) {
+        super( store );
 
-        if (check == null)
-            check = new pmdb.ql.ast.nodes.NoCheck();
-        filter = ensureFilter( check );
+        if (crit == null)
+            crit = new pmdb.ql.ast.nodes.NoCheck();
 
-        _compile = compile;
+        this.criterion = crit;
+        this.checkNode = compileCriterion( criterion );
+
+        this._compile = compile;
 
         if ( !noInit ) {
             init();
@@ -63,8 +65,13 @@ class FindCursor<Item> extends QueryCursor<Item, Array<Item>> {
     override function onIndexItemCaret(caret: IndexItemCaret<Item>) {
         super.onIndexItemCaret( caret );
 
-        if (_compile)
-            _filterc = ensureFilter( filter ).compile();
+        // if runtime compilation is enabled
+        if ( _compile ) {
+            _filterc = checkNode.compile();
+            this.predicate = function(context, item:Item) {
+                return _filterc(context.setDoc(item.asObject()));
+            }
+        }
     }
 
     /**
@@ -79,35 +86,33 @@ class FindCursor<Item> extends QueryCursor<Item, Array<Item>> {
      **/
     public function getAllNative():Array<Item> {
         var res = candidates();
-        if (filter != null && !(filter is pmdb.ql.ast.nodes.NoCheck)) {
-            var check = ensureFilter( filter );
+        if (checkNode != null && !(checkNode is pmdb.ql.ast.nodes.NoCheck)) {
             res = res.filter(function(itm: Item):Bool {
-                return
-                if ( _compile )
-                    _filterc(StoreQueryInterface.globalCtx.setDoc(cast itm));
-                else
-                    check.eval(StoreQueryInterface.globalCtx.setDoc(cast itm));
+                //return
+                //if ( _compile )
+                    //_filterc(StoreQueryInterface.globalCtx.setDoc(cast itm));
+                //else
+                    //check.eval(StoreQueryInterface.globalCtx.setDoc(cast itm));
+                return this.predicate(qi.ctx.setDoc(itm.asObject()), itm);
             });
         }
         return res;
     }
 
     public function iterate():FindIteration<Item> {
-        assert(canIterate);
+        assert( canIterate );
         if (itr == null)
             itr = new FindIteration( this );
         return itr;
     }
 
-    function candidates():Array<Item> {
-        return this.searchIndex.index.getAll();
-    }
-
-    inline function getBounds():{limit:Int, offset:Int} {
-        return {
-            limit: (limit == null ? -1 : limit),
-            offset: (offset == null ? 0 : offset)
-        };
+    function getBounds():Null<{limit:Int, offset:Int}> {
+        return 
+            if (limit == null && offset == null) null;
+            else {
+                limit: (limit == null ? -1 : limit),
+                offset: (offset == null ? 0 : offset)
+            };
     }
 
 /* === Variables === */

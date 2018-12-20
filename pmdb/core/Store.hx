@@ -242,9 +242,9 @@ class Store<Item> {
       add a new Field to the schema which describes the structures to be stored in [this] Store
      **/
     public function addField(name:String, ?type:ValType, ?flags:Array<FieldFlag>, ?opts:{}) {
-        var prev = schema.field( name );
+        var prev:StructSchemaField = schema.field( name );
 
-        var curr = schema.addField(name, type, flags);
+        var curr:StructSchemaField = schema.addField(name, type, flags);
 
         if (prev == null) {
             _fieldAdded( curr );
@@ -435,39 +435,29 @@ class Store<Item> {
         return freshQuery().apply( fn );
     }
 
-    public function getCandidates(check: Criterion<Item>):Array<Item> {
-        var ncheck = q.check( check );
-        return q.getSearchIndex(q.check( check ))
-        .apply(function(idx) {
-            return switch ( idx.filter ) {
-                case ICNone: idx.index.getAll();
-                case ICKey(key): idx.index.getByKey( key );
-                case ICKeyList(keys): idx.index.getByKeys( keys );
-                case ICKeyRange(min, max): idx.index.getBetweenBounds(min, max);
-            }
-        })
-        .apply(function(docs: Array<Item>) {
-           return docs
-            .filter(function(item: Item):Bool {
-               q.ctx.setDoc(cast item);
-               return ncheck.eval( q.ctx );
-           });
-        });
+    /**
+      get a subset of rows chosen based on constraints in [check]
+     **/
+    public function getCandidates(index: Null<QueryIndex<Any, Item>>):Array<Item> {
+        if (index == null)
+            return getAllData();
+        return switch ( index.filter ) {
+            case ICNone: index.index.getAll();
+            case ICKey(key): index.index.getByKey( key );
+            case ICKeyList(keys): index.index.getByKeys( keys );
+            case ICKeyRange(min, max): index.index.getBetweenBounds(min, max);
+        }
     }
 
-    public function find(?check: Criterion<Item>) {
-        return makeQuery(function(query) {
-            return if (check != null)
-                query.where(q.check( check ))
-                else query;
-        }).result();
+    public function find(?check:Criterion<Item>, ?precompile:Bool) {
+        return q.find(check != null ? check : cast Criterion.noop(), precompile);
     }
 
     /**
       get all documents matched by [query]
      **/
     public function findAll(filter:Criterion<Item>, ?precompile:Bool):Array<Item> {
-        return q.find(filter, precompile).getAllNative();
+        return q.find(filter, precompile).exec();
     }
 
     /**
@@ -475,11 +465,6 @@ class Store<Item> {
      **/
     public function findOne(query:Criterion<Item>, ?precompile:Bool):Null<Item> {
         throw 'Not Implemented';
-        //var res = cursor( query ).limit( 1 ).exec( precompile );
-        //return switch res {
-            //case null: null;
-            //case _: res[0];
-        //}
     }
 
     /**

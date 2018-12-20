@@ -35,23 +35,16 @@ using tannus.FunctionTools;
 
 @:access(pmdb.core.Query)
 class QueryResult<Item> {
-    public function new(q) {
+    public function new(q, selected:Array<Item>) {
         this.query = q;
-        //this.rows = rows;
+        cand = selected;
+        rows = cand;
     }
 
 /* === Methods === */
 
     public inline function exec():Array<Item> {
-        _exec();
         return rows;
-    }
-
-    inline function _exec() {
-        if (cand == null) {
-            var candidates = @:privateAccess query.store.getCandidates(query.filter != null ? query.filter : cast Criterion.noop());
-            cand = rows = candidates;
-        }
     }
 
 /* === Properties === */
@@ -63,7 +56,7 @@ class QueryResult<Item> {
 
     public var query(default, null): Query<Item>;
     
-    private var cand(default, null): Array<Item>;
-    private var rows(default, null): Array<Item>;
+    private var cand(default, null): Null<Array<Item>>;
+    private var rows(default, null): Null<Array<Item>>;
 }
 
