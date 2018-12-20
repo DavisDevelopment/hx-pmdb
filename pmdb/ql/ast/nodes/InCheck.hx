@@ -1,12 +1,6 @@
 package pmdb.ql.ast.nodes;
 
-import tannus.ds.Lazy;
-import tannus.ds.Pair;
-import tannus.ds.Set;
-
 import pmdb.ql.ts.DataType;
-import pmdb.ql.ts.DocumentSchema;
-import pmdb.ql.QueryIndex;
 import pmdb.core.Error;
 import pmdb.core.Object;
 import pmdb.core.Equator;
@@ -14,6 +8,7 @@ import pmdb.core.Comparator;
 import pmdb.core.Arch;
 import pmdb.core.*;
 import pmdb.ql.ast.nodes.Check;
+import pmdb.ql.QueryIndex;
 
 import haxe.ds.Either;
 import haxe.ds.Option;
@@ -111,6 +106,7 @@ class InCheck extends BinaryCheck {
 
     /**
       evaluate [this] Check
+      TODO needs SEVERE optimization
      **/
     override function eval(ctx: QueryInterp):Bool {
         inline function tv(t:Null<DataType>, v:Null<Dynamic>):Null<{t:DataType, v:Dynamic}> {

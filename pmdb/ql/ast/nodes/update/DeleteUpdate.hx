@@ -1,13 +1,7 @@
 package pmdb.ql.ast.nodes.update;
 
-import tannus.ds.Lazy;
-import tannus.ds.Pair;
-import tannus.ds.Set;
-
 import pmdb.ql.ts.TypedData;
 import pmdb.ql.ts.DataType;
-import pmdb.ql.ts.DocumentSchema;
-import pmdb.ql.ts.DataTypeClass;
 import pmdb.ql.ast.Value;
 import pmdb.ql.ast.PredicateExpr;
 import pmdb.ql.ast.UpdateExpr;
@@ -112,9 +106,9 @@ class DeleteUpdate extends UnaryUpdate {
         var vex = value.getExpr();
         assert(vex != null, '[${value.getClass().getClassName()}::getExpr()] failed to return a ValueExpr');
 
-        _del = switch vex {
+        _del = switch vex.expr {
             case ECol(column): DField(column);
-            case EArrayAccess(o, ERange(x, y)) if (validIndexExpr(x) && validIndexExpr(y)):
+            case EArrayAccess(o, _.expr => ERange(x, y)) if (validIndexExpr(x) && validIndexExpr(y)):
                 throw new NotImplementedError("DItemRange(...)");
             case EArrayAccess(l, r) if (validLefthand(l) && validRighthand(r)):
                 throw new NotImplementedError("DItem(...)");
@@ -124,7 +118,7 @@ class DeleteUpdate extends UnaryUpdate {
     }
 
     function validLefthand(e: ValueExpr):Bool {
-        return switch e {
+        return switch e.expr {
             case ECol(_):true;
             case EArrayAccess(l, k): (validLefthand(l) && validIndexExpr(k));
             case EList(a): a.every(x -> validLefthand(x));
@@ -137,7 +131,7 @@ class DeleteUpdate extends UnaryUpdate {
     }
 
     function validIndexExpr(e: ValueExpr):Bool {
-        return switch e {
+        return switch e.expr {
             case EConst(c): switch c {
                 case CBool(_), CCompiled(DBool(_)): true;
                 case CInt(_) | CFloat(_) | CCompiled(DInt(_) | DFloat(_)): true;

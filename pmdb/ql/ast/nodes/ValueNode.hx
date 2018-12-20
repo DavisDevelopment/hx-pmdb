@@ -17,7 +17,8 @@ using Slambda;
 using tannus.ds.ArrayTools;
 
 /**
-  this class represents Nodes which supply values to other Nodes
+  this class represents Nodes which extract values from some source (usually database document objects)
+  and supply those values to other Nodes
  **/
 class ValueNode extends QueryNode {
     /* Constructor Function */

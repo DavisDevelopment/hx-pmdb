@@ -6,7 +6,6 @@ import tannus.ds.Set;
 
 import pmdb.core.*;
 import pmdb.ql.ts.DataType;
-import pmdb.ql.ts.DocumentSchema;
 import pmdb.core.Error;
 import pmdb.core.Object;
 import pmdb.core.Equator;

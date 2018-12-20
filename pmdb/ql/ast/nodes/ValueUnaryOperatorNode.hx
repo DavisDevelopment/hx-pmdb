@@ -1,14 +1,7 @@
 package pmdb.ql.ast.nodes;
 
-import tannus.ds.Lazy;
-import tannus.ds.Pair;
-import tannus.ds.Set;
-
 import pmdb.ql.ts.DataType;
 import pmdb.ql.ts.TypedData;
-import pmdb.ql.ts.DocumentSchema;
-import pmdb.ql.ts.TypeSignature;
-import pmdb.ql.ts.TypedFunction;
 import pmdb.core.Error;
 import pmdb.core.Object;
 import pmdb.core.Equator;

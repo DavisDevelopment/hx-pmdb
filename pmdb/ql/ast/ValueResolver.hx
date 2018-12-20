@@ -8,8 +8,6 @@ import tannus.ds.Set;
 import pmdb.ql.ts.DataType;
 import pmdb.ql.ts.TypedData;
 import pmdb.ql.ts.TypedData as Tv;
-import pmdb.ql.ts.DocumentSchema;
-import pmdb.ql.ts.DataTypeClass;
 import pmdb.ql.ast.Value;
 import pmdb.ql.ast.PredicateExpr;
 import pmdb.ql.ast.UpdateOp;

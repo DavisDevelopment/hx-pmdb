@@ -2,8 +2,6 @@ package pmdb.ql.ast.nodes;
 
 import pmdb.ql.ts.DataType;
 import pmdb.ql.ts.TypedData;
-import pmdb.ql.ts.TypeSignature;
-import pmdb.ql.ts.TypedFunction;
 import pmdb.ql.ast.Value;
 import pmdb.core.Error;
 import pmdb.core.Object;

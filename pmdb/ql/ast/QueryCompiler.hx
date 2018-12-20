@@ -6,8 +6,6 @@ import tannus.ds.Set;
 
 import pmdb.ql.ts.DataType;
 import pmdb.ql.ts.TypedData;
-import pmdb.ql.ts.DocumentSchema;
-import pmdb.ql.ts.DataTypeClass;
 import pmdb.ql.ast.Value;
 import pmdb.ql.ast.PredicateExpr;
 import pmdb.ql.ast.UpdateExpr;
@@ -18,7 +16,7 @@ import pmdb.core.StructSchema;
 import pmdb.core.ValType;
 
 import pmdb.ql.ast.PredicateExpr as Pe;
-import pmdb.ql.ast.Value.ValueExpr as Ve;
+import pmdb.ql.ast.Value.ValueExprDef as Ve;
 import pmdb.ql.ast.nodes.*;
 import pmdb.ql.ast.nodes.update.*;
 import pmdb.ql.ast.nodes.value.*;

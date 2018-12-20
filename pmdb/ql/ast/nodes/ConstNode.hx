@@ -34,7 +34,7 @@ class ConstNode extends ValueNode {
     }
 
     override function getExpr():ValueExpr {
-        return ValueExpr.EConst(CCompiled(typed));
+        return ValueExpr.make(EConst(CCompiled(typed)));
     }
 
 /* === Variables === */

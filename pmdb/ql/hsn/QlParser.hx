@@ -1,22 +1,13 @@
 package pmdb.ql.hsn;
 
-import tannus.ds.Lazy;
-import tannus.ds.Pair;
-import tannus.ds.Set;
-import tannus.io.RegEx;
-
-import hscript.Checker;
 import hscript.Expr;
 import hscript.Parser;
 import hscript.Interp;
-import hscript.Async;
 import hscript.Printer;
 
 import haxe.Constraints.Function;
 
 import pmdb.ql.ts.DataType;
-import pmdb.ql.ts.DocumentSchema;
-import pmdb.ql.ts.DataTypeClass;
 import pmdb.ql.ast.Value;
 import pmdb.ql.ast.PredicateExpr;
 import pmdb.ql.ast.UpdateExpr;
@@ -28,7 +19,7 @@ import pmdb.core.StructSchema;
 //import pmdb.ql.ast.ValueResolver;
 import pmdb.ql.ast.ASTError;
 
-import pmdb.ql.ast.Value.ValueExpr as Ve;
+import pmdb.ql.ast.Value.ValueExprDef as Ve;
 import pmdb.ql.ast.PredicateExpr as Pe;
 import pmdb.ql.ast.PredicateExpr.PatternExpr as Ptn;
 import pmdb.ql.ast.UpdateExpr as Ue;

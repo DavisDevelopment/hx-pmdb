@@ -1,12 +1,6 @@
 package pmdb.ql.ast.nodes.update;
 
-import tannus.ds.Lazy;
-import tannus.ds.Pair;
-import tannus.ds.Set;
-
 import pmdb.ql.ts.DataType;
-import pmdb.ql.ts.DocumentSchema;
-import pmdb.ql.ts.DataTypeClass;
 import pmdb.ql.ast.Value;
 import pmdb.ql.ast.PredicateExpr;
 import pmdb.ql.ast.UpdateExpr;

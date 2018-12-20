@@ -1,9 +1,5 @@
 package pmdb.ql.hsn;
 
-import tannus.ds.Lazy;
-import tannus.ds.Pair;
-import tannus.ds.Set;
-
 import hscript.Expr;
 import hscript.Parser;
 import hscript.Interp;
@@ -11,8 +7,8 @@ import hscript.Interp;
 import haxe.Constraints.Function;
 
 import pmdb.ql.ts.DataType;
-import pmdb.ql.ts.DocumentSchema;
-import pmdb.ql.ts.DataTypeClass;
+import pmdb.core.ValType;
+import pmdb.core.StructSchema;
 
 import pmdb.core.Error;
 
