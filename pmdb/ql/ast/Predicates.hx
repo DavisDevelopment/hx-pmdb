@@ -236,11 +236,9 @@ class PredicateExpressions {
             case Pe.POpLte(ve=(isConst(_)=>true), ce=(isColumn(_)=>true)): pe;
             case Pe.POpInRange(ce=(isColumn(_)=>true), emin=(isConst(_)=>true), emax=(isConst(_)=>true)): pe;
             case Pe.POpIn(ce=(isColumn(_)=>true), ve=(isConst(_)=>true)): pe;
-            case Pe.POpBoolAnd(left, right), POpBoolOr(left, right):
-                switch (getIndexableExpr(left)) {
-                    case null: getIndexableExpr( right );
-                    case e: e;
-                }
+            case Pe.POpIn(ve=(isConst(_)=>true), ce=(isColumn(_)=>true)): Pe.POpIn(ce, ve);
+            case Pe.POpBoolAnd(left, _): getIndexableExpr( left );
+
             default: null;
         }
     }
