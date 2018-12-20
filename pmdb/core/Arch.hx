@@ -74,20 +74,29 @@ class Arch {
     public static function getDotValue(o:DynamicAccess<Dynamic>, field:String):Dynamic {
         // not yet its own implementation
         //return pmdb.nedb.NModel.getDotValue(o, field);
-        return getDotPath(field).get(o, null);
+        if (field.has('.'))
+            return getDotPath(field).get(o, null);
+        return o[field];
     }
 
     public static function setDotValue(o:DynamicAccess<Dynamic>, field:String, value:Dynamic):Void {
         //return pmdb.nedb.NModel.setDotValue(o, field, value);
-        getDotPath(field).set(o, value);
+        if (field.has('.'))
+            getDotPath(field).set(o, value);
+        else
+            o[field] = value;
     }
 
     public static function hasDotValue(o:DynamicAccess<Dynamic>, field:String):Bool {
-        return getDotPath(field).has(o, false);
+        if (field.has('.'))
+            return getDotPath(field).has(o, false);
+        return o.exists( field );
     }
 
     public static function delDotValue(o:DynamicAccess<Dynamic>, field:String) {
-        return getDotPath(field).del(o, false);
+        if (field.has('.'))
+            return getDotPath(field).del(o, false);
+        return o.remove( field );
     }
 
     /**
