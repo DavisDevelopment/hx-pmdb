@@ -218,6 +218,9 @@ class PredicateExpressions {
         return null;
     }
 
+    /**
+      determine whether the given PredicateExpr is an indexible one
+     **/
     public static function getIndexableExpr(pe: PredicateExpr):Null<PredicateExpr> {
         return switch ( pe ) {
             case Pe.POpEq(ce=(isColumn(_)=>true), ve=(isConst(_)=>true)): pe;
@@ -247,7 +250,7 @@ class PredicateExpressions {
     }
 
     public static inline function extractConstValue(e: ValueExpr):Option<Dynamic> {
-        return switch e {
+        return switch e.expr {
             case EConst(c): switch c {
                 case ConstExpr.CNull: Some(null);
                 case CBool(b): Some(b);
@@ -266,11 +269,11 @@ class PredicateExpressions {
     }
 
     public static inline function isColumn(expr: ValueExpr):Bool {
-        return expr.match(ValueExpr.ECol(_));
+        return expr.expr.match(ValueExprDef.ECol(_));
     }
 
     public static inline function columnName(expr: ValueExpr):Null<String> {
-        return switch ( expr ) {
+        return switch ( expr.expr ) {
             case ECol(name): name;
             case ECast(ce=(isColumn(_)=>true), _): columnName(ce);
             case _: null;
@@ -279,66 +282,28 @@ class PredicateExpressions {
 }
 
 class ValueExpressions {
-    public static function iter(e:ValueExpr, fn:ValueExpr->Void):Void {
-        switch e {
-            case ECall(_, vals)|EList(vals):
-                for (x in vals)
-                    fn( x );
-
-            case EBinop(_, x, y):
-                fn( x );
-                fn( y );
-
-            case EUnop(_, x):
-                fn( x );
-
-            case _:
-                //
-        }
-    }
-
-    public static function find(e:ValueExpr, fn:ValueExpr->Bool):Null<ValueExpr> {
-        if (fn( e ))
-            return e;
-        function _if(ee: ValueExpr) {
-            if (fn( ee ))
-                throw ee;
-            else iter(ee, _if);
-        }
-        try {
-            iter(e, _if);
-            return null;
-        }
-        catch (result: ValueExpr) {
-            return result;
-        }
-        return null;
+    static function mkv(d:ValueExprDef, ?type:DataType):ValueExpr {
+        return {
+            expr: d,
+            type: type
+        };
     }
 
     public static function map(e:ValueExpr, fn:ValueExpr -> ValueExpr):ValueExpr {
-        return switch e {
-            case EVoid: EVoid;
+        return switch e.expr {
+            case EVoid: e;
             case EReificate(_), EConst(_), ECol(_), ECast(_, _): e;
-            case ECall(f, args): ECall(f, [for (x in args) fn(x)]);
-            case EUnop(u, e): EUnop(u, fn(e));
-            case EBinop(b, l, r): EBinop(b, fn(l), fn(r));
-            case EList(values): EList([for (x in values) fn(x)]);
-            case EObject(fields): EObject([for (f in fields) {k:f.k, v:fn(f.v)}]);
-            case EArrayAccess(array, index): EArrayAccess(fn(array), fn(index));
-            case ERange(min, max): ERange(fn(min), fn(max));
+            case ECall(f, args): mkv(ECall(f, [for (x in args) fn(x)]));
+            case EUnop(u, e): mkv(EUnop(u, fn(e)));
+            case EBinop(b, l, r): mkv(EBinop(b, fn(l), fn(r)));
+            case EList(values): mkv(EList([for (x in values) fn(x)]));
+            case EObject(fields): mkv(EObject([for (f in fields) {k:f.k, v:fn(f.v)}]));
+            case EArrayAccess(array, index): mkv(EArrayAccess(fn(array), fn(index)));
+            case ERange(min, max): mkv(ERange(fn(min), fn(max)));
         }
     }
 
-    public static function replace(e:ValueExpr, what:ValueExpr, replacement:ValueExpr):ValueExpr {
-        return
-            if (e.equals( what )) replacement;
-            else map(e, replaceAny.bind(_, x->x.equals(what), (_)->replacement));
-    }
-
-    public static function replaceAny(e:ValueExpr, repl:ValueExpr->Bool, what:ValueExpr->ValueExpr):ValueExpr {
-        if (repl( e )) {
-            return what( e );
-        }
-        return map(e, replaceAny.bind(_, repl, what));
+    public static function expr(e: ValueExpr) {
+        return e.expr;
     }
 }

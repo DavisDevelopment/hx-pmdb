@@ -297,10 +297,10 @@ class QlParser {
                 return POpNotIn(col, seq);
 
             case Expr.ECall(EIdent('exists'), [EIdent(column)]): 
-                return POpExists(ValueExpr.ECol(column));
+                return POpExists(mkv(Ve.ECol(column)));
 
             case Expr.ECall(EIdent('exists'), [path=EField(_, _)|EArray(_, _)]): 
-                return POpExists(ValueExpr.ECol(readDotPath(path).join('.')));
+                return POpExists(mkv(Ve.ECol(readDotPath(path).join('.'))));
 
             case Expr.ECall(EIdent('match'), [left, right]):
                 return POpRegex(readValue(left), readValue(right));
@@ -348,21 +348,35 @@ class QlParser {
             case Expr.EParent(e): readValue(e);
 
             /* [= CONSTANTS =] */
-            case Expr.EIdent('null'): ValueExpr.EConst(ConstExpr.CNull);
-            case Expr.EIdent('true'): ValueExpr.EConst(ConstExpr.CBool(true));
-            case Expr.EIdent('false'): ValueExpr.EConst(ConstExpr.CBool(false));
-            case Expr.EIdent('_'): Ve.EVoid;
-            case Expr.EIdent( name ): Ve.ECol(name);
+            //TODO make Null(Any) Null(Unknown)
+            case Expr.EIdent('null'): 
+                mkv(Ve.EConst(ConstExpr.CNull), TNull(TAny));
+            case Expr.EIdent('true'):
+                mkv(Ve.EConst(ConstExpr.CBool(true)), TScalar(TBoolean));
+            case Expr.EIdent('false'): 
+                mkv(Ve.EConst(ConstExpr.CBool(false)), TScalar(TBoolean));
+            case Expr.EIdent('_'):
+                mkv(Ve.EVoid);
+            case Expr.EIdent( name ):
+                //TODO lookup column type when known
+                mkv(Ve.ECol(name));
             case Expr.EConst( c ): 
                 switch c {
-                    case Const.CFloat(n): ValueExpr.EConst(ConstExpr.CFloat(n));
-                    case Const.CInt(i): ValueExpr.EConst(ConstExpr.CInt(i));
-                    case Const.CString(s): ValueExpr.EConst(ConstExpr.CString(s));
+                    case Const.CFloat(n): 
+                        mkv(Ve.EConst(ConstExpr.CFloat(n)), TScalar(TDouble));
+                    case Const.CInt(i): 
+                        mkv(Ve.EConst(ConstExpr.CInt(i)));
+                    case Const.CString(s):
+                        mkv(Ve.EConst(ConstExpr.CString(s)));
                 }
                 
             /* [= DECLARATIONS =] */
-            case Expr.EObject(fields): Ve.EObject(fields.map(f -> {k:f.name, v:readValue(f.e)}));
-            case Expr.EArrayDecl(values): ValueExpr.EList([for (v in values) readValue(v)]);
+            case Expr.EObject(fields): 
+                mkv(Ve.EObject(fields.map(f -> {k:f.name, v:readValue(f.e)})));
+
+            case Expr.EArrayDecl(values):
+                mkv(Ve.EList([for (v in values) readValue(v)]));
+            
             case Expr.EFunction(args, body, _, _):
                 throw new Unexpected( e );
 
@@ -370,42 +384,45 @@ class QlParser {
             case Expr.ECall(EIdent('arg'), [Expr.EConst(CInt(n))])
                 |Expr.EMeta('arg'|':arg'|'param'|':param', [], Expr.EConst(CInt(n)))
                 |Expr.EArray(EIdent('arguments'), Expr.EConst(CInt(n))):
-                    ValueExpr.EReificate( n );
+                    mkv(Ve.EReificate( n ));
 
             /* [= UNARY OPERATORS =] */
-            //case Expr.EUnop('--', true, e): ValueExpr.EUnop(EvUnop.UDec, readValue(e));
-            //case Expr.EUnop('++', true, e): ValueExpr.EUnop(EvUnop.UInc, readValue(e));
-            case Expr.EUnop('-', true, e): ValueExpr.EUnop(EvUnop.UNeg, readValue(e));
+            case Expr.EUnop('-', true, e): 
+                mkv(Ve.EUnop(EvUnop.UNeg, readValue(e)));
 
             /* [= BINARY OPERATORS =] */
-            case Expr.EBinop('+', l, r): Ve.EBinop(EvBinop.OpAdd, readValue(l), readValue(r));
-            case Expr.EBinop('-', l, r): Ve.EBinop(EvBinop.OpSub, readValue(l), readValue(r));
-            case Expr.EBinop('*', l, r): Ve.EBinop(EvBinop.OpMult, readValue(l), readValue(r));
-            case Expr.EBinop('/', l, r): Ve.EBinop(EvBinop.OpDiv, readValue(l), readValue(r));
-            case Expr.EBinop('=', l, r): Ve.EBinop(EvBinop.OpAssign, readValue(l), readValue(r));
-            case Expr.EBinop('&', l, r): Ve.EBinop(EvBinop.OpAnd, readValue(l), readValue(r));
-            case Expr.EBinop('|', l, r): Ve.EBinop(EvBinop.OpOr, readValue(l), readValue(r));
-            case Expr.EBinop('<<', l, r): Ve.EBinop(EvBinop.OpShl, readValue(l), readValue(r));
-            case Expr.EBinop('>>', l, r): Ve.EBinop(EvBinop.OpShr, readValue(l), readValue(r));
-            case Expr.EBinop('>>>', l, r): Ve.EBinop(EvBinop.OpUShr, readValue(l), readValue(r));
-            case Expr.EBinop('...', l, r): Ve.ERange(readValue(l), readValue(r));
-            case Expr.EBinop('=>', l, r): Ve.EBinop(EvBinop.OpArrow, readValue(l), readValue(r));
+            case Expr.EBinop('+', l, r): mkv(Ve.EBinop(EvBinop.OpAdd, readValue(l), readValue(r)));
+            case Expr.EBinop('-', l, r): mkv(Ve.EBinop(EvBinop.OpSub, readValue(l), readValue(r)));
+            case Expr.EBinop('*', l, r): mkv(Ve.EBinop(EvBinop.OpMult, readValue(l), readValue(r)));
+            case Expr.EBinop('/', l, r): mkv(Ve.EBinop(EvBinop.OpDiv, readValue(l), readValue(r)));
+            case Expr.EBinop('=', l, r): mkv(Ve.EBinop(EvBinop.OpAssign, readValue(l), readValue(r)));
+            case Expr.EBinop('&', l, r): mkv(Ve.EBinop(EvBinop.OpAnd, readValue(l), readValue(r)));
+            case Expr.EBinop('|', l, r): mkv(Ve.EBinop(EvBinop.OpOr, readValue(l), readValue(r)));
+            case Expr.EBinop('<<', l, r): mkv(Ve.EBinop(EvBinop.OpShl, readValue(l), readValue(r)));
+            case Expr.EBinop('>>', l, r): mkv(Ve.EBinop(EvBinop.OpShr, readValue(l), readValue(r)));
+            case Expr.EBinop('>>>', l, r): mkv(Ve.EBinop(EvBinop.OpUShr, readValue(l), readValue(r)));
+            case Expr.EBinop('...', l, r): mkv(Ve.ERange(readValue(l), readValue(r)));
+            case Expr.EBinop('=>', l, r): mkv(Ve.EBinop(EvBinop.OpArrow, readValue(l), readValue(r)));
 
-            case Expr.ECheckType(expr, ctype): ValueExpr.ECast(readValue(expr), readCType(ctype));
+            case Expr.ECheckType(expr, ctype): mkv(Ve.ECast(readValue(expr), readCType(ctype)));
 
             /* [= FUNCTION CALLS =] */
             case Expr.ECall(EIdent(fname), args): readFCall(fname, args);
             case Expr.ECall(EField(oexpr, method), args): readFCall(method, [oexpr].concat(args));
 
             /* [= ARRAY ACCESS =] */
-            case Expr.EArray(item, index): Ve.EArrayAccess(readValue(item), readValue(index));
+            case Expr.EArray(item, index): mkv(Ve.EArrayAccess(readValue(item), readValue(index)));
 
             /* [= FIELD ACCESS =] */
-            case Expr.EField(_, _): Ve.ECol(readDotPath(e).join('.'));
+            case Expr.EField(_, _): mkv(Ve.ECol(readDotPath(e).join('.')));
 
             default:
                 throw new Error('Unexpected $e');
         }
+    }
+
+    function mkv(d:ValueExprDef, ?type:DataType):ValueExpr {
+        return {expr:d, type:type};
     }
 
     /**
@@ -465,12 +482,6 @@ class QlParser {
                     throw new Unexpected(type);
                 case classType: DataType.TClass(classType);
             }
-            //case Expr.EField(_, _): switch (resolveType(readDotPath(type).join('.'))) {
-                //case Some(Left(cl)): DataType.TClass( cl );
-                //case Some(Right(en)): DataType.TEnum( en );
-                //case None: 
-                    //throw new Unexpected(type);
-            //}
             case Expr.EArrayDecl([type]): DataType.TArray(readDataType(type));
             case Expr.EArray(type, EConst(Const.CInt(size))): DataType.TArray(readDataType(type));
             case Expr.EObject([]): DataType.TAnon(null);
@@ -501,11 +512,13 @@ class QlParser {
     function readFCall(name:String, args:Array<Expr>):ValueExpr {
         switch [name, args] {
             case ['re'|'regex', [EConst(CString(regex))]]:
-                return ValueExpr.EConst(CRegexp(Arch.compileRegexp(regex)));
+                return mkv(Ve.EConst(CRegexp(Arch.compileRegexp(regex))), TClass(EReg));
+
             case ['re'|'regex', [EConst(CString(regex)), EConst(CString(flags))|EIdent(flags)]]:
-                return ValueExpr.EConst(CRegexp(Arch.compileRegexp(regex, flags)));
+                return mkv(Ve.EConst(CRegexp(Arch.compileRegexp(regex, flags))), TClass(EReg));
+
             case [_, _]:
-                return ValueExpr.ECall(name, args.map(readValue));
+                return mkv(Ve.ECall(name, args.map(readValue)));
         }
     }
 

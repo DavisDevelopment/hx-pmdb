@@ -6,6 +6,7 @@ import hscript.Expr;
 
 import pmdb.ql.ast.TypeExpr;
 import pmdb.ql.ts.TypedData;
+import pmdb.ql.ts.DataType;
 
 //import pmdb.core.Error;
 
@@ -14,7 +15,19 @@ abstract Value (ValueExpr) from ValueExpr to ValueExpr {
     
 }
 
-enum ValueExpr {
+@:structInit
+class ValueExpr {
+    public var expr(default, null): ValueExprDef;
+    @:optional
+    public var type(default, null): DataType;
+
+    public static function make(e:ValueExprDef, ?t:DataType):ValueExpr {
+        return {expr:e, type:t};
+    }
+}
+
+@:using(pmdb.ql.ast.Predicates.ValueExpressions)
+enum ValueExprDef {
     EVoid;
     EReificate(i: Int);
 

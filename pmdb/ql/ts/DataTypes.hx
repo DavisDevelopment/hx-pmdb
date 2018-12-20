@@ -345,7 +345,10 @@ class ScalarDataTypes {
 }
 
 class Anons {
-    public static inline function dataTypeOf(value: Dynamic):DataType {
+    /**
+      obtain the DataType that seems to be associated with [value]
+     **/
+    public static function dataTypeOf(value: Dynamic):DataType {
         return ValueTypes.toDataType(Type.typeof( value ));
     }
 }

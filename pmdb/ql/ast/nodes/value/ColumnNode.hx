@@ -103,7 +103,7 @@ class ColumnNode extends ValueNode {
     }
 
     override function getExpr():ValueExpr {
-        return ValueExpr.ECol(fieldName);
+        return ValueExpr.make(ECol(fieldName));
     }
 
 /* === Variables === */

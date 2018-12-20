@@ -5,6 +5,9 @@ import haxe.macro.Context;
 
 import haxe.Constraints.Function as Func;
 
+import pmdb.core.Object;
+import pmdb.ql.ts.DataType.ObjectKind;
+
 using Lambda;
 using tannus.ds.ArrayTools;
 using haxe.macro.ExprTools;
@@ -65,3 +68,11 @@ class Fn1x1 {
         //body = chain.reduce(
     //}
 //}
+
+class Dynamics {
+    public static function asObject(o:Dynamic, safety = false):Object<Dynamic> {
+        if (safety && !Reflect.isObject( o ))
+            throw new ValueError(o, '$o cannot be cast to an Object');
+        return cast Object.of( o );
+    }
+}

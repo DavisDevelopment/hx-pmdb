@@ -105,7 +105,7 @@ class ListNode extends ValueNode {
     }
 
     override function getExpr():ValueExpr {
-        return ValueExpr.EList([for (node in values) node.getExpr()]);
+        return ValueExpr.make(EList([for (node in values) node.getExpr()]));
     }
 
 /* === Fields === */

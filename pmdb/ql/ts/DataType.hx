@@ -28,6 +28,11 @@ enum ScalarDataType {
     TDate;
 }
 
+enum ObjectKind {
+    KAnonymous;
+    KInstanceof(cl: Class<Dynamic>);
+}
+
 class CEnumOf<T> {
     public function new() {
         constructs = new Array();

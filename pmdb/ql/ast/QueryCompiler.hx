@@ -180,8 +180,8 @@ class QueryCompiler {
     /**
       convert a ValueExpr to a ValueNode
      **/
-    private function vnode(e: Ve):ValueNode {
-        return switch e {
+    private function vnode(e: ValueExpr):ValueNode {
+        return switch e.expr {
             case Ve.EConst(constant):
                 switch constant {
                     case ConstExpr.CNull:
@@ -249,8 +249,8 @@ class QueryCompiler {
         }
     }
 
-    public function typeofValueExpr(expr:Ve, ?expected:ValType):Null<ValType> {
-        return switch expr {
+    public function typeofValueExpr(expr:ValueExpr, ?expected:ValType):Null<ValType> {
+        return switch expr.expr {
             case Ve.EConst(constant):
                 switch constant {
                     case ConstExpr.CNull:

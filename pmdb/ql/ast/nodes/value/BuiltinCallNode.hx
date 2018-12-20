@@ -1,14 +1,7 @@
 package pmdb.ql.ast.nodes.value;
 
-import tannus.ds.Lazy;
-import tannus.ds.Pair;
-import tannus.ds.Set;
-
 import pmdb.ql.ts.DataType;
 import pmdb.ql.ts.TypedData;
-import pmdb.ql.ts.DocumentSchema;
-import pmdb.ql.ts.TypeSignature;
-import pmdb.ql.ts.TypedFunction;
 import pmdb.ql.ast.Value;
 import pmdb.core.Error;
 import pmdb.core.Object;
@@ -63,7 +56,7 @@ class BuiltinCallNode extends CompoundValueNode {
     }
 
     override function getExpr():ValueExpr {
-        return ValueExpr.ECall(name, [for (node in childValues) node.getExpr()]);
+        return ValueExpr.make(ECall(name, [for (node in childValues) node.getExpr()]));
     }
 
 /* === Fields === */
