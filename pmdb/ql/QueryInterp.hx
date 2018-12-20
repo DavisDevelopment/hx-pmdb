@@ -8,7 +8,6 @@ import pmdb.ql.ts.DataType;
 import pmdb.core.ValType;
 import pmdb.ql.ts.TypedData;
 import pmdb.core.StructSchema;
-import pmdb.ql.ts.TypeSignature;
 import pmdb.ql.ast.BuiltinFunction;
 import pmdb.ql.ast.BuiltinModule;
 import pmdb.ql.ast.nodes.*;

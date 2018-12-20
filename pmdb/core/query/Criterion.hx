@@ -1,16 +1,9 @@
 package pmdb.core.query;
 
-import tannus.ds.Set;
-import tannus.ds.Lazy;
-import tannus.ds.Ref;
-
 import pmdb.ql.types.*;
 import pmdb.ql.ts.*;
 import pmdb.ql.ts.DataType;
-import pmdb.ql.ts.DocumentSchema;
 import pmdb.ql.ast.BoundingValue;
-import pmdb.core.ds.AVLTree;
-import pmdb.core.ds.AVLTree.AVLTreeNode as Leaf;
 import pmdb.core.ds.*;
 import pmdb.core.*;
 import pmdb.core.query.IndexCaret;

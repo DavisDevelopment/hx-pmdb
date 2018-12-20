@@ -1,20 +1,19 @@
 package pmdb.core;
 
-import tannus.ds.Lazy;
-
 import pmdb.ql.types.*;
 import pmdb.ql.ts.*;
 import pmdb.ql.ts.DataType;
 import pmdb.core.ds.AVLTree;
+import pmdb.core.ds.Lazy;
 import pmdb.ql.ast.BoundingValue;
 import pmdb.core.ds.*;
 import pmdb.core.*;
-import pmdb.core.StructSchema;
 import pmdb.core.query.Criterion;
 import pmdb.core.query.Mutation;
 import pmdb.ql.QueryIndex;
 import pmdb.core.query.StoreQueryInterface;
 import pmdb.core.Query;
+import pmdb.core.StructSchema;
 
 import haxe.ds.Either;
 import haxe.extern.EitherType;

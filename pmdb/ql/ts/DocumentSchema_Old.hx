@@ -1,5 +1,6 @@
 package pmdb.ql.ts;
 
+
 import tannus.ds.Set;
 
 import pmdb.core.Error;
@@ -163,7 +164,7 @@ class DocumentProperty extends Property {
     }
 
     public var unique(default, null): Bool;
-    public var annotations(default, null): Set<PropertyAnnotation>;
+    public var annotations(default, null): EnumFlags<PropertyAnnotation>;
 }
 
 enum PropertyAnnotation {
