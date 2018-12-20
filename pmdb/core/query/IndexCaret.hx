@@ -125,7 +125,7 @@ class IndexCaret <Key, Item> {
     /**
       queue up the left node for processing
      **/
-    public inline function left() {
+    public function left() {
         assert(!isClosed(), lazy(new Error('Invalid call to IndexCaret::left. Instance has closed')));
         if (node.left != null)
             route.push( node.left );
@@ -134,7 +134,7 @@ class IndexCaret <Key, Item> {
     /**
       queue up the right node for processing
      **/
-    public inline function right() {
+    public function right() {
         assert(!isClosed(), lazy(new Error('Invalid call to IndexCaret::left. Instance has closed')));
         if (node.right != null)
             route.push( node.right );
