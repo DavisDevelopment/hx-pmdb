@@ -40,6 +40,10 @@ class FunctionalIndexCaret<Key, Item> extends IndexCaret<Key, Item> {
     }
 
     public dynamic function root(self:IndexCaret<Key, Item>, tree:AVLTree<Key, Item>):Leaf<Key, Item> {
+        return superFirstNode( tree );
+    }
+
+    private function superFirstNode(tree: AVLTree<Key, Item>):Leaf<Key, Item> {
         return super.firstNode( tree );
     }
 
