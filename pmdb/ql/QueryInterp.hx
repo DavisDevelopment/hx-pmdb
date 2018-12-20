@@ -54,6 +54,10 @@ class QueryInterp {
 
 /* === Methods === */
 
+    public inline function hasSchema():Bool {
+        return store != null && store.schema != null;
+    }
+
     /**
       link the given QueryNode to [this]
      **/
@@ -181,7 +185,7 @@ class QueryInterp {
 
 @:structInit
 class UpdateLog<T> {
-    public var pre: T;
+    public var pre: Null<T>;
     public var post: T;
 }
 
