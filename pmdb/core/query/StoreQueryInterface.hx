@@ -100,19 +100,35 @@ class StoreQueryInterface<Item> {
         return compiler.compilePredicate( expr );
     }
 
+    inline function compileUpdateExpr(expr: UpdateExpr):Update {
+        return compiler.compileUpdate( expr );
+    }
+
     inline function compileHsExprToPredicate(expr: hscript.Expr):PredicateExpr {
         return parser.readPredicate( expr );
+    }
+
+    inline function compileHsExprToUpdate(expr: hscript.Expr):UpdateExpr {
+        return parser.readUpdate( expr );
     }
 
     inline function compileStringToPredicate(s: String):PredicateExpr {
         return parser.parsePredicate( s );
     }
 
+    inline function compileStringToUpdate(s: String):UpdateExpr {
+        return parser.parseUpdate( s );
+    }
+
     public inline function criterion(c:Criterion<Item>, prep=false):Criterion<Item> {
         return c;
     }
 
-    public function mutation(update:Mutation<Item>, prep=true):Mutation<Item> {
+    public function updateNode(m:Mutation<Item>):Update {
+        return m.compile( this ).toUpdate();
+    }
+
+    public function init_update(update:Update, prep=true):Update {
         if (!prep || update.hasLabel(':initialized'))
             return update;
         ctx.setStore( store );
@@ -126,8 +142,26 @@ class StoreQueryInterface<Item> {
         return update;
     }
 
+    public inline function mutation(m:Mutation<Item>, prep=false):Mutation<Item> {
+        return m;
+    }
+
     public function check(where: Criterion<Item>):Check {
         return where.compile( this ).toCheck();
+    }
+
+    /**
+      build and return the QueryCursor object used by the 'update' directive
+     **/
+    public inline function getUpdateCursor(mut:Mutation<Item>, ?predicate:Criterion<Item>, precompile:Bool):UpdateCursor<Item> {
+        return new UpdateCursor(store, mut, predicate, precompile);
+    }
+
+    /**
+      build a Cursor for the given Check
+     **/
+    public inline function getCheckCursor(check:Check, precompile:Bool):FindCursor<Item> {
+        return new FindCursor(store, check, precompile);
     }
 
     /**
@@ -147,13 +181,12 @@ class StoreQueryInterface<Item> {
       apply some transformation to the Store<Item>
      **/
     public function update(how:Mutation<Item>, ?where:Criterion<Item>, precompile:Bool=false):UpdateCursor<Item> {
-        how = mutation( how );
+        var how = updateNode( how );
         return getUpdateCursor(how, where, precompile);
     }
 
     //
     public function bffind(where, prec=false) {
-        //where = criterion( where );
         return store.getAllData().filter(function(item: Item):Bool {
             return where.eval(globalCtx.setDoc(cast item));
         });
@@ -162,27 +195,17 @@ class StoreQueryInterface<Item> {
     /**
       get the Index (and accompanying constraints thereon) to be used for traversal
      **/
-    @:noCompletion
     public function getSearchIndex(check: Check):QueryIndex<Any, Item> {
         var suggestedIndex:QueryIndex<Any, Item> = cast (check.getExpr().getTraversalIndex(store.indexes));
         if (suggestedIndex == null)
             suggestedIndex = cast new QueryIndex( store.pid );
         return suggestedIndex;
     }
-
-    /**
-      build and return the QueryCursor object used by the 'update' directive
-     **/
-    public inline function getUpdateCursor(mut:Mutation<Item>, ?predicate:Criterion<Item>, precompile:Bool):UpdateCursor<Item> {
-        return new UpdateCursor(this, mut, predicate, precompile);
+    public function _getSearchIndex(predicate: PredicateExpr):Null<QueryIndex<Any, Item>> {
+        //var secondary = 
+        return null;
     }
 
-    /**
-      build a Cursor for the given Check
-     **/
-    public inline function getCheckCursor(check:Check, precompile:Bool):FindCursor<Item> {
-        return new FindCursor(this, check, precompile);
-    }
 
     /**
       cast the given Dynamic value to an Object
@@ -202,7 +225,6 @@ class StoreQueryInterface<Item> {
     public static var globalCtx: QueryInterp = new QueryInterp();
     public static var globalParser = new QlParser();
     public static var globalCompiler = new QueryCompiler();
-
 
     static inline var SANDBOX = true;
 }
