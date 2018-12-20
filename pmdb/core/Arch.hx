@@ -8,6 +8,7 @@ import pmdb.core.Error;
 import pmdb.core.Comparator;
 import pmdb.core.Equator;
 import pmdb.core.Check;
+import pmdb.ql.ts.DataType;
 import pmdb.ql.ts.TypedData;
 import pmdb.ql.ts.TypeCasts;
 import pmdb.ql.ts.TypeChecks;
@@ -58,15 +59,35 @@ class Arch {
     }
 
     /**
+      get a DotPath object for the given fieldName
+     **/
+    public static function getDotPath(fieldName: String):DotPath {
+        if (!dotPathCache.exists( fieldName )) {
+            dotPathCache[fieldName] = DotPath.fromPathName( fieldName );
+        }
+        return dotPathCache[fieldName];
+    }
+
+    /**
       resolve the given dot-path
      **/
     public static function getDotValue(o:DynamicAccess<Dynamic>, field:String):Dynamic {
         // not yet its own implementation
-        return pmdb.nedb.NModel.getDotValue(o, field);
+        //return pmdb.nedb.NModel.getDotValue(o, field);
+        return getDotPath(field).get(o, null);
     }
 
     public static function setDotValue(o:DynamicAccess<Dynamic>, field:String, value:Dynamic):Void {
-        return pmdb.nedb.NModel.setDotValue(o, field, value);
+        //return pmdb.nedb.NModel.setDotValue(o, field, value);
+        getDotPath(field).set(o, value);
+    }
+
+    public static function hasDotValue(o:DynamicAccess<Dynamic>, field:String):Bool {
+        return getDotPath(field).has(o, false);
+    }
+
+    public static function delDotValue(o:DynamicAccess<Dynamic>, field:String) {
+        return getDotPath(field).del(o, false);
     }
 
     /**
@@ -515,27 +536,34 @@ class Arch {
     }
 
     /**
+      check whether the given object is a class instance or a struct
+     **/
+    public static function getObjectKind(o: Dynamic):ObjectKind {
+        return switch (Type.typeof( o )) {
+            case TObject: ObjectKind.KAnonymous;
+            case TClass(c): ObjectKind.KInstanceof(c);
+            default: throw new ValueError(o, 'Not an Object');
+        }
+    }
+
+    /**
       check whether the given value is a regular expression
      **/
-    public static inline function isRegExp(x: Dynamic):Bool {
-        #if hre
-        return isType(x, EReg) || isType(x, hre.RegExp);
-        #else
+    public static function isRegExp(x: Dynamic):Bool {
         return isType(x, EReg);
-        #end
     }
 
     /**
       check whether the given value is a Date
      **/
-    public static inline function isDate(x: Dynamic):Bool {
+    public static function isDate(x: Dynamic):Bool {
         return x.is_date();
     }
 
     /**
       check whether the given value is a function 
      **/
-    public static inline function isFunction(x: Dynamic):Bool {
+    public static function isFunction(x: Dynamic):Bool {
         return x.is_callable();
     }
 
@@ -547,29 +575,99 @@ class Arch {
         return copy(value, target, structs);
     }
 
-    public static function clone<T>(value:T, method:CloneMethod=Deep):T {
+    public static function clone<T>(value:T, ?method:CloneMethod, ensureObjects:Bool=false):T {
         return dclone(value, method);
     }
 
-    public static function dclone(value:Dynamic, method:CloneMethod = Deep):Dynamic {
+    public static function dclone(value:Dynamic, ?method:CloneMethod):Dynamic {
+        if (method == null)
+            method = Shallow;
+
         if (isAtomic( value ))
             return value;
+
+        if (isDate( value )) {
+            final date:Date = cast(value, Date);
+            return Date.fromTime(date.getTime());
+        }
 
         if (isObject( value ))
             return clone_object(value, method);
 
         if (isArray( value ))
-            return (clone_array(untyped value, method));
+            return clone_uarray(cast(value, Array<Dynamic>), method);
 
         return value;
     }
 
-    public static function clone_object<T>(o:T, ?method:CloneMethod):T {
-        return o;
+    public static function clone_object<T>(o:T, ?method:CloneMethod, allObjects:Bool=false):T {
+        if (method == null) method = Shallow;
+
+        var cloned: Dynamic;
+        final oClass:Null<Class<Dynamic>> = Type.getClass( o );
+        switch ( method ) {
+            case Shallow:
+                if (oClass == null) {
+                    cloned = Reflect.copy( o );
+                }
+                else {
+                    cloned = Type.createEmptyInstance(oClass);
+                    for (k in Reflect.fields(o)) {
+                        Reflect.setField(cloned, k, Reflect.field(o, k));
+                    }
+                }
+
+            case ShallowRecurse:
+                cloned = clone_object(o, Shallow);
+                for (k in Reflect.fields(cloned)) {
+                    final prop = Reflect.field(cloned, k);
+                    Reflect.setField(cloned, k, clone(prop, method));
+                }
+
+            case JsonReparse:
+                cloned = haxe.Json.parse(haxe.Json.stringify( o ));
+
+            case HxSerialize:
+                cloned = haxe.Unserializer.run(haxe.Serializer.run( o ));
+
+            case Custom(cp):
+                cloned = cp( o );
+
+            case Deep(meth):
+                cloned = clone_object(o, Shallow);
+                //for (k in Reflect.fields(cloned)) {
+                    //Reflect.setField(cloned, k, clone(Reflect.getField(cloned, k), method));
+                //}
+                trace('Warning: Not an actual deep-copy');
+        }
+        return cloned;
     }
 
-    public static function clone_array<T>(arr:Array<T>, ?method:CloneMethod):Array<T> {
-        return arr.copy();
+    public static function clone_uarray(array:Array<Dynamic>, ?method:CloneMethod):Array<Dynamic> {
+        if (method == null) method = Shallow;
+        var cloned:Array<Dynamic>;
+        switch ( method ) {
+            case Shallow:
+                cloned = array.copy();
+
+            case ShallowRecurse:
+                cloned = array.map(function(x: Dynamic) {
+                    return clone(x, ShallowRecurse);
+                });
+
+            case JsonReparse:
+                cloned = array.map(x -> haxe.Json.parse(haxe.Json.stringify( x )));
+
+            case HxSerialize:
+                cloned = array.map(x -> haxe.Unserializer.run(haxe.Serializer.run( x )));
+
+            case Custom(cp):
+                cloned = array.map(x -> cp( x ));
+
+            case Deep(meth):
+                cloned = array.map(x -> clone(x, meth));
+        }
+        return cloned;
     }
 
 
@@ -601,15 +699,34 @@ class Arch {
                 return new EReg(pattern, flags);
         }
     }
+
+    #if python
+    @:keep 
+    @:native('_foo_')
+    private static function ensureCloneMethodGeneration(?cm: CloneMethod):CloneMethod {
+        if (cm == null) {
+            cm = CloneMethod.Custom(function(value) {
+                return value;
+            });
+        }
+        return CloneMethod.Deep( cm );
+    }
+    #end
+
+/* === Variables === */
+
+    private static var dotPathCache:Map<String, DotPath> = new Map();
 }
 
 /**
   algorithm used to create copies of values
  **/
+@:keep
 enum CloneMethod {
     Shallow;
-    Deep;
-    Json;
+    ShallowRecurse;
+
+    JsonReparse;
     HxSerialize;
 
     /**
@@ -620,4 +737,5 @@ enum CloneMethod {
       </code></pre>
      **/
     Custom(fn: Dynamic -> Dynamic);
+    Deep(recursionMethod: CloneMethod);
 }
