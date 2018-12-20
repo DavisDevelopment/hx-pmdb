@@ -22,10 +22,14 @@ abstract Object<T> (DynamicAccess<T>) from Dynamic<T> to Dynamic<T> from Dynamic
     /**
       get the value of a nested field
      **/
-    public inline function dotGet<O>(key: String):Null<O> return Arch.getDotValue(this, key);
+    public inline function dotGet<O>(key: String):Null<O> {
+        return Arch.getDotValue(this, key);
+    }
 
     @:arrayAccess
-    public inline function set(key:String, value:T):Null<T> return this.set(key, value);
+    public inline function set(key:String, value:T):Null<T> {
+        return this.set(key, value);
+    }
 
     /**
       set the value of some nested field
@@ -37,24 +41,39 @@ abstract Object<T> (DynamicAccess<T>) from Dynamic<T> to Dynamic<T> from Dynamic
     /**
       check for the existence of some nested property
      **/
-    public inline function dotExists(key: String):Bool return dotGet(key) != null;
+    public inline function dotExists(key: String):Bool {
+        return Arch.hasDotValue(this, key);
+    }
 
     /**
       delete a nested field
      **/
-    public inline function dotRemove(key: String):Bool return this.remove( key );
-
-    public inline function copy():Object<T> {
-        return this.copy();
+    public inline function dotRemove(key: String):Bool {
+        return Arch.delDotValue(this, key);
     }
 
-    public inline function clone(?onto: Object<T>):Object<T> {
-        return Arch.deepCopy(this, onto);
+    /**
+      create and return a shallow copy of [this]
+     **/
+    public inline function copy():Object<T> {
+        return Arch.clone_object(this, Shallow);
+    }
+
+    public function clone(?method:CloneMethod):Object<T> {
+        if (method == null)
+            method = ShallowRecurse;
+        return Arch.clone_object(this, method);
     }
 
     public function pull(src: Object<T>) {
         for (key in src.keys()) {
             this[key] = src[key];
+        }
+    }
+
+    public function push(dest: Object<T>) {
+        for (key in this.keys()) {
+            dest[key] = this[key];
         }
     }
 
