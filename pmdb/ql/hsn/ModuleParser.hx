@@ -22,33 +22,44 @@ class ModuleParser {
         parser.allowMetadata = true;
         parser.allowTypes = true;
         parser.allowJSON = true;
+
+        hsvm = null;
+
         ast = null;
         //schema = new DocumentSchema();
+        schema = new StructSchema();
         types = new Map();
     }
 
-    public static function run(text: String):DocumentSchema {
+    public static function run(text: String) {
         return new ModuleParser().parse( text );
     }
 
-    @:access( hscript.Interp )
-    private function eval(e:Expr, ?prep:Interp->Void):Dynamic {
-        var ctx = new Interp();
-        if (prep != null)
-            prep( ctx );
-        return ctx.expr( e );
+    private function initVm():Interp {
+        hsvm = new Interp();
     }
 
     @:access( hscript.Interp )
+    private function evaluate(expression: Expr):Dynamic {
+        var ctx = hsvm == null ? initVm() : hsvm;
+
+        return ctx.expr( expression );
+    }
+
+    //@:access( hscript.Interp )
+    //private function compileClosure(f: FunctionDecl):Function {
+       
+    //}
+
+    /**
+      
+     **/
+    @:access( hscript.Interp )
     private function compileFunc(func:FunctionDecl, ?prep:Interp->Void):Function {
-        var e:Expr = Expr.EFunction(func.args, func.expr, null, func.ret);
-        var ctx:Interp;
-        var f:Function = eval(e, function(i: Interp) {
-            ctx = i;
-        });
-        var wf:Function = Reflect.makeVarArgs(function(args: Array<Dynamic>):Dynamic {
-            var self = ctx.variables['this'] = {};
-            Reflect.callMethod(self, f, args);
+        var expr:Expr = Expr.EFunction(func.args, func.expr, null, func.ret);
+        var fun:Function = evaluate( expr );
+        var wrapped:Function = Reflect.makeVarArgs(function(args: Array<Dynamic>):Dynamic {
+            var ret = Reflect.callMethod(self, f, args);
             return self;
         });
         return wf;
@@ -58,7 +69,10 @@ class ModuleParser {
         ast = parser.parseModule( text );
     }
 
-    public function parse(?code: String):DocumentSchema {
+    /**
+      parse, process and return schema from the given String data
+     **/
+    public function parse(?code: String):StructSchema {
         if (code != null)
             loadSource( code );
 
@@ -110,9 +124,13 @@ class ModuleParser {
     private function declareType(name:String, type:CType) {
         switch type {
             case CType.CTAnon(fields):
-                types[name] = TAnon({fields: cast fields});
+                types[name] = TAnon({
+                    fields: cast fields
+                });
+
             case CType.CTParent(t):
                 declareType(name, t);
+
             case _:
                 null;
         }
@@ -122,8 +140,8 @@ class ModuleParser {
         return types[name];
     }
 
-    private function parseClassDecl(type: ClassDecl):DocumentSchema {
-        schema = new DocumentSchema(type.name);
+    private function parseClassDecl(type: ClassDecl):StructSchema {
+        schema = new StructSchema();
         methods = new Array();
 
         var dtnew = null;
@@ -136,68 +154,70 @@ class ModuleParser {
             //
         }
 
-        schema.normalize();
         return schema;
     }
 
+    /**
+      parse out a type declaration, sha
+     **/
     private function parseTypeDecl(type: TypeDecl) {
-        
+        //TODO
     }
 
-    private function parseClassField(field:FieldDecl, c:ClassDecl, schema:DocumentSchema) {
-        switch field.kind {
-            case FieldKind.KFunction(func):
-                func.args.unshift({
-                    name: 'self',
-                    t: CType.CTPath([c.name])
-                });
-                methods.push( func );
+    private function parseClassField(field:FieldDecl, c:ClassDecl, schema:StructSchema) {
+        //switch field.kind {
+        //    case FieldKind.KFunction(func):
+        //        func.args.unshift({
+        //            name: 'self',
+        //            t: CType.CTPath([c.name])
+        //        });
+        //        methods.push( func );
 
-            case FieldKind.KVar(prop): 
-                var dprop:DocumentProperty = new DocumentProperty(field.name, TAny);
-                if (prop.type != null) {
-                    dprop.setType(parseCType(prop.type));
-                }
+        //    case FieldKind.KVar(prop): 
+        //        var dprop:DocumentProperty = new DocumentProperty(field.name, TAny);
+        //        if (prop.type != null) {
+        //            dprop.setType(parseCType(prop.type));
+        //        }
 
-                for (flag in field.access) {
-                    switch flag {
-                        case APrivate:
-                            dprop.annotations.push(ANoIndex);
+        //        for (flag in field.access) {
+        //            switch flag {
+        //                case APrivate:
+        //                    dprop.annotations.push(ANoIndex);
 
-                        case _:
-                            continue;
-                    }
-                }
+        //                case _:
+        //                    continue;
+        //            }
+        //        }
 
-                for (entry in field.meta) {
-                    switch entry.name {
-                        case ':ignore'|'ignore':
-                               dprop.annotations.push(ANoIndex);
+        //        for (entry in field.meta) {
+        //            switch entry.name {
+        //                case ':ignore'|'ignore':
+        //                       dprop.annotations.push(ANoIndex);
 
-                        case ':id'|'id':
-                               dprop.annotations.push(APrimary);
+        //                case ':id'|'id':
+        //                       dprop.annotations.push(APrimary);
 
-                        case ':optional'|'optional':
-                               dprop.setSparse( true );
+        //                case ':optional'|'optional':
+        //                       dprop.setSparse( true );
 
-                        case ':unique'|'unique':
-                               dprop.setUnique( true );
+        //                case ':unique'|'unique':
+        //                       dprop.setUnique( true );
 
-                        case other:
-                               trace('"$other" metadata unrecognized');
-                    }
-                }
+        //                case other:
+        //                       trace('"$other" metadata unrecognized');
+        //            }
+        //        }
 
-                switch dprop.type {
-                    case TNull(_):
-                        dprop.setSparse( true );
+        //        switch dprop.type {
+        //            case TNull(_):
+        //                dprop.setSparse( true );
 
-                    case _:
-                        //
-                }
+        //            case _:
+        //                //
+        //        }
 
-                schema.properties.push( dprop );
-        }
+        //        schema.properties.push( dprop );
+        //}
     }
 
     private function parseCType(type: CType):DataType {
@@ -237,22 +257,28 @@ class ModuleParser {
         }
     }
 
+    /**
+      parse out a CTAnon struct definition
+     **/
     private function parseCTAnon(fields: Array<{t:CType, name:String, meta:Metadata}>):CObjectType {
         return new CObjectType(fields.map(function(field) {
             return new Property(field.name, parseCType(field.t));
         }));
-        //CType.CTAnon(
     }
 
+/* === Fields === */
+
     var ast: Null<Array<ModuleDecl>> = null;
+    var hsvm: Null<Interp> = null;
     var parser:Parser;
-    var schema: DocumentSchema;
-    var methods: Array<FunctionDecl>;
+    var schema: StructSchema;
 
     var main: Null<ClassDecl> = null;
+    var methods: Null<Array<FunctionDecl>> = null;
+
     var types: Map<String, TType>;
-    var imports: Null<Array<{path:Array<String>, all:Bool}>>;
-    var packageName: Null<String>;
+    var imports: Null<Array<{path:Array<String>, all:Bool}>> = null;
+    var packageName: Null<String> = null;
 }
 
 enum TType {
