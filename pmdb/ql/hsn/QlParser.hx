@@ -170,6 +170,15 @@ class QlParser {
             case Expr.ECall(EField(oexpr, method), args): 
                 return readUpdateExpr(Expr.ECall(Expr.EIdent(method), [oexpr].concat(args)));
 
+            case Expr.EObject(fields):
+                var ufields:Array<UpdateStructField> = fields.map(function(field):UpdateStructField {
+                    return {
+                        field: field.name,
+                        value: readValue( field.e )
+                    };
+                });
+                return Ue.UStruct( ufields );
+
             case Expr.EBlock(subs):
                 switch subs {
                     case []: 

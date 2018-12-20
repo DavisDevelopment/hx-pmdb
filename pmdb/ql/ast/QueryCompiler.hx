@@ -79,6 +79,9 @@ class QueryCompiler {
             case UpdateExpr.UAssign(left, right):
                 return new AssignUpdate(vnode(left), vnode(right), e);
 
+            case UpdateExpr.UStruct(fields):
+                throw new Error('Unexpected $e');
+
             case UpdateExpr.UDelete(col):
                 return new DeleteUpdate(vnode(col), e);
 
