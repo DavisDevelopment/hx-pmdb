@@ -495,8 +495,22 @@ class Store<Item> {
       the current api for creating and defining Update<T> objects 
       is merely a placeholder, and will be replaced with a less verbose, more performant one soon
      **/
-    public function update(fn:Update<Item>->Void, multiple:Bool=false) {
-        throw 'Not Implemented';
+    public function update(what:Mutation<Item>, ?where:Criterion<Item>, ?options:{?precompile:Bool, ?multiple:Bool}):Array<Item> {
+        if (options == null)
+            options = {};
+        if (options.precompile == null)
+            options.precompile = true;
+        if (options.multiple == null)
+            options.multiple = false;
+
+        var affected:Array<Item> = new Array();
+        var cursor = q.update(what, where, options.precompile);
+        var updates = cursor.exec();
+        affected.resize( updates.length );
+        for (i in 0...updates.length) {
+            affected[i] = updates[i].post;
+        }
+        return affected;
     }
 
     @:noCompletion
