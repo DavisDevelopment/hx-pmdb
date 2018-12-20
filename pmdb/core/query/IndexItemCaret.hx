@@ -197,13 +197,14 @@ typedef IndexItemCaretExtensionInit<Item> = {
 
 class IndexItemCaretExtBase<T> {
     public function new(init: IndexItemCaretExtensionInit<T>):Void {
-        getFirstNode = cast function(x, y) {
+        getFirstNode = function(supr, tree:Tree<T>):Leaf<T> {
             throw new Error();
         };
-        validateLeaf = cast function(x, y) {
+
+        validateLeaf = function(x:Leaf<T>->Bool, y:Leaf<T>):Bool {
             throw new Error();
         };
-        validateItem = cast function(x, y) {
+        validateItem = function(supr, y:T):Bool {
             throw new Error();
         };
         visitLeaf = cast function(x, y) {
@@ -212,16 +213,16 @@ class IndexItemCaretExtBase<T> {
         init = cast function(f) {
             throw new Error();
         };
-        nextLeaf = cast function(f) {
+        nextLeaf = function(f):Null<Leaf<T>> {
             throw new Error();
         };
-        nextItem = cast function(f) {
+        nextItem = function(f):Null<T> {
             throw new Error();
         };
-        isEmpty = cast function(f) {
+        isEmpty = function(f):Bool {
             throw new Error();
         };
-        iterator = cast function(f) {
+        iterator = function(f):Iterator<T> {
             throw new Error();
         };
 
