@@ -584,6 +584,23 @@ class Arch {
         return copy(value, target, structs);
     }
 
+    public static function emptyCopy<T>(value: T):T {
+        return emptyUntypedCopy( value );
+    }
+
+    /**
+      create a new value of the same type as [value], but with no data yet attached
+     **/
+    public static function emptyUntypedCopy(value: Dynamic):Dynamic {
+        final vClass:Null<Class<Dynamic>> = Type.getClass( value );
+        if (vClass != null) {
+            return Type.createEmptyInstance( vClass );
+        }
+        else {
+            return {};
+        }
+    }
+
     public static function clone<T>(value:T, ?method:CloneMethod, ensureObjects:Bool=false):T {
         return dclone(value, method);
     }
