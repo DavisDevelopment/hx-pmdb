@@ -24,26 +24,30 @@ class ArrayTools {
             return a;
 
         #elseif cpp
-            a = new Array<T>();
-            a.setSize( len );
-            return a;
+            //a = new Array<T>();
+            //a.setSize( len );
+            //return a;
+            return NativeArray.create( len );
         
         #elseif java
             return untyped Array.alloc(len);
         
         #elseif cs
+
             return cs.Lib.arrayAlloc(len);
         
         #else
             a = new Array<T>();
-        
-            #if neko
-                a[len - 1] = cast null;
-            #end
-            
-            for (i in 0...len)
-                a[i] = cast null;
+            a.resize( len );
             return a;
+        
+            //#if neko
+                //a[len - 1] = cast null;
+            //#end
+            
+            //for (i in 0...len)
+                //a[i] = cast null;
+            //return a;
         #end
     }
 

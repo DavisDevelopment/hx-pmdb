@@ -24,12 +24,12 @@ abstract Lazy<T> (ILazy<T>) from ILazy<T> to ILazy<T> {
 
     @:from
     public static inline function ofFn<T>(fn: Void->T):Lazy<T> {
-        return inline new FnLazy<T>( fn );
+        return new FnLazy<T>( fn );
     }
 
     @:from
     public static inline function ofConst<T>(value: T):Lazy<T> {
-        return inline new ConstLazy<T>( value );
+        return new ConstLazy<T>( value );
     }
 }
 
