@@ -19,20 +19,37 @@ interface IIndex<Key, Item> {
 /* === Methods === */
 
     function insertOne(doc: Item):Void;
-    function removeOne(doc: Item):Void;
-    function updateOne(oldDoc:Item, newDoc:Item):Void;
     function insertMany(docs: Array<Item>):Void;
+
+    function removeOne(doc: Item):Void;
     function removeMany(docs: Array<Item>):Void;
+
+    function updateOne(oldDoc:Item, newDoc:Item):Void;
     function updateMany(updates: Array<{oldDoc:Item, newDoc:Item}>):Void;
+
     function revertUpdate(oldDoc:Item, newDoc:Item):Void;
     function revertAllUpdates(updates: Array<{oldDoc:Item, newDoc:Item}>):Void;
+
     function getByKey(key: Key):Null<Array<Item>>;
     function getByKeys(keys: Array<Key>):Array<Item>;
     function getBetweenBounds(?min:BoundingValue<Key>, ?max:BoundingValue<Key>):Array<Item>;
-    function getAll():Array<Key>;
+    function getAll():Array<Item>;
+
+    function itrByKey(key: Key):Itr<Item>;
+    function itrByKeys(keys: Array<Key>):Itr<Item>;
+    function itrBetweenBounds(?min:BoundingValue<Key>, ?max:BoundingValue<Key>):Itr<Item>;
+    function itrAll():Itr<Item>;
+    function iterator():Itr<Item>;
+
+    function allKeys():Array<Key>;
+    function keys():Iterator<Key>;
+    function keyValueIterator():Iterator<IdxKvPair<Key, Item>>;
+
     function getDocKey(doc: Item):Key;
+
     function compareKeys(a:Key, b:Key):Int;
     function compareItems(a:Item, b:Item):Int;
+
     function keysEq(a:Key, b:Key):Bool;
     function itemsEq(a:Item, b:Item):Bool;
 }
@@ -46,3 +63,14 @@ typedef IndexOptions<Key, Item> = {
     ?unique: Bool,
     ?sparse: Bool
 };
+
+@:structInit
+class IdxKvPair<K, V> {
+    public final key: K;
+    public final value: V;
+
+    public function new(k:K, v:V) {
+        key = k;
+        value = v;
+    }
+}
