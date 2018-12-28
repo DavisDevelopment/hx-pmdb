@@ -39,8 +39,11 @@ class AssignUpdate extends BinaryUpdate {
 
     override function apply(i:QueryInterp, left:ValueNode, right:ValueNode, doc:Ref<Object<Dynamic>>) {
         switch column( left ) {
-            case {dotPath: path}:
-                path.set(doc.value, right.eval( i ));
+            case {dotPath: path, fieldName:name}:
+                if (path != null)
+                    path.set(doc.value, right.eval( i ));
+                else
+                    doc.get().set(name, right.eval( i ));
 
             case _:
                 throw new Error('Invalid left-hand node');

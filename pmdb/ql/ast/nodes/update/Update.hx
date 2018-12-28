@@ -2,6 +2,7 @@ package pmdb.ql.ast.nodes.update;
 
 import hscript.Expr;
 
+import pmdb.ql.QueryInterp;
 import pmdb.ql.ts.DataType;
 import pmdb.ql.ast.Value;
 import pmdb.ql.ast.PredicateExpr;
@@ -10,6 +11,7 @@ import pmdb.ql.ast.nodes.*;
 import pmdb.ql.ast.nodes.ValueNode;
 import pmdb.core.Error;
 import pmdb.core.Object;
+import pmdb.core.ds.Ref;
 
 import haxe.ds.Either;
 import haxe.ds.Option;
@@ -53,6 +55,14 @@ class Update extends QueryNode {
      **/
     public function compile():QueryInterp->Void {
         return eval.bind(_);
+    }
+
+    /**
+      faster, more ast-independant method of 'compilation' to a lambda
+     **/
+    public function compileNew():(oldDoc:Doc, newDoc:Ref<Doc>, params:Array<Dynamic>)->Void {
+        //
+        throw 'fewp';
     }
 
     /**
