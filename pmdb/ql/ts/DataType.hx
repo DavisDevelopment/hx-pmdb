@@ -1,28 +1,47 @@
 package pmdb.ql.ts;
 
+import pmdb.core.ds.Ref;
 import pmdb.core.StructSchema;
 
 @:using(pmdb.ql.ts.DataTypes)
 enum DataType {
-    TMono(type: Null<DataType>);
+    // type is unspecified
+    TUnknown;
 
+    // allow any non-null value
     TAny;
+
+    // atomic ("scalar") values
     TScalar(type: ScalarDataType);
+
+    // list of values which are all of the same type
     TArray(type: DataType);
+
+    // list of values typed by position in the list
     TTuple(types: Array<DataType>);
-    TUnion(left:DataType, right:DataType);
+
+    // represents (optionally) named structures with a consistent and predefined schema
     TStruct(schema: StructSchema);
     TAnon(type: Null<CObjectType>);
 
+    // represents objects which are instances of [c]
     TClass<T>(c: Class<T>);
+
+    // monomorphic type holder, for progressive mutation of the contained type
+    TMono(type: Null<DataType>);
+
+    // type which is omittable
     TNull(type: DataType);
+
+    // type which unifies with both [left] and [right]
+    TUnion(left:DataType, right:DataType);
 }
 
 @:using(pmdb.ql.ts.DataTypes.ScalarDataTypes)
 enum ScalarDataType {
     TBoolean;
-    TInteger;
     TDouble;
+    TInteger;
     TString;
     TBytes;
     TDate;
