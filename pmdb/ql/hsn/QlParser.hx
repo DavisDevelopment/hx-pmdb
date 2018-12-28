@@ -352,7 +352,7 @@ class QlParser {
     /**
       parse a Value expression
      **/
-    private function readValue(e: Expr):ValueExpr {
+    public function readValue(e: Expr):ValueExpr {
         return switch (e) {
             case Expr.EParent(e): readValue(e);
 
