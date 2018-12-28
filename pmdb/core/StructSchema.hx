@@ -84,8 +84,11 @@ class StructSchema {
         return fields.exists( name );
     }
 
-    public inline function field(name: String):StructSchemaField {
-        return cast(fields.get(name), StructSchemaField);
+    public function field(name: String):Null<StructSchemaField> {
+        return switch fields.get( name ) {
+            case null: null;
+            case fi: cast(fi, StructSchemaField);
+        }
     }
 
     public inline function fieldNames():Array<String> {
@@ -273,8 +276,15 @@ class StructSchemaField {
     public function new(name, type, ?flags) {
         this.name = name;
         this.flags = flags == null ? new EnumFlags() : flags;
-
         this.type = type;
+
+        this.comparator = try this.type.getTypedComparator() catch (err: Dynamic) Comparator.cany();
+        this.equator = try this.type.getTypedEquator() catch (err: Dynamic) Equator.anyEq();
+
+        this.incrementer = null;
+        if (hasFlag(AutoIncrement)) {
+            this.incrementer = new Incrementer();
+        }
     }
 
 /* === Methods === */
@@ -307,7 +317,7 @@ class StructSchemaField {
     }
 
     public function getComparator():Comparator<Dynamic> {
-        return type.getTypedComparator();
+        return comparator;
     }
 
     public function getEquator():Equator<Dynamic> {
@@ -381,8 +391,11 @@ class StructSchemaField {
 
     public var name(default, null): String;
     public var flags(default, null): EnumFlags<FieldFlag>;
+    public var comparator(default, null): Null<Comparator<Dynamic>>;
+    public var equator(default, null): Null<Equator<Dynamic>>;
 
     private var etype(default, null): DataType;
+    private var incrementer(default, null): Null<Incrementer>;
 }
 
 enum FieldFlag {
