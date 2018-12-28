@@ -49,6 +49,7 @@ using tannus.math.TMath;
 /**
   collection of methods that lay out the foundation for the overall architecture of the rest of the system
  **/
+@:expose
 class Arch {
 
     /**
