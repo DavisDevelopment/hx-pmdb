@@ -669,6 +669,15 @@ class Arch {
         return cloned;
     }
 
+    public static function clone_object_onto(src:Object<Dynamic>, dest:Object<Dynamic>, ?fields:Array<String>):Void {
+        if (fields == null)
+            fields = src.keys();
+
+        for (k in fields) {
+            dest[k] = src[k];
+        }
+    }
+
     public static function clone_uarray(array:Array<Dynamic>, ?method:CloneMethod):Array<Dynamic> {
         if (method == null) method = Shallow;
         var cloned:Array<Dynamic>;
