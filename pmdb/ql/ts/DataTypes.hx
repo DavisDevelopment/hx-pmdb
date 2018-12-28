@@ -14,8 +14,8 @@ import pmdb.core.Comparator;
 import pmdb.core.Equator;
 import pmdb.core.Error;
 import pmdb.core.Object;
-import pmdb.ql.ts.DataType;
 import pmdb.ql.ts.TypedData;
+import pmdb.ql.ts.DataType;
 
 import Slambda.fn;
 import Std.is as stdIs;
@@ -43,8 +43,9 @@ class DataTypes {
      **/
     public static function unifyLeft(left:DataType, right:DataType):Bool {
         return switch ([left, right]) {
-            case [TAny, _]: true;
-            case [TNull(left), right]: left.equals(right);
+            case [TAny|TUnknown|TMono(null), _]: true;
+            case [TMono(left), right]: unify(left, right);
+            case [TNull(left), right]: left.unifyLeft(right);
             case [TScalar(TString), TClass(String)]: true;
             case [TScalar(TBytes), TClass(bt=haxe.io.Bytes)]: true;
             case [TScalar(TDate), TClass(Date)]: true;
@@ -61,12 +62,51 @@ class DataTypes {
         return unifyLeft(right, left);
     }
 
+    public static function mergeLeft(left:DataType, right:DataType):DataType {
+        return switch ([left, right]) {
+            // [Int, String] merges [Int | String]
+            case [TTuple([la, lb]), TArray(TUnion(ra, rb))] if (unifyLeft(la, ra) && unifyLeft(lb, rb)): TTuple([la, lb]);
+            default: left;
+        }
+    }
+
+    public static function simplify(type: DataType):DataType {
+        return switch type {
+            /* Special Cases */
+            case TClass(Array): TArray(TUnknown);
+            case TClass(String): TScalar(TString);
+            case TClass(Date): TScalar(TDate);
+            case TClass(haxe.io.Bytes): TScalar(TBytes);
+            case TNull(TNull(t)): TNull(simplify(t));
+            case TUnion(simplify(_)=>a, simplify(_)=>b) if (unify(a, b)): throw 'Unsupported: simplify (A | B) where (A |= B)';
+            case TUnion(TUnknown, type), TUnion(type, TUnknown): TMono(simplify( type ));
+            case TUnion(TAny, TNull(_)), TUnion(TNull(_), TAny): TNull(TAny);
+
+            /* Compound-Type Simplification */
+            case TAnon(o):
+                TAnon(new CObjectType(
+                    o.fields.map(function(field) {
+                        return new Property(field.name,
+                            simplify( field.type ),
+                            field.opt
+                        );
+                    }),
+                    o.params != null ? o.params.copy() : null
+                ));
+
+            case _: type;
+        }
+    }
+
     /**
       generates and returns a lambda that will validate a value against a given type-pattern
      **/
     public static function valueChecker(type: DataType):Dynamic->Bool {
         return switch type {
             case TAny: TypeChecks.is_any;
+            case TMono(null): TypeChecks.is_any;
+            case TMono(type): valueChecker(type);
+            case TUnknown: affirmative;
             case TNull(type) if (type != null): TypeChecks.is_nullable.bind(_, valueChecker(type));
             case TArray(type): TypeChecks.is_array.bind(_, valueChecker(type));
             case TScalar(prim): switch prim {
@@ -80,12 +120,16 @@ class DataTypes {
         }
     }
 
+    private static function affirmative(x: Dynamic):Bool {
+        return true;
+    }
+
     /**
       check that [value]'s type unifies with [type]
      **/
     public static function checkValue(type:DataType, value:Dynamic):Bool {
         return switch type {
-            case TAny|TMono(null): true;
+            case TAny|TMono(null)|TUnknown: true;
             case TMono(type): checkValue(type, value);
             case TNull(type): (checkValue(type, value) || value == null);
             case TArray(type): value.is_array(x -> checkValue(type, x));
@@ -143,7 +187,7 @@ class DataTypes {
      **/
     public static function getTypedComparator(type:DataType, guard:Bool=false):Comparator<Dynamic> {
         return switch type {
-            case TAny|TMono(_): Comparator.cany();
+            case TAny|TMono(_)|TUnknown: Comparator.cany();
             case TScalar(stype): switch stype {
                 case TBoolean: Comparator.cboolean();
                 case TInteger: Comparator.cint();
@@ -317,6 +361,21 @@ class TypedDatas {
 
     public static inline function isScalar(d: TypedData):Bool {
         return d.match(DNull|DBool(_)|DInt(_)|DFloat(_)|DClass(String,_)|DClass(Date,_)|DClass(haxe.io.Bytes,_));
+    }
+
+    public static function getDataType(d: TypedData):DataType {
+        return switch d {
+            case TypedData.DNull: TNull(TUnknown);
+            case TypedData.DAny(_): TAny;
+            case TypedData.DArray(type, _): TArray(type);
+            case TypedData.DBool(_): TScalar(TBoolean);
+            case TypedData.DInt(_): TScalar(TInteger);
+            case TypedData.DFloat(_): TScalar(TDouble);
+            case TypedData.DObject(fields, _): TAnon(new CObjectType([for (f in fields) new Property(f.name, getDataType(f.value))]));
+            case TypedData.DClass(proto, _): TClass(proto);
+            case TypedData.DTuple(types, _): TTuple(types.map(getDataType));
+            case TypedData.DEnum(proto, _): TAny;
+        }
     }
 }
 
