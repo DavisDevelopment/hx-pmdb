@@ -13,6 +13,8 @@ import pmdb.ql.ast.BuiltinModule;
 import pmdb.ql.ast.nodes.*;
 import pmdb.ql.ast.nodes.QueryNode;
 import pmdb.ql.ast.builtins.*;
+import pmdb.ql.ast.QueryCompiler;
+import pmdb.ql.hsn.QlParser;
 import pmdb.ql.ts.*;
 import pmdb.core.Assert.assert;
 import pmdb.core.Store;
@@ -166,6 +168,14 @@ class QueryInterp {
             '-' => '__neg__'
         ];
     }
+
+/* === Properties === */
+
+    private var compiler(get, never): QueryCompiler;
+    inline function get_compiler():QueryCompiler return store != null ? store.q.compiler : null;
+
+    private var parser(get, never): QlParser;
+    inline function get_parser():QlParser return store != null ? store.q.parser : null;
 
 /* === Fields === */
 
