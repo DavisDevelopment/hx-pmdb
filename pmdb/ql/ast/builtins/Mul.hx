@@ -18,26 +18,33 @@ class Mul extends BuiltinFunction {
 
 /* === Methods === */
 
-    @:keep @fn('Float', 'Float', 'Float')
-    inline function _num_num(x:Float, y:Float):Float {
+    @:keep 
+    @fn('Float', 'Float', 'Float')
+    function mulf3(x:Float, y:Float):Float {
         return x * y;
     }
 
-    @:keep @fn('Float', 'Any', 'Float')
-    inline function _num(x:Float, y:Dynamic):Float {
+    @:keep 
+    @fn('int', 'int', 'int') 
+    function muli3(x:Int, y:Int):Int return x * y;
+
+    @:keep 
+    @fn('Float', 'Any', 'Float')
+    function mulfaf(x:Float, y:Dynamic):Float {
         if ((y is Float)) {
-            return _num_num(x, cast(y, Float));
+            return mulfaf(x, cast(y, Float));
         }
         else return Math.NaN;
     }
 
-    @:keep @fn('Array', 'Int', 'Array')
-    inline function _list(x:Array<Dynamic>, y:Int):Array<Dynamic> {
+    @:keep 
+    @fn('[int]', 'int', '[int]')
+    inline function mullist(x:Array<Dynamic>, y:Int):Array<Dynamic> {
         return x.times( y );
     }
 
     @:keep @fn('String', 'Int', 'String')
-    inline function _string(x:String, y:Int):String {
+    inline function mulstr(x:String, y:Int):String {
         return x.times( y );
     }
 }
