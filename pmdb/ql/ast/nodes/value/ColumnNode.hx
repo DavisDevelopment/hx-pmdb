@@ -13,6 +13,9 @@ import pmdb.core.DotPath;
 
 using pmdb.ql.ts.DataTypes;
 
+/**
+  node which represents a field reference on a document
+ **/
 class ColumnNode extends ValueNode {
     /* Constructor Function */
     public function new(path:Array<DotPathComponent>, type:DataType, ?expr, ?pos) {
@@ -21,7 +24,10 @@ class ColumnNode extends ValueNode {
         this.type = type;
         this.path = path;
         this.fieldName = path.join('.');
-        this.dotPath = new DotPath(path, fieldName);
+        this.dotPath = null;
+
+        if (path.length > 1)
+            this.dotPath = new DotPath(path, fieldName);
 
         addLabel('column');
     }
@@ -56,9 +62,12 @@ class ColumnNode extends ValueNode {
      **/
     override function eval(ctx: QueryInterp):Dynamic {
         //return ctx.document.dotGet( fieldName );
-        return dotPath.get(cast ctx.document, null);
+        return dotPath != null ? dotPath.get(cast ctx.document, null) : ctx.document.get( fieldName );
     }
 
+    /**
+      ensure that the referenced field is available
+     **/
     public function ensure(doc:Object<Dynamic>, ?defaultValue:Dynamic):Dynamic {
         if (defaultValue == null) {
             if (type != null) {
@@ -76,26 +85,43 @@ class ColumnNode extends ValueNode {
         }
 
         //trace('has(${dotPath.pathName}): ${dotPath.has(cast doc)}');
-        if (!dotPath.has(cast doc)) {
-            return dotPath.set(cast doc, defaultValue, function(p: Array<String>) {
-                if (p.join('.') == fieldName) {
-                    return defaultValue;
-                }
-                else return null;
-            });
+        if (dotPath != null) {
+            if (!dotPath.has(cast doc)) {
+                return dotPath.set(cast doc, defaultValue, function(p: Array<String>) {
+                    if (p.join('.') == fieldName) {
+                        return defaultValue;
+                    }
+                    else return null;
+                });
+            }
+            else {
+                return dotPath.get(cast doc);
+            }
         }
         else {
-            return dotPath.get(cast doc);
+            if (doc.get( fieldName ) == null) {
+                return doc.set(fieldName, defaultValue);
+            }
+            else {
+                return doc.get( fieldName );
+            }
         }
     }
 
     /**
       build and return a function that will perform the same task as [eval]
      **/
-    override function compile():QueryInterp->Dynamic {
-        return (function(path:DotPath) {
-            return (c: QueryInterp) -> path.get( c.document );
-        })( path );
+    override function compile() {
+        if (dotPath != null) {
+            return function(doc:Dynamic, args):Dynamic {
+                return dotPath.get( doc );
+            }
+        }
+        else {
+            return function(doc:Dynamic, args):Dynamic {
+                return Reflect.field(doc, fieldName);
+            }
+        }
     }
 
     override function clone():ValueNode {

@@ -52,15 +52,23 @@ class ValueBinaryOperatorNode extends ValueOperatorNode {
         return cast new ValueBinaryOperatorNode(left.clone(), right.clone(), op, expr, position);
     }
 
-    override function compile():QueryInterp->Dynamic {
+    override function compile() {
         if (_fn == null) {
             throw new Error('Betty');
         }
         else {
-            var cfn = (cast _fn.toVarArgFunction() : Dynamic->Dynamic->Dynamic);
-            return (function(cfn, left, right):Dynamic {
-                return ctx -> cfn(left(ctx), right(ctx));
-            })(cfn, left.compile(), right.compile());
+            final l = left.compile();
+            final r = right.compile();
+            final dopFn = _fn.toVarArgFunction();
+            final opFn = (x, y) -> dopFn(x, y);
+
+            return function(doc:Dynamic, args:Array<Dynamic>):Dynamic {
+                return opFn(l(doc, args), r(doc, args));
+            }
+            //var cfn = (cast _fn.toVarArgFunction() : Dynamic->Dynamic->Dynamic);
+            //return (function(cfn, left, right):Dynamic {
+                //return ctx -> cfn(left(ctx), right(ctx));
+            //})(cfn, left.compile(), right.compile());
         }
     }
 

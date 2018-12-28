@@ -55,4 +55,18 @@ class ContainsCheck extends InCheck {
     override function map(fn: QueryNode->QueryNode, deep=false):QueryNode {
         return new ContainsCheck(equator, safeValue(fn(left)), safeValue(fn(right)), expr, position);
     }
+
+    function superCompile() {
+        return super.compile();
+    }
+
+    override function compile() {
+        final l = this.left, r = this.right;
+        this.left = r;
+        this.right = l;
+        final res = super.compile();
+        this.left = l;
+        this.right = r;
+        return res;
+    }
 }

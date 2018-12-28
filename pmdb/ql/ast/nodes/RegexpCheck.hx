@@ -65,9 +65,12 @@ class RegexpCheck extends BinaryCheck {
     }
 
     override function compile():QueryInterp->Bool {
-        return (function(val:QueryInterp->Dynamic, re:EReg, match:EReg->Dynamic->Bool) {
-            return (c: QueryInterp) -> match(re, val( c ));
-        })(left.compile(), pattern, compileMatch());
+        final re:EReg = pattern;
+        final value = left.compile();
+        return function(c: QueryInterp) return match(re, value(c.document, c.parameters));
+        //return (function(val:QueryInterp->Dynamic, re:EReg, match:EReg->Dynamic->Bool) {
+            //return (c: QueryInterp) -> match(re, val( c ));
+        //})(left.compile(), pattern, compileMatch());
     }
 
     public function compileMatch():EReg->Dynamic->Bool {
@@ -79,7 +82,7 @@ class RegexpCheck extends BinaryCheck {
         });
     }
 
-    public function match(re:EReg, val:Dynamic):Bool {
+    static function match(re:EReg, val:Dynamic):Bool {
         if (Arch.isArray( val )) {
             return match_arr(re, cast(val, Array<Dynamic>));
         }
@@ -88,11 +91,11 @@ class RegexpCheck extends BinaryCheck {
         }
     }
 
-    public inline function match_str(re:EReg, s:String):Bool {
+    public static inline function match_str(re:EReg, s:String):Bool {
         return re.match( s );
     }
 
-    public function match_arr(re:EReg, a:Array<Dynamic>):Bool {
+    public static function match_arr(re:EReg, a:Array<Dynamic>):Bool {
         for (x in a) {
             if (match_str(re, Std.string(x))) {
                 return true;

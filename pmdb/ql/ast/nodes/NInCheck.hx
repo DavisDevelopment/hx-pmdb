@@ -32,4 +32,9 @@ class NInCheck extends InCheck {
     override function map(fn: QueryNode->QueryNode, deep=false):QueryNode {
         return new NInCheck(equator, safeNode(fn(left), ValueNode), safeNode(fn(right), ValueNode), expr, position);
     }
+
+    override function compile() {
+        final within = super.compile();
+        return function(c: QueryInterp) return !within(c);
+    }
 }

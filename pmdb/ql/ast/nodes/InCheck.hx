@@ -213,7 +213,7 @@ class InCheck extends BinaryCheck {
     override function compile():QueryInterp->Bool {
         return ((function(check, left, right) {
             return (function(c: QueryInterp):Bool {
-                return check(left(c), right(c));
+                return check(left(c.document, c.parameters), right(c.document, c.parameters));
             });
         })(
           compileIterableCheck(compileCheck()),

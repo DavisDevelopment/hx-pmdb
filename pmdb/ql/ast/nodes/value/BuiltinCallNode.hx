@@ -59,6 +59,16 @@ class BuiltinCallNode extends CompoundValueNode {
         return ValueExpr.make(ECall(name, [for (node in childValues) node.getExpr()]));
     }
 
+    override function compile() {
+        var bfn = _context != null ? fn(_context) : null;
+        if (bfn == null)
+            throw new Error('Cannot locate function $name');
+        final values = childValues.map(v -> v.compile());
+        return function(doc:Dynamic, params:Array<Dynamic>):Dynamic {
+            return bfn.safeApply(values.map(v -> v(doc, params))).getUnderlyingValue();
+        }
+    }
+
 /* === Fields === */
 
     public var name(default, null): String;

@@ -46,7 +46,7 @@ class ExistsCheck extends Check {
     }
 
     public function eval_col(node:ColumnNode, ctx:QueryInterp):Bool {
-        return ctx.document.exists(node.fieldName);
+        return ctx.document.dotExists( node.fieldName );
     }
 
     override function clone():Check {
@@ -59,19 +59,24 @@ class ExistsCheck extends Check {
 
     override function compile() {
         if ((value is ColumnNode)) {
-            return ((n:String, c:QueryInterp) -> c.document.exists( n ))
-                .curry()
-                .applyTo(cast(value, ColumnNode).fieldName);
+            final field = cast(value, ColumnNode).fieldName;
+            return function(ctx: QueryInterp):Bool {
+                return ctx.document.dotExists( field );
+            }
         }
         else {
-            return (function(val:QueryInterp->Dynamic, c:QueryInterp):Bool {
-                return !is_nully(val( c ));
-            }).curry()
-            .applyTo(value.compile());
+            //return (function(val:QueryInterp->Dynamic, c:QueryInterp):Bool {
+                //return !is_nully(val( c ));
+            //}).curry()
+            //.applyTo(value.compile());
+            final val = value.compile();
+            return function(ctx: QueryInterp):Bool {
+                return !is_nully(val(ctx.document, ctx.parameters));
+            }
         }
     }
 
-    private function is_nully(x: Dynamic):Bool {
+    private static function is_nully(x: Dynamic):Bool {
         return (x == null);
     }
 

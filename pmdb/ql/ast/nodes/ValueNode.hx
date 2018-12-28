@@ -27,6 +27,10 @@ class ValueNode extends QueryNode {
 
         this.expr = expr;
         _type = None;//DataType.TMono(null);
+        _context = null;
+        if (this.expr != null) {
+            assignType( this.expr.type );
+        }
     }
 
     /**
@@ -36,18 +40,23 @@ class ValueNode extends QueryNode {
         throw new NotImplementedError();
     }
 
+    /**
+      create and return a deep copy of [this] node
+     **/
     public function clone():ValueNode {
         return new ValueNode(expr, position);
     }
 
-    //public inline function ptrCpy(node: ValueNode):ValueNode {
-        //return (node == this) ? clone() : node;
-    //}
-
-    public function compile():QueryInterp->Dynamic {
+    /**
+      build an unbound function that can execute without needing to access [this] class's scope
+     **/
+    public function compile():ValueNodeLambda<Dynamic, Dynamic> {
         throw new NotImplementedError();
     }
 
+    /**
+      build and return an optimized variant of [this] Node
+     **/
     public function optimize():ValueNode {
         return this;
     }
@@ -64,18 +73,22 @@ class ValueNode extends QueryNode {
         }
     }
 
-    inline function safeValue(node: QueryNode):ValueNode {
+    function safeValue(node: QueryNode):ValueNode {
         return
             if ((node is ValueNode))
                 Std.instance(node, ValueNode)
-            else throw new Error('$node is not a ValueNode');
+            else
+                throw new Error('$node is not a ValueNode');
     }
 
+    /**
+      assign [this]'s type
+     **/
     public function assignType(type: ValType) {
         _type = Some(type);
     }
 
-    public inline function withType(t: ValType):ValueNode {
+    public function withType(t: ValType):ValueNode {
         inline assignType( t );
         return this;
     }
@@ -101,5 +114,9 @@ class ValueNode extends QueryNode {
     //public var nodeType(default, null): ValueNodeType;
 
     public var _type(default, null): Option<DataType>;
+    @:allow(pmdb.ql.ast.QueryCompiler)
+    public var _context(default, null): Null<QueryInterp>;
     public var expr(default, null): Null<ValueExpr>;
 }
+
+typedef ValueNodeLambda<Ctx, Res> = (document:Ctx, parameters:Array<Dynamic>) -> Res;

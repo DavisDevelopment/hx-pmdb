@@ -59,11 +59,13 @@ class EqCheck extends BinaryCheck {
     }
 
     override function compile():QueryInterp->Bool {
-        var l = left.compile(),
-            r = right.compile();
+        final l = left.compile(),
+              r = right.compile();
+        final eq = compileEq();
 
         return function(ctx: QueryInterp):Bool {
-            return Arch.areThingsEqual(l(ctx), r(ctx));
+            //return Arch.areThingsEqual(l(ctx), r(ctx));
+            return eq(l(ctx.document, ctx.parameters), r(ctx.document, ctx.parameters));
         }
     }
 

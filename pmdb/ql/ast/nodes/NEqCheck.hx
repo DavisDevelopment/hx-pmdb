@@ -32,4 +32,11 @@ class NEqCheck extends EqCheck {
     override function eval(ctx: QueryInterp):Bool {
         return !super.eval( ctx );
     }
+
+    override function compile() {
+        final eq = super.compile();
+        return function(c: QueryInterp):Bool {
+            return !eq( c );
+        }
+    }
 }

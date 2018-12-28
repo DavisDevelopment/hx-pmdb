@@ -84,14 +84,26 @@ class ListNode extends ValueNode {
         return cast values;
     }
 
-    override function compile():QueryInterp->Dynamic {
+    override function compile() {
         if (constValues != null) {
-            return (constants -> (c -> constants))(constValues.copy());
+            final cvl = constValues.copy();
+            return function(x:Dynamic, y:Array<Dynamic>):Dynamic {
+                return cvl;
+            }
         }
         else {
-            var vals = values.map(x -> x.compile());
-            return ((getters:Array<QueryInterp->Dynamic>) -> ((c: QueryInterp) -> [for (g in getters) g(c)]))( vals );
+            final vals = values.map(x -> x.compile());
+            return function(x, y):Dynamic {
+                return vals.map(v -> v(x, y));
+            }
         }
+        //if (constValues != null) {
+            //return (constants -> (c -> constants))(constValues.copy());
+        //}
+        //else {
+            //var vals = values.map(x -> x.compile());
+            //return ((getters:Array<QueryInterp->Dynamic>) -> ((c: QueryInterp) -> [for (g in getters) g(c)]))( vals );
+        //}
     }
 
     override function optimize():ValueNode {

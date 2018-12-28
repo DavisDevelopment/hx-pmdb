@@ -25,7 +25,7 @@ class ParameterNode extends ValueNode {
     }
 
     override function compile() {
-        return ((index: Int) -> ((c: QueryInterp) -> c.parameters[index]))(i);
+        return ((index: Int) -> ((ctx, args) -> args[index]))( i );
     }
 
     override function clone():ValueNode {

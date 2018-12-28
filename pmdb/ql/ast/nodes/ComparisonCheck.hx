@@ -68,7 +68,7 @@ class ComparisonCheck extends BinaryCheck {
 
     override function compile():QueryInterp->Bool {
         return ((compare, checkDiff, getLeft, getRight) -> 
-          (c -> checkDiff(compare(getLeft(c), getRight(c))))
+          ((c: QueryInterp) -> checkDiff(compare(getLeft(c.document, c.parameters), getRight(c.document, c.parameters))))
         )(
           compileComparison(),
           compileCompCheck(),
