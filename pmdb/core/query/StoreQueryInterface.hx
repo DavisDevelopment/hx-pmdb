@@ -1,13 +1,8 @@
 package pmdb.core.query;
 
-import tannus.ds.Set;
-import tannus.ds.Lazy;
-import tannus.ds.Ref;
-
 import pmdb.ql.types.*;
 import pmdb.ql.ts.*;
 import pmdb.ql.ts.DataType;
-import pmdb.ql.ts.DocumentSchema;
 import pmdb.ql.ast.BoundingValue;
 import pmdb.core.ds.AVLTree;
 import pmdb.core.ds.AVLTree.AVLTreeNode as Leaf;
@@ -18,12 +13,14 @@ import pmdb.core.Store;
 
 import pmdb.ql.*;
 import pmdb.ql.ast.*;
+import pmdb.ql.ast.Value.ValueExpr;
 import pmdb.ql.ast.nodes.*;
 import pmdb.ql.ast.nodes.update.*;
 import pmdb.ql.ast.nodes.value.*;
 import pmdb.ql.ast.QueryCompiler;
 import pmdb.ql.QueryIndex;
 import pmdb.ql.hsn.QlParser;
+import pmdb.core.query.Value;
 
 import haxe.extern.EitherType;
 import haxe.ds.Option;
@@ -55,12 +52,13 @@ class StoreQueryInterface<Item> {
         this.store = store;
 
         if (SANDBOX) {
+            this.ctx = new QueryInterp( store );
+
             this.parser = new QlParser();
             parser.useSchema( store.schema );
-            this.compiler = new QueryCompiler();
-            compiler.use( store.schema );
 
-            this.ctx = new QueryInterp( store );
+            this.compiler = new QueryCompiler();
+            compiler.with( ctx ).use( store.schema );
         }
         else {
             this.parser = globalParser;
@@ -120,6 +118,18 @@ class StoreQueryInterface<Item> {
         return parser.parseUpdate( s );
     }
 
+    inline function compileStringToValue(s: String):ValueExpr {
+        return parser.parseValue( s );
+    }
+
+    inline function compileHsExprToValue(e: hscript.Expr):ValueExpr {
+        return parser.readValue( e );
+    }
+
+    inline function compileValueExpr(e: ValueExpr):ValueNode {
+        return compiler.compileValueExpr( e );
+    }
+
     public inline function criterion(c:Criterion<Item>, prep=false):Criterion<Item> {
         return c;
     }
@@ -144,6 +154,14 @@ class StoreQueryInterface<Item> {
 
     public inline function mutation(m:Mutation<Item>, prep=false):Mutation<Item> {
         return m;
+    }
+
+    public inline function value(v:Value, prep=false):Value {
+        return v;
+    }
+
+    public inline function valueNode(v: Value):ValueNode {
+        return v.compile( this ).getNode();
     }
 
     public function check(where: Criterion<Item>):Check {
@@ -173,6 +191,10 @@ class StoreQueryInterface<Item> {
         return getCheckCursor(where, precompile);
     }
 
+    public function findOne(where:Criterion<Item>, precompile:Bool=false):FindCursor<Item> {
+        throw 'Not Implemented';
+    }
+
     public function findAll(where:Criterion<Item>, ?precompile):Array<Item> {
         return find(where, precompile).getAllNative();
     }
@@ -181,8 +203,7 @@ class StoreQueryInterface<Item> {
       apply some transformation to the Store<Item>
      **/
     public function update(how:Mutation<Item>, ?where:Criterion<Item>, precompile:Bool=false):UpdateCursor<Item> {
-        var how = updateNode( how );
-        return getUpdateCursor(how, where, precompile);
+        return getUpdateCursor(how, where, true);
     }
 
     //
@@ -222,9 +243,9 @@ class StoreQueryInterface<Item> {
     public var parser(default, null): QlParser;
     public var compiler(default, null): QueryCompiler;
 
-    public static var globalCtx: QueryInterp = new QueryInterp();
     public static var globalParser = new QlParser();
     public static var globalCompiler = new QueryCompiler();
+    public static var globalCtx: QueryInterp = new QueryInterp();
 
     static inline var SANDBOX = true;
 }
