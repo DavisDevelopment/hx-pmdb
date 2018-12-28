@@ -17,9 +17,15 @@ abstract Value (ValueExpr) from ValueExpr to ValueExpr {
 
 @:structInit
 class ValueExpr {
+    public function new(expr:ValueExprDef, type:DataType) {
+        this.expr = expr;
+        this.type = type;
+    }
+
     public var expr(default, null): ValueExprDef;
+
     @:optional
-    public var type(default, null): DataType;
+    public var type(default, null): DataType = DataType.TUnknown;
 
     public static function make(e:ValueExprDef, ?t:DataType):ValueExpr {
         return {expr:e, type:t};
