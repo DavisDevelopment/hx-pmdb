@@ -12,6 +12,8 @@ import pmdb.core.query.Criterion;
 import pmdb.core.query.Mutation;
 import pmdb.ql.QueryIndex;
 import pmdb.core.query.StoreQueryInterface;
+import pmdb.core.query.FindCursor;
+import pmdb.core.query.UpdateCursor;
 import pmdb.core.Query;
 import pmdb.core.StructSchema;
 
@@ -449,7 +451,7 @@ class Store<Item> {
         }
     }
 
-    public function find(?check:Criterion<Item>, ?precompile:Bool) {
+    public function find(?check:Criterion<Item>, ?precompile:Bool):FindCursor<Item> {
         return q.find(check != null ? check : cast Criterion.noop(), precompile);
     }
 
@@ -495,16 +497,20 @@ class Store<Item> {
       the current api for creating and defining Update<T> objects 
       is merely a placeholder, and will be replaced with a less verbose, more performant one soon
      **/
-    public function update(what:Mutation<Item>, ?where:Criterion<Item>, ?options:{?precompile:Bool, ?multiple:Bool}):Array<Item> {
+    public function update(what:Mutation<Item>, ?where:Criterion<Item>, ?options:{?precompile:Bool, ?multiple:Bool, ?insert:Bool}):Array<Item> {
         if (options == null)
             options = {};
         if (options.precompile == null)
-            options.precompile = true;
+            options.precompile = false;
         if (options.multiple == null)
-            options.multiple = false;
+            options.multiple = true;
+        if (options.insert == null)
+            options.insert = false;
 
         var affected:Array<Item> = new Array();
-        var cursor = q.update(what, where, options.precompile);
+        var cursor:UpdateCursor<Item> = q.update(what, where, options.precompile);
+        cursor.multiple( options.multiple );
+        cursor.insert( options.insert );
         var updates = cursor.exec();
         affected.resize( updates.length );
         for (i in 0...updates.length) {
