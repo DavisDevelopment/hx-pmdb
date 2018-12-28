@@ -6,6 +6,9 @@ import pmdb.core.Arch;
 
 import Reflect as O;
 
+using Lambda;
+using tannus.ds.ArrayTools;
+
 //@:runtimeValue
 @:forward
 abstract Object<T> (DynamicAccess<T>) from Dynamic<T> to Dynamic<T> from DynamicAccess<T> to DynamicAccess<T> {
@@ -75,6 +78,19 @@ abstract Object<T> (DynamicAccess<T>) from Dynamic<T> to Dynamic<T> from Dynamic
         for (key in this.keys()) {
             dest[key] = this[key];
         }
+    }
+
+    public function pick(fields: Array<String>):Object<T> {
+        final picked:Object<T> = Arch.emptyCopy( this );
+        Arch.clone_object_onto(this, picked, fields);
+        return picked;
+    }
+
+    public function without(fields: Array<String>):Object<T> {
+        final sub:Object<T> = Arch.emptyCopy( this );
+        final subFields = this.keys().filter(x -> fields.has( x ));
+        Arch.clone_object_onto(this, sub, subFields);
+        return sub;
     }
 
     @:op(A + B)
