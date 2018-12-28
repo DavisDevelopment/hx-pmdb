@@ -14,6 +14,8 @@ import pmdb.core.Error;
 import pmdb.core.Object;
 import pmdb.core.StructSchema;
 import pmdb.core.ValType;
+import pmdb.core.Comparator;
+import pmdb.core.Equator;
 
 import pmdb.ql.ast.PredicateExpr as Pe;
 import pmdb.ql.ast.Value.ValueExprDef as Ve;
@@ -31,6 +33,7 @@ using tannus.ds.StringUtils;
 using Slambda;
 using tannus.ds.ArrayTools;
 using tannus.FunctionTools;
+using pmdb.core.ds.tools.Options;
 using pmdb.ql.ts.DataTypes;
 using pmdb.ql.ast.Predicates;
 
@@ -47,6 +50,11 @@ class QueryCompiler {
 
     public function use(schema: StructSchema):QueryCompiler {
         this.schema = schema;
+        return this;
+    }
+
+    public function with(ctx: Null<QueryInterp>):QueryCompiler {
+        this.context = ctx;
         return this;
     }
 
@@ -136,7 +144,18 @@ class QueryCompiler {
                 new NoCheck( pe );
 
             case Pe.POpEq(left, right):
-                new EqCheck(null, vnode(left), vnode(right), pe);
+                final eq:Null<Equator<Dynamic>> = switch [left, right] {
+                    case [_.expr=>Ve.ECol(column), _], [_, _.expr=>Ve.ECol(column)] if (schema != null): switch schema.field(column) {
+                        case null: null;
+                        case field: field.getEquator();
+                    }
+                    case _: switch left.type {
+                        case TMono(null), TAny, TNull(TAny), TNull(TMono(null)): null;
+                        case other: other.getTypedEquator();
+                    }
+                }
+
+                new EqCheck(eq, vnode(left), vnode(right), pe);
 
             case Pe.POpNotEq(left, right):
                 new NEqCheck(null, vnode(left), vnode(right), pe);
@@ -173,10 +192,23 @@ class QueryCompiler {
         }
     }
 
-    private inline function coltype(col:String):Null<ValType> {
-        return if (schema != null)
-            schema.fieldType( col )
-            else null;
+    /**
+      get the DataType of the column referenced by [col]
+     **/
+    private function coltype(col: String):ValType {
+        return ((
+        if (schema != null)
+            (
+             try
+                Some(schema.fieldType( col ))
+            catch (err: Dynamic)
+                None
+            )
+        else
+            None
+        ) : Option<ValType>)
+        .or(TNull(TMono(null)))
+        .extract('What the fuck?');
     }
 
 
@@ -184,29 +216,30 @@ class QueryCompiler {
       convert a ValueExpr to a ValueNode
      **/
     private function vnode(e: ValueExpr):ValueNode {
-        return switch e.expr {
+        final node = switch e.expr {
             case Ve.EConst(constant):
                 switch constant {
                     case ConstExpr.CNull:
-                        new ConstNode(null, TypedData.DNull, e);
+                        new ConstNode(null, TypedData.DNull, TNull(TUnknown), e);
 
                     case ConstExpr.CBool(b):
-                        new ConstNode(b, TypedData.DBool(b), e);
+                        new ConstNode(b, TypedData.DBool(b), e.type, e);
 
                     case ConstExpr.CFloat(n):
-                        new ConstNode(n, TypedData.DFloat(n), e);
+                        new ConstNode(n, TypedData.DFloat(n), e.type, e);
 
                     case ConstExpr.CInt(n):
-                        new ConstNode(n, TypedData.DInt(n), e);
+                        new ConstNode(n, TypedData.DInt(n), e.type, e);
 
                     case ConstExpr.CString(s):
-                        new ConstNode(s, TypedData.DClass(String, s), e);
+                        new ConstNode(s, TypedData.DClass(String, s), e.type, e);
+
 
                     case ConstExpr.CRegexp(re):
-                        new ConstNode(re, TypedData.DClass(EReg, re), e);
+                        new ConstNode(re, TypedData.DClass(EReg, re), e.type, e);
 
                     case ConstExpr.CCompiled(typedValue):
-                        new ConstNode(typedValue.getUnderlyingValue(), typedValue, e);
+                        new ConstNode(typedValue.getUnderlyingValue(), typedValue, e.type, e);
                 }
 
             case Ve.ECol(column):
@@ -250,6 +283,10 @@ class QueryCompiler {
             case Ve.EVoid:
                 throw new NotImplementedError();
         }
+
+        node._context = context;
+
+        return node;
     }
 
     public function typeofValueExpr(expr:ValueExpr, ?expected:ValType):Null<ValType> {
@@ -285,8 +322,9 @@ class QueryCompiler {
                 }
 
             case Ve.ECol(column):
-                if (schema != null)
-                    schema.fieldType(column);
+                if (schema != null) {
+                    try schema.fieldType(column) catch (err: Dynamic) TNull(TAny);
+                }
                 else expected;
 
             case Ve.EList(values):
@@ -345,6 +383,7 @@ class QueryCompiler {
 /* === Variables === */
 
     private var schema(default, null): Null<StructSchema> = null;
+    private var context(default, null): Null<QueryInterp> = null;
 }
 
 enum TypingResult {
