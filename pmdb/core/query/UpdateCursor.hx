@@ -57,6 +57,7 @@ class UpdateCursor<Item> extends QueryCursor<Item, Array<UpdateLog<Item>>> {
         };
 
         update = mut;
+        //trace( update );
         updateNode = update.isStruct() ? null : store.q.updateNode( update );
         structure = update.isStruct() ? update.toStruct() : null;
 
@@ -86,7 +87,10 @@ class UpdateCursor<Item> extends QueryCursor<Item, Array<UpdateLog<Item>>> {
             }
         }
 
-        if ( _compile.update ) {
+        if (structure != null) {
+            compileStructure();
+        }
+        else if (_compile.update) {
             if (updateNode != null) {
                 _update = ((fn) -> (ctx) -> fn(ctx))(updateNode.compile());
                 this.mutator = function(context:QueryInterp, stale:Item):Item {
@@ -95,36 +99,38 @@ class UpdateCursor<Item> extends QueryCursor<Item, Array<UpdateLog<Item>>> {
                     return cast context.flushNewDoc();
                 }
             }
-            else if (structure != null) {
-                var keys = structure.keys();
-                var steps:Array<Object<Dynamic> -> Void> = new Array();
-                steps.resize(keys.length);
-                for (i in 0...keys.length) {
-                    steps[i] = (function(key:String, value:Dynamic) {
-                        if (key.has('.')) {
-                            return function(doc: Object<Dynamic>) {
-                                doc.dotSet(key, value);
-                            }
-                        }
-                        else {
-                            return function(doc: Object<Dynamic>) {
-                                doc.set(key, value);
-                            }
-                        }
-                    })(
-                        keys[i],
-                        structure[keys[i]]
-                    );
-                }
-                this.mutator = function(c:QueryInterp, doc:Item):Item {
-                    var newDoc:Item = Arch.clone_object(doc, ShallowRecurse);
-                    var docObject = newDoc.asObject();
-                    for (step in steps) {
-                        step( docObject );
+        }
+    }
+
+    private function compileStructure() {
+        assert(structure != null, new Error('cannot compile [structure]! No value has been assigned to it'));
+
+        var keys = structure.keys();
+        var steps:Array<Object<Dynamic> -> Void> = new Array();
+        steps.resize(keys.length);
+
+        for (i in 0...keys.length) {
+            steps[i] = (function(key:String, value:Dynamic) {
+                if (key.has('.')) {
+                    return function(doc: Object<Dynamic>) {
+                        doc.dotSet(key, value);
                     }
-                    return newDoc;
                 }
+                else {
+                    return function(doc: Object<Dynamic>) {
+                        doc.set(key, value);
+                    }
+                }
+            })(keys[i], structure[keys[i]]);
+        }
+
+        this.mutator = function(c:QueryInterp, doc:Item):Item {
+            var newDoc:Item = Arch.clone_object(doc, ShallowRecurse);
+            var docObject = newDoc.asObject();
+            for (step in steps) {
+                step( docObject );
             }
+            return newDoc;
         }
     }
 
