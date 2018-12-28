@@ -138,7 +138,7 @@ class QueryCaret<Item> extends StdIndexItemCaret<Item> {
      **/
     static function isSimpleKey(type: DataType):Bool {
         return switch type {
-            case TAny|TMono(_): false;
+            case TAny|TMono(_)|TUnknown: false;
             case TScalar(TBytes|TDate): false;
             case TScalar(_): true;
             case TArray(_)|TTuple(_): false;
