@@ -79,11 +79,22 @@ class TestSuite {
         assert(!Arch.areThingsEqual(a, b), c != null ? c : '$a == $b');
     }
 
-    inline function line<T>(x: T) {
-        Sys.println( x );
+    private var useConsole(default, null): Bool = false;
+    public function line<T>(x: T) {
+        if ( useConsole ) {
+            trace( x );
+        }
+        else {
+            if (output != null) {
+                output.writeString(Std.string( x ));
+            } 
+            else {
+                Sys.println( x );
+            }
+        }
     }
 
-    inline function lines<T>(x: Array<T>) {
+    public inline function lines<T>(x: Array<T>) {
         line(x.join('\n'));
     }
 
@@ -110,8 +121,9 @@ class TestSuite {
         }
     }
 
-    var cases(default, null): Array<TestCase>;
-    var caseMap(default, null): Map<String, TestCase>;
+    private var cases(default, null): Array<TestCase>;
+    private var caseMap(default, null): Map<String, TestCase>;
+    private var output(default, null): Null<haxe.io.Output> = null;
 }
 
 class TestCase {
