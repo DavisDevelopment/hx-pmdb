@@ -10,6 +10,8 @@ import pmdb.ql.ast.nodes.*;
 import pmdb.ql.ast.nodes.ValueNode;
 import pmdb.ql.ast.nodes.value.*;
 import pmdb.core.ds.*;
+import pmdb.core.ds.Lazy;
+import pmdb.core.ds.Ref;
 import pmdb.core.Error;
 import pmdb.core.Object;
 import pmdb.core.DotPath;
@@ -42,9 +44,10 @@ class PushUpdate extends BinaryUpdate {
             case null:
                 throw new Error('$left is not an acceptible left-hand value');
 
-            case (col={dotPath:path}):
+            case (col={dotPath:path, fieldName:name}):
                 col.ensure(doc.get(), new Array());
-                cast(path.get(cast doc.get()), Array<Dynamic>).push(right.eval( i ));
+
+                cast(path != null ? path.get(cast doc.get()) : doc.get()[name], Array<Dynamic>).push(right.eval( i ));
 
             default:
                 //
