@@ -20,7 +20,9 @@ abstract Object<T> (DynamicAccess<T>) from Dynamic<T> to Dynamic<T> from Dynamic
 /* === Operator Methods === */
 
     @:arrayAccess
-    public inline function get(key: String):Null<T> return this.get(key);
+    public inline function get(key: String):Null<T> {
+        return this.get( key );
+    }
 
     /**
       get the value of a nested field
@@ -62,7 +64,10 @@ abstract Object<T> (DynamicAccess<T>) from Dynamic<T> to Dynamic<T> from Dynamic
         return Arch.clone_object(this, Shallow);
     }
 
-    public function clone(?method:CloneMethod):Object<T> {
+    /**
+      clone [this] Object
+     **/
+    public function clone(?method: CloneMethod):Object<T> {
         if (method == null)
             method = ShallowRecurse;
         return Arch.clone_object(this, method);
@@ -100,6 +105,16 @@ abstract Object<T> (DynamicAccess<T>) from Dynamic<T> to Dynamic<T> from Dynamic
             res[key] = right[key];
         }
         return res;
+    }
+
+    @:resolve
+    public static inline function getattr<T>(o:Object<T>, name:String):T {
+        return o[name];
+    }
+
+    @:resolve
+    public static inline function setattr<T>(o:Object<T>, name:String, value:T):T {
+        return o[name] = value;
     }
 
 /* === Casting Methods === */
