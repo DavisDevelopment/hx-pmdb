@@ -99,6 +99,18 @@ class FindCursor<Item> extends QueryCursor<Item, Array<Item>> implements ICursor
         return new ValueGroupedCursorTransform(this, expr);
     }
 
+    public function prop(name: String) {
+        return new ExtractPropCursorTransform(this, name);
+    }
+
+    public function pick(names: Array<String>) {
+        return new PickPropsCursorTransform(this, names);
+    }
+
+    public function without(names: Array<String>) {
+        return new TrimPropsCursorTransform(this, names);
+    }
+
     /**
       skip the Resultset step and just get the results of [this] FIND operation as an array directly
      **/
@@ -376,6 +388,56 @@ class ValueGroupedCursorTransform<Item> extends GroupedCursorTransform<Item, Dyn
     override function groupId(item: Item):Dynamic {
         return get( item );
     }
+}
+
+class ExtractPropCursorTransform<Item> extends CursorDerivative<Array<Item>, Array<Dynamic>> {
+    /* Constructor Function */
+    public function new(cursor, name) {
+        super(cursor);
+        this.fieldName = name;
+    }
+
+    override function _transform(items: Array<Item>) {
+        return items.map(function(item: Item) {
+            return Arch.getDotValue(cast item, fieldName);
+        });
+    }
+
+    private var fieldName(default, null): String;
+}
+
+class PickPropsCursorTransform<Item> extends CursorDerivative<Array<Item>, Array<Dynamic>> {
+    public function new(cursor, attrs) {
+        super( cursor );
+
+        this.fields = attrs;
+    }
+
+    override function _transform(items: Array<Item>) {
+        return items.map(function(item: Item) {
+            final o:Object<Dynamic> = Object.ofStruct(cast item);
+            return o.pick( fields );
+        });
+    }
+
+    private var fields(default, null): Array<String>;
+}
+
+class TrimPropsCursorTransform<Item> extends CursorDerivative<Array<Item>, Array<Dynamic>> {
+    public function new(cursor, attrs) {
+        super( cursor );
+
+        this.fields = attrs;
+    }
+
+    override function _transform(items: Array<Item>) {
+        return items.map(function(item: Item) {
+            final o:Object<Dynamic> = Object.ofStruct(cast item);
+            return o.without( fields );
+        });
+    }
+
+    private var fields(default, null): Array<String>;
 }
 
 class Pair<Key, Value> {
