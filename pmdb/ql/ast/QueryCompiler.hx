@@ -22,6 +22,7 @@ import pmdb.ql.ast.Value.ValueExprDef as Ve;
 import pmdb.ql.ast.nodes.*;
 import pmdb.ql.ast.nodes.update.*;
 import pmdb.ql.ast.nodes.value.*;
+import pmdb.ql.ast.nodes.check.*;
 
 import haxe.Constraints.Function;
 import haxe.ds.Either;
@@ -187,6 +188,9 @@ class QueryCompiler {
             case Pe.POpRegex(l, r):
                 new RegexpCheck(vnode(l), vnode(r), pe);
 
+            case Pe.POpElemMatch(arr, sub, greedy):
+                new ElemMatchCheck(vnode(arr), compilePredicate(sub), greedy, pe);
+
             case other:
                 throw 'Unexpected $other';
         }
@@ -241,6 +245,12 @@ class QueryCompiler {
                     case ConstExpr.CCompiled(typedValue):
                         new ConstNode(typedValue.getUnderlyingValue(), typedValue, e.type, e);
                 }
+
+            case Ve.EThis:
+                new ThisNode( e );
+
+            case Ve.EAttr(o, n):
+                new AttrAccessNode(vnode(o), n, e);
 
             case Ve.ECol(column):
                 new ColumnNode(column.split('.'), coltype(column));
