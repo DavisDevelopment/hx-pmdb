@@ -153,9 +153,23 @@ class Store<Item> {
         return cast idx;
     }
 
+    /**
+      betty
+     **/
     private function _persist() {
         //TODO
         // this method is a placeholder for an actual persistence implementation
+    }
+
+    /**
+      persist [this] Store to a data file
+     **/
+    public function _compact() {
+        persistence.persistCachedDataStore( this );
+    }
+
+    public function _load() {
+        persistence.loadDataStore( this );
     }
 
     private function _syncCacheWithSchema() {
@@ -179,6 +193,9 @@ class Store<Item> {
         //
     }
 
+    /**
+      iterate over all rows
+     **/
     private inline function _eachRow(fn: Item -> Void) {
         inline pid.getAll().iter( fn );
     }
@@ -190,6 +207,18 @@ class Store<Item> {
      **/
     public function getAllData():Array<Item> {
         return pid.getAll();
+    }
+
+    /**
+      get the total number of documents stored in [this] Store
+     **/
+    public function size():Int {
+        if (pid != null) {
+            return pid.size();
+        }
+        else {
+            return 0;
+        }
     }
 
     /**
@@ -263,7 +292,10 @@ class Store<Item> {
     private function _insert(doc: OneOrMany<Item>) {
         try {
             _insertIntoCache( doc );
-            _persist();
+            
+            if ( !ioLocked ) {
+                persistence.persistNewState(cast doc.asMany());
+            }
         }
         catch (err: Dynamic) {
             throw err;
@@ -547,6 +579,7 @@ class Store<Item> {
       is merely a placeholder, and will be replaced with a less verbose, more performant one soon
      **/
     public function update(what:Mutation<Item>, ?where:Criterion<Item>, ?options:{?precompile:Bool, ?multiple:Bool, ?insert:Bool}):Array<Item> {
+        // build [options]
         if (options == null)
             options = {};
         if (options.precompile == null)
@@ -556,15 +589,24 @@ class Store<Item> {
         if (options.insert == null)
             options.insert = false;
 
+        // execute the update
         var affected:Array<Item> = new Array();
         var cursor:UpdateCursor<Item> = q.update(what, where, options.precompile);
         cursor.multiple( options.multiple );
         cursor.insert( options.insert );
         var updates = cursor.exec();
+
+        // gather the affected documents
         affected.resize( updates.length );
         for (i in 0...updates.length) {
             affected[i] = updates[i].post;
         }
+
+        // persist changes to the data
+        if ( !ioLocked ) {
+            persistence.persistNewState(cast affected);
+        }
+
         return affected;
     }
 
