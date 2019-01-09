@@ -1,11 +1,9 @@
 package pmdb.core.ds;
 
-import haxe.ds.ReadOnlyArray;
-
 import haxe.macro.Expr;
 
 @:forward(length, iterator, keyValueIterator)
-abstract OneOrMany<T> (ReadOnlyArray<T>) from ReadOnlyArray<T> to ReadOnlyArray<T> {
+abstract OneOrMany<T> (Array<T>) from Array<T> to Array<T> {
     public inline function isOne():Bool {
         return this.length == 1;
     }
@@ -20,7 +18,7 @@ abstract OneOrMany<T> (ReadOnlyArray<T>) from ReadOnlyArray<T> to ReadOnlyArray<
     }
 
     @:to
-    public inline function asMany():ReadOnlyArray<T> {
+    public inline function asMany():Array<T> {
         return this;
     }
 
@@ -40,7 +38,7 @@ abstract OneOrMany<T> (ReadOnlyArray<T>) from ReadOnlyArray<T> to ReadOnlyArray<
 
     @:from
     public static inline function many<T>(values: Array<T>):OneOrMany<T> {
-        return (values: ReadOnlyArray<T>);
+        return (values: Array<T>);
     }
 
     @:from
