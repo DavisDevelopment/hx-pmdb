@@ -9,6 +9,7 @@ import haxe.rtti.Rtti;
 import haxe.rtti.CType;
 import haxe.io.Bytes;
 
+import pmdb.core.TypedValue;
 import pmdb.core.Check;
 import pmdb.core.Comparator;
 import pmdb.core.Equator;
@@ -54,14 +55,23 @@ class DataTypes {
         }
     }
 
+    /**
+      commutative unification
+     **/
     public static inline function unify(a:DataType, b:DataType):Bool {
         return (unifyLeft(a, b) || unifyRight(a, b));
     }
 
+    /**
+      right-biased unification
+     **/
     public static inline function unifyRight(left:DataType, right:DataType):Bool {
         return unifyLeft(right, left);
     }
 
+    /**
+      like [unifyLeft], but returns 'unified' type
+     **/
     public static function mergeLeft(left:DataType, right:DataType):DataType {
         return switch ([left, right]) {
             // [Int, String] merges [Int | String]
@@ -70,6 +80,9 @@ class DataTypes {
         }
     }
 
+    /**
+      DataType normalize/simplify function
+     **/
     public static function simplify(type: DataType):DataType {
         return switch type {
             /* Special Cases */
@@ -206,6 +219,9 @@ class DataTypes {
         }
     }
 
+    /**
+      get an Equator<Dynamic> for the given DataType
+     **/
     public static function getTypedEquator(type: DataType):Equator<Dynamic> {
         throw 'Unimpl';
     }
@@ -231,6 +247,9 @@ class DataTypes {
         }
     }
 
+    /**
+      obtain a TypedValue for [value]
+     **/
     private static function type_object(o: Object<Dynamic>):TypedData {
         var fields = new Array();
         for (field in o.keys()) {
@@ -277,9 +296,12 @@ class DataTypes {
         }
     }
 
+    /**
+      check whether [type] is a 'concrete' type
+     **/
     public static function isConcrete(type: DataType):Bool {
         return switch type {
-            case TMono(_), TUnion(_, _): false;
+            case TUnknown, TMono(_), TUnion(_, _): false;
             case TAnon(null): false;
             case TArray(e): e.isConcrete();
             case TTuple(vals): vals.every(t -> t.isConcrete());
