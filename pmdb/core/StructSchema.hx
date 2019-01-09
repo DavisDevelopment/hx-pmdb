@@ -116,13 +116,16 @@ class StructSchema {
     public function prepareStruct(o: Object<Dynamic>):Object<Dynamic> {
         var doc:Object<Dynamic> = Arch.deepCopy( o );
 
-        if (!doc.exists( primaryKey )) {
-            switch (field(primaryKey).type) {
-                case TAny|TScalar(TString):
+        if (!doc.exists(primaryKey) || doc[primaryKey] == null) {
+            switch (field( primaryKey )) {
+                case {type:TAny|TScalar(TString)}:
                     doc[primaryKey] = Arch.createNewIdString();
 
-                case TScalar(TBytes):
+                case {type:TScalar(TBytes)}:
                     doc[primaryKey] = haxe.io.Bytes.ofString(Arch.createNewIdString());
+
+                case f={type:TScalar(TInteger)} if ( f.autoIncrement ):
+                    doc[primaryKey] = f.incr();
 
                 case _:
                     throw new Error('Cannot auto-generate doc\'s primary-key, as the assigned column ("$primaryKey") is declared as a ${fieldType(primaryKey)} value');
@@ -347,6 +350,10 @@ class StructSchemaField {
         s.serialize( name );
         s.serialize( etype );
         s.serialize(flags.toInt());
+        var extras:Dynamic = {};
+        if (incrementer != null && autoIncrement) {
+            extras.inc = incrementer.current();
+        }
     }
 
     @:keep
@@ -354,19 +361,37 @@ class StructSchemaField {
         name = u.unserialize();
         etype = u.unserialize();
         flags = u.unserialize();
+        var extras:Dynamic = u.unserialize();
+        if (extras == null)
+            return ;
+        if (extras.inc != null) {
+            assert((extras.inc is Int), new TypeError(extras.inc, TScalar(TInteger)));
+            incrementer = new Incrementer(cast(extras.inc, Int));
+        }
     }
 
-    public inline function extract(o: Dynamic):Null<Dynamic> {
+    public function extract(o: Dynamic):Null<Dynamic> {
         return Reflect.field(o, name);
     }
 
-    public inline function assign(o:Dynamic, value:Dynamic):Null<Dynamic> {
+    public function assign(o:Dynamic, value:Dynamic):Null<Dynamic> {
         Reflect.setField(o, name, value);
         return value;
     }
 
     public inline function exists(o: Dynamic):Bool {
         return Reflect.hasField(o, name);
+    }
+
+    /**
+      obtain the next value in the incrementation
+     **/
+    public function incr():Int {
+        assert(autoIncrement, 'Invalid call to incr()');
+        if (incrementer == null) {
+            incrementer = new Incrementer();
+        }
+        return incrementer.next();
     }
 
 /* === Properties === */
@@ -379,6 +404,9 @@ class StructSchemaField {
 
     public var primary(get, never): Bool;
     inline function get_primary():Bool return is(Primary);
+
+    public var autoIncrement(get, never): Bool;
+    inline function get_autoIncrement():Bool return is(AutoIncrement);
 
     public var type(default, set): DataType;
     inline function set_type(v: DataType) {
