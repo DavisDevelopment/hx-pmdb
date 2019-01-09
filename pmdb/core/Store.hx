@@ -16,6 +16,8 @@ import pmdb.core.query.FindCursor;
 import pmdb.core.query.UpdateCursor;
 import pmdb.core.Query;
 import pmdb.core.StructSchema;
+import pmdb.storage.Persistence;
+import pmdb.storage.Storage;
 
 import haxe.ds.Either;
 import haxe.extern.EitherType;
@@ -52,8 +54,29 @@ class Store<Item> {
 
         indexes = new Map();
         schema = null;
-        if (options.schema != null)
+        persistence = null;
+
+        if (options.schema != null) {
             schema = options.schema;
+        }
+
+        // - default schema
+        if (schema == null) {
+            schema = new StructSchema();
+            schema.addField('_id', DataType.TAny, [Primary]);
+            schema.putIndex(IndexType.Simple('_id'));
+        }
+
+        if (options.persistence != null) {
+            persistence = cast options.persistence;
+        }
+
+        if (persistence == null) {
+            persistence = new Persistence({
+                filename: options.filename,
+                storage: options.storage
+            });
+        }
 
         _init_();
 
@@ -74,14 +97,28 @@ class Store<Item> {
      **/
     private function _init_indices_():Void {
         /* == Primary Index == */
+        inline _init_id_();
+
         assert(schema != null, new Error('Schema must be provided'));
 
         for (info in schema.indexes) {
             //_addIndexToCache(_buildIndex( info ));
-            if (schema.hasField(info.name)) {
-                addSimpleIndex(info.name);
+            if (schema.hasField( info.name )) {
+                addSimpleIndex( info.name );
             }
         }
+    }
+
+    /**
+      initialize the primary-index
+     **/
+    private function _init_id_() {
+        ensureIndex({
+            name: '_id',
+            type: DataType.TAny,
+            unique: true,
+            sparse: false
+        });
     }
 
     /**
@@ -153,6 +190,18 @@ class Store<Item> {
      **/
     public function getAllData():Array<Item> {
         return pid.getAll();
+    }
+
+    /**
+      dump all documents and reset the index registry
+     **/
+    public function resetIndexes():Void {
+        indexes = new Map();
+        inline _init_id_();
+    }
+
+    public function reset():Void {
+        inline resetIndexes();
     }
 
     /**
@@ -548,6 +597,12 @@ class Store<Item> {
     // Object-Model of type-information for [Item]
     public var schema(default, null): StructSchema;
 
+    // object used to persist [this] Store
+    public var persistence(default, null): Persistence<Item>;
+
+    //public var inMemoryOnly(default, null): Bool;
+    //public var filename(default, null): String;
+
     // name of primary index (defaults to "_id")
     //public var primaryKey(default, null): String;
 
@@ -556,14 +611,18 @@ class Store<Item> {
 
     // interface for 'next-generation' queries
     public var q: StoreQueryInterface<Item>;
+
+    public var ioLocked(default, null): Bool = false;
 }
 
 typedef StoreOptions = {
     ?primary: EitherType<String, StoreIndexOptions>,
     ?indexes: Array<StoreIndexOptions>,
-    ?schema: StructSchema
-    //?inMemoryOnly: Bool,
-    //?filename: String,
+    ?schema: StructSchema,
+    ?inMemoryOnly: Bool,
+    ?filename: String,
+    ?persistence: Persistence<Any>,
+    ?storage: Storage
 };
 
 typedef StoreIndexOptions = {
