@@ -38,6 +38,7 @@ using tannus.async.OptionTools;
 using tannus.ds.IteratorTools;
 using tannus.FunctionTools;
 using pmdb.ql.ast.Predicates;
+using pmdb.ql.hsn.Tools;
 
 @:forward
 abstract Criterion<T> (ECriterion<T>) from ECriterion<T> to ECriterion<T> {
@@ -106,6 +107,11 @@ abstract Criterion<T> (ECriterion<T>) from ECriterion<T> to ECriterion<T> {
     public static inline function fromHsExpr<T>(e: hscript.Expr):Criterion<T> {
         //return fromPredicateExpr(StoreQueryInterface.globalParser.readPredicate( e ));
         return HScriptExprCriterion( e );
+    }
+
+    @:from
+    public static inline function fromHxExpr<T>(e: Expr):Criterion<T> {
+        return fromHsExpr(e.toExpr());
     }
 
     @:from
