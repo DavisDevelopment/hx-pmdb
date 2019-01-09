@@ -45,6 +45,7 @@ class PredicateExpressions {
         return e.match(POpBoolAnd(_,_)|POpBoolOr(_,_)|POpBoolNot(_));
     }
 
+    /*
     public static function iter(e:PredicateExpr, fn:PredicateExpr->Void):Void {
         switch e {
             case Pe.POpBoolAnd(a, b)|Pe.POpBoolOr(a, b):
@@ -58,7 +59,9 @@ class PredicateExpressions {
                 //
         }
     }
+    */
 
+    /*
     public static function iterValues(e:PredicateExpr, fn:ValueExpr->Void):Void {
         function vi(ve: PredicateExpr) {
             switch ve {
@@ -69,7 +72,11 @@ class PredicateExpressions {
                 case Pe.POpBoolNot(x):
                     vi( x );
 
-                case Pe.POpEq(a, b)|Pe.POpNotEq(a, b)|Pe.POpGt(a, b)|Pe.POpLt(a, b)|Pe.POpGte(a, b)|Pe.POpLte(a, b)|Pe.POpIn(a, b)|Pe.POpNotIn(a, b)|Pe.POpContains(a, b)|Pe.POpRegex(a, b)|Pe.POpIs(a, b)|Pe.POpElemMatch(a, b):
+                case Pe.POpElemMatch(a, b, _) | Pe.POpWith(a, b):
+                    fn( a );
+                    vi( b );
+
+                case Pe.POpEq(a, b)|Pe.POpNotEq(a, b)|Pe.POpGt(a, b)|Pe.POpLt(a, b)|Pe.POpGte(a, b)|Pe.POpLte(a, b)|Pe.POpIn(a, b)|Pe.POpNotIn(a, b)|Pe.POpContains(a, b)|Pe.POpRegex(a, b)|Pe.POpIs(a, b):
                     fn(a);
                     fn(b);
 
@@ -91,32 +98,34 @@ class PredicateExpressions {
 
         iter(e, vi);
     }
+    */
 
-    public static function map(e:PredicateExpr, fn:PredicateExpr->PredicateExpr, ?vfn:ValueExpr->ValueExpr):PredicateExpr {
-        if (vfn == null)
-            vfn = FunctionTools.identity;
-        return switch e {
-            case Pe.POpBoolAnd(a, b): POpBoolAnd(fn(a), fn(b));
-            case Pe.POpBoolOr(a, b): POpBoolOr(fn(a), fn(b));
-            case Pe.POpBoolNot(x): POpBoolNot(fn(x));
-            case Pe.PNoOp: Pe.PNoOp;
-            case Pe.POpExists(x): POpExists(vfn(x)); //TODO
-            case Pe.POpMatch(a, b):
-                return POpMatch(vfn(a), b);
-            case Pe.POpEq(a, b)|Pe.POpNotEq(a, b)|Pe.POpGt(a, b)|Pe.POpLt(a, b)|Pe.POpGte(a, b)|Pe.POpLte(a, b)|Pe.POpIn(a, b)|Pe.POpNotIn(a, b)|Pe.POpContains(a, b)|Pe.POpRegex(a, b)|Pe.POpIs(a, b)|Pe.POpElemMatch(a, b):
-                return Pe.createByIndex(e.getIndex(), [vfn(a), vfn(b)]);
-            case Pe.POpInRange(a, b, c):
-                Pe.POpInRange(vfn(a), vfn(b), vfn(c));
-        }
-    }
+    //public static function map(e:PredicateExpr, fn:PredicateExpr->PredicateExpr, ?vfn:ValueExpr->ValueExpr):PredicateExpr {
+        //if (vfn == null)
+            //vfn = FunctionTools.identity;
+        //return switch e {
+            //case Pe.POpBoolAnd(a, b): POpBoolAnd(fn(a), fn(b));
+            //case Pe.POpBoolOr(a, b): POpBoolOr(fn(a), fn(b));
+            //case Pe.POpBoolNot(x): POpBoolNot(fn(x));
+            //case Pe.PNoOp: Pe.PNoOp;
+            //case Pe.POpExists(x): POpExists(vfn(x)); //TODO
+            //case Pe.POpMatch(a, b):
+                //return POpMatch(vfn(a), b);
+            //case Pe.POpEq(a, b)|Pe.POpNotEq(a, b)|Pe.POpGt(a, b)|Pe.POpLt(a, b)|Pe.POpGte(a, b)|Pe.POpLte(a, b)|Pe.POpIn(a, b)|Pe.POpNotIn(a, b)|Pe.POpContains(a, b)|Pe.POpRegex(a, b)|Pe.POpIs(a, b):
+                //return Pe.createByIndex(e.getIndex(), [vfn(a), vfn(b)]);
+            //case Pe.POpInRange(a, b, c):
+                //Pe.POpInRange(vfn(a), vfn(b), vfn(c));
+        //}
+    //}
 
+    /*
     public static function mapValues(e:PredicateExpr, fn:ValueExpr->ValueExpr):PredicateExpr {
         function vmapper(pe: PredicateExpr):PredicateExpr {
             return switch pe {
                 case Pe.POpBoolAnd(a, b): POpBoolAnd(vmapper(a), vmapper(b));
                 case Pe.POpBoolOr(a, b): POpBoolOr(vmapper(a), vmapper(b));
                 case Pe.POpBoolNot(x): POpBoolNot(vmapper(x));
-                case Pe.POpEq(a, b)|Pe.POpNotEq(a, b)|Pe.POpGt(a, b)|Pe.POpLt(a, b)|Pe.POpGte(a, b)|Pe.POpLte(a, b)|Pe.POpContains(a, b)|Pe.POpIn(a, b)|Pe.POpNotIn(a, b)|Pe.POpRegex(a, b)|Pe.POpIs(a, b)|Pe.POpElemMatch(a, b):
+                case Pe.POpEq(a, b)|Pe.POpNotEq(a, b)|Pe.POpGt(a, b)|Pe.POpLt(a, b)|Pe.POpGte(a, b)|Pe.POpLte(a, b)|Pe.POpContains(a, b)|Pe.POpIn(a, b)|Pe.POpNotIn(a, b)|Pe.POpRegex(a, b)|Pe.POpIs(a, b)|Pe.POpElemMatch(a, b, _):
                     Pe.createByIndex(pe.getIndex(), [fn(a), fn(b)]);
                 case Pe.POpExists(x): POpExists(fn(x));
                 case Pe.POpInRange(a, b, c):
@@ -139,6 +148,7 @@ class PredicateExpressions {
         }
         return map(e, replaceAny.bind(_, repl, what));
     }
+    */
 
     /**
       ...
@@ -289,7 +299,7 @@ class ValueExpressions {
 
     public static function map(e:ValueExpr, fn:ValueExpr -> ValueExpr):ValueExpr {
         return switch e.expr {
-            case EVoid: e;
+            case EVoid, EThis: e;
             case EReificate(_), EConst(_), ECol(_), ECast(_, _): e;
             case ECall(f, args): mkv(ECall(f, [for (x in args) fn(x)]));
             case EUnop(u, e): mkv(EUnop(u, fn(e)));
@@ -297,6 +307,7 @@ class ValueExpressions {
             case EList(values): mkv(EList([for (x in values) fn(x)]));
             case EObject(fields): mkv(EObject([for (f in fields) {k:f.k, v:fn(f.v)}]));
             case EArrayAccess(array, index): mkv(EArrayAccess(fn(array), fn(index)));
+            case EAttr(o, n): mkv(EAttr(fn(o), n));
             case ERange(min, max): mkv(ERange(fn(min), fn(max)));
         }
     }

@@ -56,6 +56,8 @@ enum PredicateExpr {
     // (exists(<column>)
     POpExists(column: ValueExpr);
 
+    POpWith(scope:ValueExpr, expr:PredicateExpr);
+
     // len(<column>[]) == <const integer>
     //POpSizeEq(col:ValueExpr, right:ValueExpr);
 
@@ -65,8 +67,12 @@ enum PredicateExpr {
       where([{] | @:where {
        [= &SUBQUERY =]
       } | [}])
+      --OR--
+      @with(<column>  => $element) [@any | @every] {
+         <predicate>
+      }
     */
-    POpElemMatch(column:ValueExpr, predicate:ValueExpr);
+    POpElemMatch(column:ValueExpr, predicate:PredicateExpr, greedy:Bool);
 }
 
 typedef SubPredicate = PredicateExpr;
