@@ -151,7 +151,7 @@ class DataTypes {
             case TAnon(o): value.is_anon() && checkObjectType(o, value);
             case TUnion(left, right): checkValue(left, value) || checkValue(right, value);
             case TClass(type): stdIs(value, type);
-            case TStruct(_): throw new Error('DocumentSchema is deprecated');
+            case TStruct(ss): value.is_anon() && ss.validateStruct( value );
             case TTuple(items): value.is_uarray() && checkTupleType(items, value);
         }
     }
@@ -224,6 +224,20 @@ class DataTypes {
      **/
     public static function getTypedEquator(type: DataType):Equator<Dynamic> {
         throw 'Unimpl';
+        return switch type {
+            case TUnknown|TMono(null)|TAny: Equator.anyEq();
+            case TScalar(stype): switch stype {
+                case TBoolean: Equator.boolEq();
+                case TInteger: Equator.intEq();
+                case TDouble: Equator.floatEq();
+                case TString: Equator.stringEq();
+                case TBytes: Equator.bytesEq();
+                case TDate: Equator.dateEq();
+            }
+            case TNull(t): getTypedEquator(t);
+            case TArray(et): Equator.typedArrayEquator(getTypedEquator(et));
+            default: Equator.anyEq();
+        }
     }
 
     /**
