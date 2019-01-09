@@ -217,6 +217,13 @@ class Index<Key, Item> {
     }
 
     /**
+      get the total number of documents stored in [this] Index
+     **/
+    public inline function size() {
+        return inline tree.size();
+    }
+
+    /**
       perform basic initialization of [this] Index
      **/
     function init() {
