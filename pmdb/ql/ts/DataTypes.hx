@@ -264,6 +264,12 @@ class DataTypes {
     /**
       obtain a TypedValue for [value]
      **/
+    public static function type(value: Dynamic):TypedValue {
+        if (value.is_instance(TypedValueImpl))
+            return cast(value, TypedValueImpl);
+        return TypedValue.of( value );
+    }
+
     private static function type_object(o: Object<Dynamic>):TypedData {
         var fields = new Array();
         for (field in o.keys()) {
