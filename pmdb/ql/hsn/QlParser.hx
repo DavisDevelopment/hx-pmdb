@@ -35,6 +35,7 @@ using tannus.ds.ArrayTools;
 using tannus.async.OptionTools;
 using tannus.FunctionTools;
 using hscript.Tools;
+using pmdb.ql.hsn.Tools;
 
 class QlParser {
     /* Constructor Function */
@@ -324,6 +325,21 @@ class QlParser {
             case Expr.ECall(EField(oexpr, method), args): 
                 return readPredicate(Expr.ECall(Expr.EIdent(method), [oexpr].concat(args)));
 
+            /**
+              [= Scope-Modification Expression =]
+             **/
+            case Expr.EMeta('with'|':with', [scopeCtx], check):
+                switch ( scopeCtx ) {
+                    case EMeta('every'|':every', null, EBinop('=>', iterableExpr, itemExpr)):
+                        return POpElemMatch(readValue(iterableExpr), readPredicate(check.replace(itemExpr, EIdent('this'))), true);
+
+                    case EBinop('=>', iterableExpr, itemExpr):
+                        return POpElemMatch(readValue(iterableExpr), readPredicate(check.replace(itemExpr, EIdent('this'))), false);
+
+                    default:
+                        return POpWith(readValue(scopeCtx), readPredicate(check));
+                }
+                
             case Expr.EBinop('&&', left, right): 
                 return POpBoolAnd(readPredicate(left), readPredicate(right));
 
@@ -360,15 +376,27 @@ class QlParser {
             //TODO make Null(Any) Null(Unknown)
             case Expr.EIdent('null'): 
                 mkv(Ve.EConst(ConstExpr.CNull), TNull(TAny));
+
             case Expr.EIdent('true'):
                 mkv(Ve.EConst(ConstExpr.CBool(true)), TScalar(TBoolean));
+
             case Expr.EIdent('false'): 
                 mkv(Ve.EConst(ConstExpr.CBool(false)), TScalar(TBoolean));
+
             case Expr.EIdent('_'):
                 mkv(Ve.EVoid);
+            
+            case Expr.EIdent('this'):
+                mkv(Ve.EThis);
+
             case Expr.EIdent( name ):
                 //TODO lookup column type when known
                 mkv(Ve.ECol(name));
+
+            case Expr.EField(ve, n):
+                //|Expr.EArray(ve, n=isExprOfString(_)=>true):
+                mkv(Ve.EAttr(readValue(ve), n));
+
             case Expr.EConst( c ): 
                 switch c {
                     case Const.CFloat(n): 
@@ -386,8 +414,8 @@ class QlParser {
             case Expr.EArrayDecl(values):
                 mkv(Ve.EList([for (v in values) readValue(v)]));
             
-            case Expr.EFunction(args, body, _, _):
-                throw new Unexpected( e );
+            case Expr.EFunction(args, expr=isLambdaExpr(_)=>true, null, _):
+                throw 'Lambda expressions not yet implemented';
 
             /* [= PARAMETER INTERPOLATION =] */
             case Expr.ECall(EIdent('arg'), [Expr.EConst(CInt(n))])
@@ -420,10 +448,12 @@ class QlParser {
             case Expr.ECall(EField(oexpr, method), args): readFCall(method, [oexpr].concat(args));
 
             /* [= ARRAY ACCESS =] */
-            case Expr.EArray(item, index): mkv(Ve.EArrayAccess(readValue(item), readValue(index)));
+            case Expr.EArray(item, index): 
+                mkv(Ve.EArrayAccess(readValue(item), readValue(index)));
 
             /* [= FIELD ACCESS =] */
-            case Expr.EField(_, _): mkv(Ve.ECol(readDotPath(e).join('.')));
+            case Expr.EField(_, _): 
+                mkv(Ve.ECol(readDotPath( e ).join('.')));
 
             default:
                 throw new Error('Unexpected $e');
@@ -432,6 +462,21 @@ class QlParser {
 
     function mkv(d:ValueExprDef, ?type:DataType):ValueExpr {
         return {expr:d, type:type};
+    }
+
+    function isExprOfString(e: Expr) {
+        return switch e {
+            case EConst(CString(_)): true;
+            case Expr.ECheckType(_, CType.CTPath(['String'], null)): true;
+            case Expr.ECall(EIdent('cast'), [_, EIdent('String')]): true;
+            case EParent(e): isExprOfString(e);
+            case EBinop('+', isExprOfString(_)=>l, isExprOfString(_)=>r): (l || r);
+            default: false;
+        }
+    }
+
+    function isLambdaExpr(e: Expr) {
+        return e.match(EBlock([EReturn(_)])|EReturn(_));
     }
 
     /**
