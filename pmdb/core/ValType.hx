@@ -7,6 +7,7 @@ import pmdb.core.Object;
 
 import haxe.ds.Option;
 import haxe.extern.EitherType;
+import haxe.macro.Expr.ComplexType;
 
 using pmdb.ql.ts.DataTypes;
 using tannus.async.OptionTools;
@@ -58,6 +59,34 @@ abstract ValType (DataType) from DataType  to DataType {
             case 'bytes', 'binary': scalar(TBytes);
             case 'date', 'datetime', 'timestamp': scalar(TDate);
             case other: throw new Error('"$other" is not a valid type-name');
+        }
+    }
+
+    @:from
+    public static function ofComplexType(ctype: haxe.macro.ComplexType):ValType {
+        return switch ctype {
+            case ComplexType.TAnonymous(fields): DataType.TAnon(new CObjectType(fields.map(f -> new Property(f.name, switch f.kind {
+                //case FVar(null, _): DataType.TUnknown;
+                case FVar(ctype, _) if (ctype != null): ofComplexType( ctype );
+                case _: DataType.TUnknown;
+            }))));
+            case ComplexType.TNamed(_, ctype): ofComplexType(ctype);
+            case ComplexType.TParent(ctype): ofComplexType(ctype);
+            case ComplexType.TOptional(ctype): DataType.TNull(ofComplexType(ctype));
+            case ComplexType.TPath(path): ofTypePath( path );
+
+            default: throw 'Unsupported';
+        }
+    }
+
+    public static function ofTypePath(path: haxe.macro.Expr.TypePath):ValType {
+        return switch ( path ) {
+            case {name: 'Bool' }|{name: 'StdTypes', sub:'Bool' }: DataType.TScalar( TBoolean );
+            case {name: 'Float'}|{name: 'StdTypes', sub:'Float'}: DataType.TScalar( TDouble  );
+            case {name: 'Int'  }|{name: 'StdTypes', sub:'Int'  }: DataType.TScalar( TInteger );
+            case {name: 'Date' }|{name: 'StdTypes', sub:'Date' }: DataType.TScalar( TDate    );
+
+            default: throw '[TODO]';
         }
     }
 
