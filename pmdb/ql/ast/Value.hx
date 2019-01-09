@@ -17,15 +17,19 @@ abstract Value (ValueExpr) from ValueExpr to ValueExpr {
 
 @:structInit
 class ValueExpr {
+    /* Constructor Function */
     public function new(expr:ValueExprDef, type:DataType) {
         this.expr = expr;
         this.type = type;
     }
 
-    public var expr(default, null): ValueExprDef;
+/* === Variables === */
 
-    @:optional
+    public var expr(default, null): ValueExprDef;
+    //@:optional
     public var type(default, null): DataType = DataType.TUnknown;
+
+/* === Statics === */
 
     public static function make(e:ValueExprDef, ?t:DataType):ValueExpr {
         return {expr:e, type:t};
@@ -35,6 +39,11 @@ class ValueExpr {
 @:using(pmdb.ql.ast.Predicates.ValueExpressions)
 enum ValueExprDef {
     EVoid;
+
+    // reference to the current context directly
+    EThis;
+
+    // bound-value reference
     EReificate(i: Int);
 
     // constant values
@@ -42,6 +51,9 @@ enum ValueExprDef {
 
     // column references
     ECol(column: String);
+
+    // attribute access
+    EAttr(o:ValueExpr, name:String);
 
     // <ValueExpr>[$index]
     EArrayAccess(value:ValueExpr, index:ValueExpr);
@@ -52,10 +64,19 @@ enum ValueExprDef {
     // $func($args...)
     ECall(func:String, args:Array<ValueExpr>);
 
+    // array($values...)
     EList(values: Array<ValueExpr>);
+    
+    // { ${field.k}: ${field.v}... }
     EObject(fields: Array<{k:String, v:ValueExpr}>);
+
+    // unary operators
     EUnop(op:EvUnop, e:ValueExpr);
+
+    // binary operators
     EBinop(op:EvBinop, l:ValueExpr, r:ValueExpr);
+
+    // type casting
     ECast(e:ValueExpr, t:TypeExpr);
 }
 
