@@ -1,8 +1,5 @@
 package pmdb.ql.ts;
 
-import tannus.ds.Lazy;
-import Type;
-
 enum TypedData {
     /* [= NUL & UNTYPED =] */
     DNull;
