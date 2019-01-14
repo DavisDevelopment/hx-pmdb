@@ -9,7 +9,7 @@ import pmdb.core.Comparator;
 import pmdb.core.Equator;
 import pmdb.core.Check;
 import pmdb.ql.ts.DataType;
-import pmdb.ql.ts.TypedData;
+import pmdb.core.TypedValue;
 import pmdb.ql.ts.TypeCasts;
 import pmdb.ql.ts.TypeChecks;
 import pmdb.core.Object;
@@ -27,13 +27,12 @@ import haxe.macro.Context;
 
 import Type.ValueType;
 import pmdb.ql.ts.DataTypes.typed;
-import pmdb.ql.ts.DataTypes.TypedDatas.getUnderlyingValue;
 
 import Slambda.fn;
 import Std.is as isType;
 import Reflect.*;
 import tannus.math.TMath.min;
-import tannus.ds.AnonTools.deepCopy as copy;
+import tannus.math.TMath.max;
 
 using StringTools;
 using tannus.ds.StringUtils;
@@ -104,141 +103,204 @@ class Arch {
       check whether the two given values can be considered equivalent
      **/
     public static inline function areThingsEqual(left:Dynamic, right:Dynamic, ?strict:Bool):Bool {
-        return areTypedThingsEqual(typed(left), typed(right), strict);
+        //return areTypedThingsEqual(typed(left), typed(right), strict);
+        return _areThingsEqual(left, right);
     }
 
-    /**
-      (TODO) split the logic used in this method into the Equality module
-     **/
-    public static function areTypedThingsEqual(left:TypedData, right:TypedData, strictMode:Bool=false):Bool {
-        /* begin with the check that should catch the majority of calls */
-        if (left == right || left.equals(right)) {
-            return true;
-        }
-
-        /* for simple data, values known to have the type-code that reach this check can be known to be unequal */
-        else if (_isSimple( left ) && right.getIndex() == left.getIndex()) {
-            //trace('Warning: Inequality determined for ($left, $right)');
+    static function _areThingsEqual(a:Dynamic, b:Dynamic, strict:Bool=false):Bool {
+        if (isArray(a)) {
+            if (isArray(b)) return areArraysEqual(a, b);
             return false;
-        } 
+        }
+        if (isBool(a)) return isBool(b) ? a == b : false;
+        if (isFloat(a)) return isFloat(b) ? a == b : false;
+        if (isString(a)) return isString(b) ? a == b : false;
+        if (a == null || b == null) return a == b;
 
-        // time to handle the patterns that make it this far
-        switch [left, right] {
-            // of course Null == Null
-            case [DNull, DNull]:
-                return true;
+        if (isDate(a)) return isDate(b) ? cast(a, Date).getTime() == cast(b, Date).getTime() : false;
+        if (Reflect.isEnumValue(a)) return Reflect.isEnumValue(b) ? areEnumValuesEqual(cast a, cast b) : false;
+        return areObjectsEqual2(a, b);
+    }
 
-            // Null only equals Null, and that case is handled above
-            case [DNull, _]:
+    public static function areObjectsEqual(a:Dynamic, b:Dynamic):Bool {
+        var aKeys = Reflect.fields( a ), bKeys = Reflect.fields( b );
+        for (i in 0...aKeys.length) {
+            if (!bKeys.has(aKeys[i])) {
                 return false;
-
-            case [_, DNull]: return switch left {
-                /**
-                  Measurable<?>'s with a length of 0 (empty) will report equality with NULL
-                 **/
-                case DArray(_, _.length => 0)
-                    |DClass(String, (_:String) => _.length => 0)
-                    |DClass(Bytes, (_ : Bytes) => _.length => 0): true;
-                default: false;
             }
 
-            /*
-               Float == Int | Int == Float 
-               should just work
-             */
-            case [DInt(i), DFloat(n)], [DFloat(n), DInt(i)]:
-                return (0.0 + i) == n;
-
-            /**
-              [=NOTE=]
-              this class-instance check may need to account for inheritence in the future(?)
-             **/
-            case [DClass(leftType, left), DClass(rightType, right)]:
-                if (leftType == rightType) {
-                    if (left == right)
-                        return true;
-
-                    switch (leftType) {
-                        case Bytes:
-                            throw new NotImplementedError('Arch.areTypedThingsEqual(haxe.io.Bytes, haxe.io.Bytes)');
-
-                        case Date:
-                            return cast(left, Date).getTime() == cast(right, Date).getTime();
-
-                        // I'm reasonably sure this case is never reached, but fuck it
-                        case String:
-                            return left == right;
-
-                        case _:
-                            var className = Type.getClassName(leftType);
-                            //trace('Warning: Inequality determined for ($className, $className)');
-                            return false;
-                    }
-                }
-                /*
-                else if ({check whether leftType is an ancestor to rightType}) {
-                    //... check equality treating [right] as instance of [leftType]
-                }
-                */
-                else {
-                    return false;
-                }
-
-            /* TypedData of a TypedData (recursive) */
-            case [DEnum(TypedData, (_:TypedData)=>left), DEnum(TypedData, (_:TypedData)=>right)]:
-                return areTypedThingsEqual(left, right);
-
-            /* EnumValues */
-            case [DEnum(le, (_:EnumValue)=>lev), DEnum(re, (_:EnumValue)=>rev)]:
-                return (
-                    le == re &&
-                    lev.getIndex() == rev.getIndex() &&
-                    areTypedThingsEqual(DArray(TAny, lev.getParameters()), DArray(TAny, rev.getParameters()))
-                );
-
-            /**
-              Equatable<?> objects can test for equality with another object
-             **/
-            case [DClass(_, (_:Dynamic)=>o)|DObject(_, (_:Dynamic)=>o), other], [other, DClass(_, (_:Dynamic)=>o)|DObject(_, (_:Dynamic)=>o)] if (o.has_method('equals')):
-                /**
-                  this <code>try...catch</code> here ESPECIALLY needs to be moved away into a (non-inline) module function, as it will
-                  inhibit optimization of <code>areTypedThingsEqual</code> in V8
-                  see: https://floitsch.blogspot.com/search/label/V8-optimizations?m=1
-                 **/
-                return try o.equals(getUnderlyingValue(other)) != false catch(e: Dynamic) false;
-
-            /**
-              Objects not implementing the Equatable interface are compared, per-attribute, right to left
-             **/
-            //case [DClass(_, (_ : Dynamic) => left)|DObject(_, (_ : Dynamic) => left), DClass(_, (_ : Dynamic) => right)|DObject(_, (_ : Dynamic) => right)]:
-            case [DObject(_, (_:Dynamic)=>left), DObject(_, (_:Dynamic)=>right)|DClass(_, (_:Dynamic)=>right)],
-                 [DClass(_, (_:Dynamic)=>left), DClass(_, (_:Dynamic)=>right)|DObject(_, (_:Dynamic)=>right)]:
-                //
-                var attrs = fields( right );
-                for (attr in attrs) {
-                    if (!areThingsEqual(field(right, attr), field(left, attr))) {
-                        return false;
-                    }
-                }
-                return true;
-
-            /* Arrays */
-            case [DArray(_, left), DArray(_, right)], [DTuple(_, left), DTuple(_, right)]:
-                if (left.length != right.length) 
-                    return false;
-                for (i in 0...left.length) {
-                    if (!areThingsEqual(left[i], right[i])) {
-                        return false;
-                    }
-                }
-                return true;
-
-            case [_, _]:
-                //
+            if (!areThingsEqual(Reflect.field(a, aKeys[i]), Reflect.field(b, bKeys[i]))) {
+                return false;
+            }
         }
 
-        return false;
+        return true;
     }
+
+    public static function areObjectsEqual2(a:Doc, b:Doc):Bool {
+        var aKeys = a.keys(), bKeys = b.keys();
+        if (aKeys.length != bKeys.length) return false;
+        for (i in 0...aKeys.length) {
+            if (bKeys.indexOf(aKeys[i]) == -1) return false;
+            if (!areThingsEqual(a[aKeys[i]], b[bKeys[i]])) return false;
+        }
+        return true;
+    }
+
+    public static function areEnumValuesEqual(a:EnumValue, b:EnumValue):Bool {
+        return (
+            Type.getEnum( a ) == Type.getEnum( b ) &&
+            a.getIndex() == b.getIndex() &&
+            areArraysEqual(a.getParameters(), b.getParameters())
+        );
+    }
+
+    public static function areArraysEqual(a:Array<Dynamic>, b:Array<Dynamic>):Bool {
+        if (a.length != b.length) {
+            return false;
+        }
+
+        for (i in 0...max(a.length, b.length)) {
+            if (!areThingsEqual(a[i], b[i])) {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
+    /*[>**/
+      //(TODO) split the logic used in this method into the Equality module
+     //**/
+    //public static function areTypedThingsEqual(left:TypedData, right:TypedData, strictMode:Bool=false):Bool {
+        //[> begin with the check that should catch the majority of calls <]
+        //if (left == right || left.equals(right)) {
+            //return true;
+        //}
+
+        //[> for simple data, values known to have the type-code that reach this check can be known to be unequal <]
+        //else if (_isSimple( left ) && right.getIndex() == left.getIndex()) {
+            ////trace('Warning: Inequality determined for ($left, $right)');
+            //return false;
+        //} 
+
+        //// time to handle the patterns that make it this far
+        //switch [left, right] {
+            //// of course Null == Null
+            //case [DNull, DNull]:
+                //return true;
+
+            //// Null only equals Null, and that case is handled above
+            //case [DNull, _]:
+                //return false;
+
+            //case [_, DNull]: return switch left {
+                //[>*
+                  //Measurable<?>'s with a length of 0 (empty) will report equality with NULL
+                 //**/
+                //case DArray(_, _.length => 0)
+                    //|DClass(String, (_:String) => _.length => 0)
+                    //|DClass(Bytes, (_ : Bytes) => _.length => 0): true;
+                //default: false;
+            //}
+
+            //[>
+               //Float == Int | Int == Float 
+               //should just work
+             //*/
+            //case [DInt(i), DFloat(n)], [DFloat(n), DInt(i)]:
+                //return (0.0 + i) == n;
+
+            //[>*
+              //[=NOTE=]
+              //this class-instance check may need to account for inheritence in the future(?)
+             //**/
+            //case [DClass(leftType, left), DClass(rightType, right)]:
+                //if (leftType == rightType) {
+                    //if (left == right)
+                        //return true;
+
+                    //switch (leftType) {
+                        //case Bytes:
+                            //throw new NotImplementedError('Arch.areTypedThingsEqual(haxe.io.Bytes, haxe.io.Bytes)');
+
+                        //case Date:
+                            //return cast(left, Date).getTime() == cast(right, Date).getTime();
+
+                        //// I'm reasonably sure this case is never reached, but fuck it
+                        //case String:
+                            //return left == right;
+
+                        //case _:
+                            //var className = Type.getClassName(leftType);
+                            ////trace('Warning: Inequality determined for ($className, $className)');
+                            //return false;
+                    //}
+                //}
+                //[>
+                //else if ({check whether leftType is an ancestor to rightType}) {
+                    ////... check equality treating [right] as instance of [leftType]
+                //}
+                //*/
+                //else {
+                    //return false;
+                //}
+
+            //[> TypedData of a TypedData (recursive) <]
+            //case [DEnum(TypedData, (_:TypedData)=>left), DEnum(TypedData, (_:TypedData)=>right)]:
+                //return areTypedThingsEqual(left, right);
+
+            //[> EnumValues <]
+            //case [DEnum(le, (_:EnumValue)=>lev), DEnum(re, (_:EnumValue)=>rev)]:
+                //return (
+                    //le == re &&
+                    //lev.getIndex() == rev.getIndex() &&
+                    //areTypedThingsEqual(DArray(TAny, lev.getParameters()), DArray(TAny, rev.getParameters()))
+                //);
+
+            //[>*
+              //Equatable<?> objects can test for equality with another object
+             //**/
+            //case [DClass(_, (_:Dynamic)=>o)|DObject(_, (_:Dynamic)=>o), other], [other, DClass(_, (_:Dynamic)=>o)|DObject(_, (_:Dynamic)=>o)] if (o.has_method('equals')):
+                //[>*
+                  //this <code>try...catch</code> here ESPECIALLY needs to be moved away into a (non-inline) module function, as it will
+                  //inhibit optimization of <code>areTypedThingsEqual</code> in V8
+                  //see: https://floitsch.blogspot.com/search/label/V8-optimizations?m=1
+                 //**/
+                //return try o.equals(getUnderlyingValue(other)) != false catch(e: Dynamic) false;
+
+            //[>*
+              //Objects not implementing the Equatable interface are compared, per-attribute, right to left
+             //**/
+            ////case [DClass(_, (_ : Dynamic) => left)|DObject(_, (_ : Dynamic) => left), DClass(_, (_ : Dynamic) => right)|DObject(_, (_ : Dynamic) => right)]:
+            //case [DObject(_, (_:Dynamic)=>left), DObject(_, (_:Dynamic)=>right)|DClass(_, (_:Dynamic)=>right)],
+                 //[DClass(_, (_:Dynamic)=>left), DClass(_, (_:Dynamic)=>right)|DObject(_, (_:Dynamic)=>right)]:
+                ////
+                //var attrs = fields( right );
+                //for (attr in attrs) {
+                    //if (!areThingsEqual(field(right, attr), field(left, attr))) {
+                        //return false;
+                    //}
+                //}
+                //return true;
+
+            //[> Arrays <]
+            //case [DArray(_, left), DArray(_, right)], [DTuple(_, left), DTuple(_, right)]:
+                //if (left.length != right.length) 
+                    //return false;
+                //for (i in 0...left.length) {
+                    //if (!areThingsEqual(left[i], right[i])) {
+                        //return false;
+                    //}
+                //}
+                //return true;
+
+            //case [_, _]:
+                ////
+        //}
+
+        //return false;
+    /*}*/
 
     public static inline function boolEquality(a:Bool, b:Bool):Bool {
         return a ? b : !b;
@@ -319,20 +381,6 @@ class Arch {
         }
 
         return intEquality(aKeys.length, bKeys.length);
-    }
-
-    /**
-      determine if the given TypedData can be equality-checked by EnumValue.equals()
-     **/
-    static function _isSimple(v: TypedData):Bool {
-        return switch ( v ) {
-            /* 'simple' includes all atomic value types */
-            case DNull|DBool(_)|DInt(_)|DFloat(_): true;
-            /* I'm not completely sure that DAny should be here, as it's for explicitly untyped values */
-            case DAny(_): true;
-
-            default: false;
-        }
     }
 
     /**
@@ -508,6 +556,10 @@ class Arch {
         return x.is_boolean();
     }
 
+    public static inline function isFloat(x: Dynamic):Bool {
+        return x.is_number();
+    }
+
     public static inline function isString(x: Dynamic):Bool {
         return x.is_string();
     }
@@ -582,7 +634,8 @@ class Arch {
      **/
     @:deprecated('use .clone() instead')
     public static function deepCopy<T>(value:T, ?target:T, structs:Bool=true):T {
-        return copy(value, target, structs);
+        //return copy(value, target, structs);
+        throw 'Use .clone() instead';
     }
 
     public static function emptyCopy<T>(value: T):T {
@@ -608,7 +661,7 @@ class Arch {
 
     public static function dclone(value:Dynamic, ?method:CloneMethod):Dynamic {
         if (method == null)
-            method = Shallow;
+            method = ShallowRecurse;
 
         if (isAtomic( value ))
             return value;
@@ -618,11 +671,11 @@ class Arch {
             return Date.fromTime(date.getTime());
         }
 
-        if (isObject( value ))
-            return clone_object(value, method);
-
         if (isArray( value ))
             return clone_uarray(cast(value, Array<Dynamic>), method);
+
+        if (isObject( value ))
+            return clone_object(value, method);
 
         return value;
     }
@@ -680,8 +733,10 @@ class Arch {
     }
 
     public static function clone_uarray(array:Array<Dynamic>, ?method:CloneMethod):Array<Dynamic> {
-        if (method == null) method = Shallow;
-        var cloned:Array<Dynamic>;
+        if (method == null)
+            method = ShallowRecurse;
+
+        var cloned: Array<Dynamic>;
         switch ( method ) {
             case Shallow:
                 cloned = array.copy();
@@ -705,8 +760,6 @@ class Arch {
         }
         return cloned;
     }
-
-
 
     /**
       compiles a Regular Expression from a String
@@ -795,4 +848,10 @@ enum CloneMethod {
      **/
     Custom(fn: Dynamic -> Dynamic);
     Deep(recursionMethod: CloneMethod);
+}
+
+class Stuff {
+    public static inline function isEqualTo(a:Dynamic, b:Dynamic):Bool {
+        return Arch.areThingsEqual(a, b);
+    }
 }
