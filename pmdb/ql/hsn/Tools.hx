@@ -121,4 +121,36 @@ class Tools {
     }
 
     private static var mep = new Printer();
+    @:noCompletion
+    public static var hsm = new hscript.Macro(cast {file:'betty.hx', min:0, max:1024});
 }
+
+class HSExprs {
+    public static function convert(expr: Expr):MacroExpr {
+        return Tools.hsm.convert( expr );
+    }
+}
+
+class MacroExprs {
+/**
+     * obtain a copy of [e], with all instances of [what] replaced with [with]
+     */
+    public static function replace(e:MacroExpr, what:MacroExpr, with:MacroExpr):MacroExpr {
+        if (e.expr.equals( what.expr )) {
+            return with;
+        }
+        else {
+            return e.map(replacer.bind(_, what, with));
+        }
+    }
+
+    // mapper method used by [replace]
+    private static function replacer(e:MacroExpr, what:MacroExpr, with:MacroExpr):MacroExpr {
+        if (e.expr.equals( what.expr )) {
+            return with;
+        }
+        return e.map(replacer.bind(_, what, with));
+    }
+}
+
+typedef HSTools = hscript.Macro;
