@@ -1,6 +1,6 @@
 package pmdb.core;
 
-import tannus.ds.Lazy;
+import pmdb.core.ds.Lazy;
 import haxe.ds.Option;
 
 import haxe.CallStack;
@@ -14,7 +14,7 @@ class Error {
     public function new(?msg:Lazy<String>, ?position:PosInfos) {
         name = 'Error';
         this.position = position;
-        this._msg = (msg != null ? msg : Lazy.ofFunc(() -> defaultMessage()));
+        this._msg = (msg != null ? msg : Lazy.ofFn(() -> defaultMessage()));
         //_cstack = None;
         //_estack = None;
         captureStacks();
@@ -32,6 +32,7 @@ class Error {
         return CallStack.toString( exceptionStack );
     }
 
+    @:keep
     public function toString():String {
         return '$name: $message';
     }

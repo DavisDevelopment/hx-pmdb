@@ -1,6 +1,6 @@
 package pmdb.core;
 
-import tannus.ds.Lazy;
+import pmdb.core.ds.Lazy;
 
 import pmdb.core.Error;
 

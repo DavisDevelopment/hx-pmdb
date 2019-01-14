@@ -7,8 +7,8 @@ import tannus.math.TMath as Math;
 
 import haxe.io.Bytes;
 
+import pmdb.core.TypedValue;
 import pmdb.ql.ts.DataType;
-import pmdb.ql.ts.TypedData;
 import pmdb.ql.ts.TypeChecks;
 import pmdb.ql.ts.TypeCasts;
 import pmdb.ql.ts.TypeSystemError;

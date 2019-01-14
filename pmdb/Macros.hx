@@ -49,7 +49,7 @@ class Macros {
     }
 
     static function elazy<T>(e: ExprOf<T>):ExprOf<Lazy<T>> {
-        return macro cast new tannus.ds.Lazy.LazyFunc(${elee(e)});
+        return macro pmdb.core.ds.Lazy.ofFn(${elee(e)});
     }
 
 #end

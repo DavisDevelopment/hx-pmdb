@@ -6,7 +6,6 @@ import tannus.ds.Set;
 
 import pmdb.ql.ts.DataType;
 import pmdb.core.ValType;
-import pmdb.ql.ts.TypedData;
 import pmdb.core.StructSchema;
 import pmdb.ql.ast.BuiltinFunction;
 import pmdb.ql.ast.BuiltinModule;
@@ -15,6 +14,7 @@ import pmdb.ql.ast.nodes.QueryNode;
 import pmdb.ql.ast.builtins.*;
 import pmdb.ql.ast.QueryCompiler;
 import pmdb.ql.hsn.QlParser;
+import pmdb.core.ds.*;
 import pmdb.ql.ts.*;
 import pmdb.core.Assert.assert;
 import pmdb.core.Store;
@@ -44,10 +44,12 @@ using pmdb.ql.ast.Predicates;
  **/
 class QueryInterp {
     /* Constructor Function */
-    public function new(?store: Store<Dynamic>):Void {
+    public function new(?store:Store<Dynamic>, ?mode):Void {
         document = null;
         parameters = null;
         tree = null;
+        this.modeStack = new LinkedStack();
+        modeStack.push(Compute);
         this.store = store;
 
         initBuiltins();
@@ -133,6 +135,22 @@ class QueryInterp {
         return res;
     }
 
+    public function getDoc(addr = 0):Null<Doc> {
+        return switch ( addr ) {
+            case 0: document;
+            case 1: newDocument != null ? newDocument.get() : null;
+            default:
+                throw new ValueError(addr, 'register-address out of bounds');
+        }
+    }
+
+    public inline function enterMode(m: InterpMode) {
+        modeStack.push( m );
+    }
+    public inline function leaveMode() {
+        modeStack.pop();
+    }
+
     /**
       initialize query-functions and things
      **/
@@ -177,13 +195,18 @@ class QueryInterp {
     private var parser(get, never): QlParser;
     inline function get_parser():QlParser return store != null ? store.q.parser : null;
 
+    public var mode(get, never): InterpMode;
+    inline function get_mode():InterpMode return modeStack.top();
+
 /* === Fields === */
 
     public var store(default, null): Null<Store<Dynamic>>;
 
     public var document(default, null): Null<Object<Dynamic>>;
     public var newDocument(default, null): Null<Ref<Object<Dynamic>>>;
-    public var parameters(default, null): Null<Array<Dynamic>>;
+    public var parameters: Null<Array<Dynamic>>;
+
+    public var modeStack(default, null): Stack<InterpMode>;
 
     public var builtins(default, null): Map<String, BuiltinFunction>;
     public var binops(default, null): Map<String, String>;
@@ -199,4 +222,19 @@ class UpdateLog<T> {
     public var post: T;
 }
 
-typedef Doc = Object<Dynamic>;
+enum InterpMode {
+    Select;
+    Update;
+    Delete;
+
+    Compute;
+}
+
+class InterpScope {
+    private var parent(default, null): Null<InterpScope> = null;
+    //public var defined(default, null): Map<String, Interp;
+    public function new(?parent) {
+        this.parent = parent;
+    }
+}
+
