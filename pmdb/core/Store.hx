@@ -602,6 +602,15 @@ class Store<Item> {
         return removedDocs;
     }
 
+    public function count(query: Criterion<Item>):Int {
+        var n = 0;
+        find(query).forEach(function(x) {
+            ++n;
+            return null;
+        });
+        return n;
+    }
+
     /**
       perform an update on [this] Store
       [=NOTE=]
