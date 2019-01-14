@@ -581,10 +581,25 @@ class Store<Item> {
         //return removedDocs;
 
         final cs = find( query );
-        final test = cs.predicateLambda();
         var nRemoved = 0, removedDocs = [];
 
-        throw 'Not Implemented';
+        cs.forEach(function(item: Item) {
+            nRemoved++;
+            removedDocs.push( item );
+            removeOneFromIndexes( item );
+
+            if (!multiple) return false;
+            return true;
+        });
+
+        if (!ioLocked) {
+            persistence.persistNewState(removedDocs.map(function(item) {
+                Reflect.setField(item, "$$deleted", true);
+                return item.asObject();
+            }));
+        }
+
+        return removedDocs;
     }
 
     /**
