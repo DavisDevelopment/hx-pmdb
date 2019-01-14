@@ -123,6 +123,16 @@ class FindCursor<Item> extends QueryCursor<Item, Array<Item>> implements ICursor
         };
     }
 
+    public function forEach(fn: Item -> Bool) {
+        var check = predicateLambda();
+        for (node in candidates()) {
+            if (check( node )) {
+                if (!fn( node ))
+                    break;
+            }
+        }
+    }
+
     /**
       perform FIND operation for a single document
      **/
