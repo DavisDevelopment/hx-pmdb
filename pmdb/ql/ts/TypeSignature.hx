@@ -12,7 +12,7 @@ import pmdb.core.Equator;
 import pmdb.core.Error;
 import pmdb.core.Arch;
 import pmdb.ql.ts.DataType;
-import pmdb.ql.ts.TypedData;
+import pmdb.core.TypedValue;
 
 import haxe.ds.Vector;
 import haxe.ds.Either;

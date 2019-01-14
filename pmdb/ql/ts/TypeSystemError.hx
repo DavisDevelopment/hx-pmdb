@@ -1,10 +1,11 @@
 package pmdb.ql.ts;
 
-import tannus.ds.Lazy;
+import pmdb.core.ds.Lazy;
 
 import haxe.ds.Option;
 
 import pmdb.core.Error;
+import pmdb.core.ValType;
 import pmdb.ql.ts.TypeSignature;
 
 using pmdb.ql.ts.DataTypes;
@@ -13,7 +14,7 @@ class TypeSystemError<T> extends ValueError<T> {
     //
 }
 
-class TypeError<TValue, TType> extends TypeSystemError<TValue> {
+class TypeErrorLike<TValue, TType> extends TypeSystemError<TValue> {
     /* Constructor Function */
     public function new(value, type, ?msg, ?pos) {
         super(value, msg, pos);
@@ -28,11 +29,13 @@ class TypeError<TValue, TType> extends TypeSystemError<TValue> {
     var _type(default, null): Lazy<TType>;
 }
 
-class DataTypeError<T> extends TypeError<T, DataType> {
+class TypeError<T> extends TypeErrorLike<T, DataType> {
     /* Constructor Function */
-    public function new(value, type, ?msg, ?pos) {
+    public function new(value, type:ValType, ?msg, ?pos) {
         super(value, type, msg, pos);
-        _vtype = _value.map(v -> v.dataTypeOf());
+        _vtype = _value.map(function(value: T):DataType {
+            return value.dataTypeOf();
+        });
     }
 
     override function defaultMessage():String {

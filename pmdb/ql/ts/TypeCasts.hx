@@ -2,7 +2,7 @@ package pmdb.ql.ts;
 
 
 import pmdb.ql.ts.DataType;
-import pmdb.ql.ts.TypedData;
+import pmdb.core.TypedValue;
 import pmdb.core.Comparator;
 import pmdb.core.Equator;
 import pmdb.core.Error;

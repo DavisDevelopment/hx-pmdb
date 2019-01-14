@@ -15,7 +15,6 @@ import pmdb.core.Comparator;
 import pmdb.core.Equator;
 import pmdb.core.Error;
 import pmdb.core.Object;
-import pmdb.ql.ts.TypedData;
 import pmdb.ql.ts.DataType;
 
 import Slambda.fn;
