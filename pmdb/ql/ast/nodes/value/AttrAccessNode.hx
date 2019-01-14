@@ -5,7 +5,6 @@ import pmdb.core.Object;
 import pmdb.core.Arch;
 
 import pmdb.ql.ts.DataType;
-import pmdb.ql.ts.TypedData;
 import pmdb.ql.types.DotPath;
 
 using pmdb.ql.ts.DataTypes;
@@ -23,6 +22,10 @@ class AttrAccessNode extends ValueNode {
 
     override function eval(ctx: QueryInterp):Dynamic {
         return Reflect.field(o.eval( ctx ), name);
+    }
+
+    override function assign(ctx:QueryInterp, val:Dynamic) {
+        Reflect.setField(o.eval(ctx), name, val);
     }
 
     override function compile() {

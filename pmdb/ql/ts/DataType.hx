@@ -5,6 +5,12 @@ import pmdb.core.StructSchema;
 
 @:using(pmdb.ql.ts.DataTypes)
 enum DataType {
+    // a non- value
+    TVoid;
+
+    // no value provided at all
+    TUndefined;
+
     // type is unspecified
     TUnknown;
 

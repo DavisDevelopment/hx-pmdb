@@ -1,11 +1,10 @@
 package pmdb.ql.ast;
 
-import tannus.ds.Lazy;
+import pmdb.core.ds.Lazy;
 import tannus.ds.Pair;
 import tannus.ds.Set;
 
 import pmdb.ql.ts.DataType;
-import pmdb.ql.ts.TypedData;
 import pmdb.ql.ast.Value;
 import pmdb.ql.ast.PredicateExpr;
 import pmdb.ql.ast.UpdateExpr;
@@ -16,6 +15,7 @@ import pmdb.core.StructSchema;
 import pmdb.core.ValType;
 import pmdb.core.Comparator;
 import pmdb.core.Equator;
+import pmdb.core.TypedValue;
 
 import pmdb.ql.ast.PredicateExpr as Pe;
 import pmdb.ql.ast.Value.ValueExprDef as Ve;
@@ -222,29 +222,7 @@ class QueryCompiler {
     private function vnode(e: ValueExpr):ValueNode {
         final node = switch e.expr {
             case Ve.EConst(constant):
-                switch constant {
-                    case ConstExpr.CNull:
-                        new ConstNode(null, TypedData.DNull, TNull(TUnknown), e);
-
-                    case ConstExpr.CBool(b):
-                        new ConstNode(b, TypedData.DBool(b), e.type, e);
-
-                    case ConstExpr.CFloat(n):
-                        new ConstNode(n, TypedData.DFloat(n), e.type, e);
-
-                    case ConstExpr.CInt(n):
-                        new ConstNode(n, TypedData.DInt(n), e.type, e);
-
-                    case ConstExpr.CString(s):
-                        new ConstNode(s, TypedData.DClass(String, s), e.type, e);
-
-
-                    case ConstExpr.CRegexp(re):
-                        new ConstNode(re, TypedData.DClass(EReg, re), e.type, e);
-
-                    case ConstExpr.CCompiled(typedValue):
-                        new ConstNode(typedValue.getUnderlyingValue(), typedValue, e.type, e);
-                }
+                cnode(e, constant);
 
             case Ve.EThis:
                 new ThisNode( e );
@@ -275,10 +253,13 @@ class QueryCompiler {
                     case EvBinop.OpDiv: '/';
                     case _: '?';
                 }
-                return new ValueBinaryOperatorNode(vnode(left), vnode(right), oper, e);
+                new ValueBinaryOperatorNode(vnode(left), vnode(right), oper, e);
 
             case Ve.EUnop(EvUnop.UNeg, value):
                 new ValueUnaryOperatorNode(vnode(value), '-', e);
+
+            case Ve.EArrayAccess(value, index):
+                new ArrayAccessNode(vnode(value), vnode(index), e);
 
             //TODO implement EObject(...)
             case Ve.EObject(_):
@@ -286,9 +267,6 @@ class QueryCompiler {
 
             case Ve.ERange(_, _):
                 throw new NotImplementedError();
-
-            case Ve.EArrayAccess(value, index):
-                new ArrayAccessNode(vnode(value), vnode(index), e);
 
             case Ve.EVoid:
                 throw new NotImplementedError();
@@ -299,36 +277,65 @@ class QueryCompiler {
         return node;
     }
 
+    private function cnode(e:ValueExpr, constant:ConstExpr):ConstNode {
+        return switch constant {
+            case ConstExpr.CNull:
+                new ConstNode(null, te(null, TVoid), TNull(TUnknown), e);
+
+            case ConstExpr.CBool(b):
+                new ConstNode(b, te(b, TScalar(TBoolean)), e.type, e);
+
+            case ConstExpr.CFloat(n):
+                new ConstNode(n, te(n, TScalar(TDouble)), e.type, e);
+
+            case ConstExpr.CInt(n):
+                new ConstNode(n, te(n, TScalar(TInteger)), e.type, e);
+
+            case ConstExpr.CString(s):
+                new ConstNode(s, te(s, TScalar(TString)), e.type, e);
+
+            case ConstExpr.CRegexp(re):
+                new ConstNode(re, te(re, TClass(EReg)), e.type, e);
+
+            case ConstExpr.CCompiled(typedValue):
+                new ConstNode(typedValue.value, typedValue, typedValue.type, e);
+        }
+    }
+
+    private static function te(value: Dynamic, ?type:DataType):TypedValue {
+        return new TypedValue(value, type == null ? value.dataTypeOf() : type);
+    }
+
     public function typeofValueExpr(expr:ValueExpr, ?expected:ValType):Null<ValType> {
         return switch expr.expr {
             case Ve.EConst(constant):
                 switch constant {
                     case ConstExpr.CNull:
-                        //new ConstNode(null, TypedData.DNull, e);
+                        //new ConstNode(null, TypedValue.DNull, e);
                         TMono(expected);
 
                     case ConstExpr.CBool(b):
-                        //new ConstNode(b, TypedData.DBool(b), e);
+                        //new ConstNode(b, TypedValue.DBool(b), e);
                         TScalar(TBoolean);
 
                     case ConstExpr.CFloat(n):
-                        //new ConstNode(n, TypedData.DFloat(n), e);
+                        //new ConstNode(n, TypedValue.DFloat(n), e);
                         TScalar(TDouble);
 
                     case ConstExpr.CInt(n):
-                        //new ConstNode(n, TypedData.DInt(n), e);
+                        //new ConstNode(n, TypedValue.DInt(n), e);
                         TScalar(TInteger);
 
                     case ConstExpr.CString(s):
-                        //new ConstNode(s, TypedData.DClass(String, s), e);
+                        //new ConstNode(s, TypedValue.DClass(String, s), e);
                         TScalar(TString);
 
                     case ConstExpr.CRegexp(re):
-                        //new ConstNode(re, TypedData.DClass(EReg, re), e);
+                        //new ConstNode(re, TypedValue.DClass(EReg, re), e);
                         TClass(EReg);
 
                     case ConstExpr.CCompiled(typedValue):
-                        typedValue.getUnderlyingValue().dataTypeOf();
+                        typedValue.type;
                 }
 
             case Ve.ECol(column):

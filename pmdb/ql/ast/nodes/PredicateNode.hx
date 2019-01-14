@@ -1,7 +1,7 @@
 package pmdb.ql.ast.nodes;
 
 import pmdb.ql.ts.DataType;
-import pmdb.ql.ts.TypedData;
+import pmdb.core.TypedValue;
 import pmdb.ql.ast.Value;
 import pmdb.ql.ast.PredicateExpr;
 import pmdb.ql.ast.UpdateOp;
@@ -46,15 +46,6 @@ class PredicateNode extends QueryNode {
         }
         else {
             throw new NotImplementedError();
-        }
-    }
-
-    override function createSimilar(args:Array<Dynamic>):QueryNode {
-        var targs = args.map(v -> (v : Dynamic).typed());
-        return switch args {
-            case []: super.createSimilar([null, null]);
-            case [DEnum(PredicateExpr, _)]|[DEnum(PredicateExpr, _), null]: super.createSimilar([args[0], null]);
-            default: super.createSimilar(args);
         }
     }
 

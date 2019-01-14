@@ -1,7 +1,6 @@
 package pmdb.ql.ast.nodes;
 
 import pmdb.ql.ts.DataType;
-import pmdb.ql.ts.TypedData;
 import pmdb.core.Error;
 import pmdb.core.Object;
 import pmdb.core.Equator;
@@ -43,7 +42,7 @@ class ValueUnaryOperatorNode extends ValueOperatorNode {
                 throw new Error('No builtin for $op operator');
 
             case fn:
-                fn.safeApply([value.eval( ctx )]).getUnderlyingValue();
+                fn.safeApply([value.eval( ctx )]).value;
         }
     }
 

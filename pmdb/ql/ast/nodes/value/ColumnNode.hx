@@ -8,7 +8,6 @@ import pmdb.core.Arch;
 import pmdb.ql.ast.Value;
 
 import pmdb.ql.ts.DataType;
-import pmdb.ql.ts.TypedData;
 import pmdb.core.DotPath;
 
 using pmdb.ql.ts.DataTypes;
@@ -62,7 +61,18 @@ class ColumnNode extends ValueNode {
      **/
     override function eval(ctx: QueryInterp):Dynamic {
         //return ctx.document.dotGet( fieldName );
-        return dotPath != null ? dotPath.get(cast ctx.document, null) : ctx.document.get( fieldName );
+        var d = this.doc( ctx );
+        return dotPath != null ? dotPath.get(cast d, null) : d.get( fieldName );
+    }
+
+    override function assign(c:QueryInterp, val:Dynamic) {
+        var d = this.doc( c );
+        if (dotPath != null) {
+            dotPath.set(cast d, val);
+        }
+        else {
+            d.set(fieldName, val);
+        }
     }
 
     /**

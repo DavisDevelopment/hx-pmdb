@@ -452,8 +452,8 @@ class QlParser {
                 mkv(Ve.EArrayAccess(readValue(item), readValue(index)));
 
             /* [= FIELD ACCESS =] */
-            case Expr.EField(_, _): 
-                mkv(Ve.ECol(readDotPath( e ).join('.')));
+            //case Expr.EField(_, _): 
+                //mkv(Ve.ECol(readDotPath( e ).join('.')));
 
             default:
                 throw new Error('Unexpected $e');

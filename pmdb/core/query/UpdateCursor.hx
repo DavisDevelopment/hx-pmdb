@@ -100,6 +100,16 @@ class UpdateCursor<Item> extends QueryCursor<Item, Array<UpdateLog<Item>>> {
                 }
             }
         }
+
+        /**
+          wrap [mutator] to ensure that it is executed in "update" mode
+         **/
+        this.mutator = this.mutator.wrap(function(fn, c:QueryInterp, item:Item):Item {
+            c.enterMode( Update );
+            var res = fn(c, item);
+            c.leaveMode();
+            return res;
+        });
     }
 
     private function compileStructure() {

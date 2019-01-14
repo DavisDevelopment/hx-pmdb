@@ -34,7 +34,7 @@ class TypedValueImpl {
         #end
 
         if ( safe ) {
-            assert(type.checkValue(value), new DataTypeError(value, type, null, pos));
+            assert(type.checkValue(value), new TypeError(value, type, null, pos));
         }
     }
 

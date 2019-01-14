@@ -2,7 +2,7 @@ package pmdb.ql.ast;
 
 import pmdb.ql.ts.DataType;
 import pmdb.ql.ts.TypeSignature;
-import pmdb.ql.ts.TypedData;
+import pmdb.core.TypedValue;
 import pmdb.core.Error;
 import pmdb.core.Object;
 import pmdb.ql.ast.nodes.*;
@@ -62,7 +62,7 @@ class BuiltinModule {
     }
 
     public inline function call(name:String, args:Array<Dynamic>):Dynamic {
-        return get(name).safeApply(args).getUnderlyingValue();
+        return get(name).safeApply(args).value;
     }
 
     public inline function importInto(context: QueryInterp) {
@@ -82,6 +82,6 @@ abstract MidFunc (Function) from Function to Function {}
 
 @:forward
 @:callable
-abstract TypedFn (Array<TypedData>->TypedData) from Array<TypedData>->TypedData to Array<TypedData>->TypedData {
+abstract TypedFn (Array<TypedValue>->TypedValue) from Array<TypedValue>->TypedValue to Array<TypedValue>->TypedValue {
 
 }

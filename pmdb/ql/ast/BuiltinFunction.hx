@@ -3,7 +3,7 @@ package pmdb.ql.ast;
 import pmdb.core.ds.Lazy;
 import pmdb.ql.ts.DataType;
 import pmdb.ql.ts.TypeSignature;
-import pmdb.ql.ts.TypedData;
+import pmdb.core.TypedValue;
 import pmdb.core.Error;
 import pmdb.core.Object;
 import pmdb.core.ds.tools.ArrayTools;
@@ -43,27 +43,27 @@ class BuiltinFunction {
 
 /* === Methods === */
 
-    public macro function call(self:ExprOf<BuiltinFunction>, args:Array<Expr>):ExprOf<TypedData> {
+    public macro function call(self:ExprOf<BuiltinFunction>, args:Array<Expr>):ExprOf<TypedValue> {
         return macro $self.safeApply([$a{args}]);
     }
 
-    public function safeApply(args: Array<Dynamic>):TypedData {
+    public function safeApply(args: Array<Dynamic>):TypedValue {
         var ret:Dynamic = apply(
-          args.map(x -> (x is TypedData) ? cast(x, TypedData) : type(x))
+          args.map(x -> Std.is(x, TypedValue.type) ? (x : TypedValue) : type(x))
         );
-        if (!(ret is TypedData))
+        if (!(Std.is(ret, TypedValue.type)))
             ret = type(ret);
         return ret;
     }
 
     @:deprecated('BuiltinFunction.apply will be reimplemented soon')
-    public function apply(parameters: Array<TypedData>):TypedData {
+    public function apply(parameters: Array<TypedValue>):TypedValue {
         throw new NotImplementedError();
     }
 
     public inline function toVarArgFunction():Function {
         return Reflect.makeVarArgs(function(args: Array<Dynamic>):Dynamic {
-            return this.apply(args.map(x -> type( x ))).getUnderlyingValue();
+            return this.apply(args.map(x -> type( x ))).value;
         });
     }
 
@@ -109,7 +109,7 @@ class BuiltinFunction {
         return new NativeFunction(name, fn);
     }
 
-    public static inline function make(name:String, fn:Array<TypedData>->TypedData):UnboundBuiltinFunction {
+    public static inline function make(name:String, fn:Array<TypedValue>->TypedValue):UnboundBuiltinFunction {
         return new UnboundBuiltinFunction(name, fn);
     }
 
@@ -181,11 +181,11 @@ class UnboundBuiltinFunction extends BuiltinFunction {
         dapply = apply;
     }
 
-    dynamic function dapply(args: Array<TypedData>):TypedData {
+    dynamic function dapply(args: Array<TypedValue>):TypedValue {
         throw new NotImplementedError();
     }
 
-    override function apply(args: Array<TypedData>):TypedData {
+    override function apply(args: Array<TypedValue>):TypedValue {
         return dapply( args );
     }
 }
@@ -193,8 +193,8 @@ class UnboundBuiltinFunction extends BuiltinFunction {
 class NativeFunction<T:Function> extends UnboundBuiltinFunction {
     /* Constructor Function */
     public function new(name, nativeFn):Void {
-        super(name, function(args: Array<TypedData>):TypedData {
-            return Reflect.callMethod(null, nativeFn, args.map(x -> x.getUnderlyingValue())).typed();
+        super(name, function(args: Array<TypedValue>):TypedValue {
+            return Reflect.callMethod(null, nativeFn, args.map(x -> x.value)).typed();
         });
         nfn = nativeFn;
     }

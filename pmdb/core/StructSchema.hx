@@ -114,15 +114,12 @@ class StructSchema {
     }
 
     public function prepareStruct(o: Object<Dynamic>):Object<Dynamic> {
-        var doc:Object<Dynamic> = Arch.deepCopy( o );
+        var doc:Object<Dynamic> = Arch.clone(o, ShallowRecurse);
 
         if (!doc.exists(primaryKey) || doc[primaryKey] == null) {
             switch (field( primaryKey )) {
                 case {type:TAny|TScalar(TString)}:
                     doc[primaryKey] = Arch.createNewIdString();
-
-                case {type:TScalar(TBytes)}:
-                    doc[primaryKey] = haxe.io.Bytes.ofString(Arch.createNewIdString());
 
                 case f={type:TScalar(TInteger)} if ( f.autoIncrement ):
                     doc[primaryKey] = f.incr();

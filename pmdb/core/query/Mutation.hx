@@ -14,6 +14,7 @@ using tannus.ds.ArrayTools;
 using tannus.async.OptionTools;
 using tannus.ds.IteratorTools;
 using tannus.FunctionTools;
+using pmdb.ql.hsn.Tools;
 
 @:forward
 abstract Mutation<Item> (EMutation<Item>) from EMutation<Item> to EMutation<Item> {
@@ -81,6 +82,11 @@ abstract Mutation<Item> (EMutation<Item>) from EMutation<Item> to EMutation<Item
     public static inline function fromHsExpr<I>(expr: hscript.Expr):Mutation<I> {
         //return fromUpdateExpr(StoreQueryInterface.globalParser.readUpdate( expr ));
         return HScriptExprMutation( expr );
+    }
+
+    @:from
+    public static inline function fromHxExpr<I>(expr: haxe.macro.Expr):Mutation<I> {
+        return fromHsExpr(expr.toExpr());
     }
 
     @:from

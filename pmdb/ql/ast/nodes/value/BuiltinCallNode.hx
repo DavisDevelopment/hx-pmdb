@@ -1,7 +1,6 @@
 package pmdb.ql.ast.nodes.value;
 
 import pmdb.ql.ts.DataType;
-import pmdb.ql.ts.TypedData;
 import pmdb.ql.ast.Value;
 import pmdb.core.Error;
 import pmdb.core.Object;
@@ -65,7 +64,7 @@ class BuiltinCallNode extends CompoundValueNode {
             throw new Error('Cannot locate function $name');
         final values = childValues.map(v -> v.compile());
         return function(doc:Dynamic, params:Array<Dynamic>):Dynamic {
-            return bfn.safeApply(values.map(v -> v(doc, params))).getUnderlyingValue();
+            return bfn.safeApply(values.map(v -> v(doc, params))).value;
         }
     }
 

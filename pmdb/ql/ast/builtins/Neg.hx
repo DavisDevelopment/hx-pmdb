@@ -3,7 +3,7 @@ package pmdb.ql.ast.builtins;
 import tannus.math.TMath as M;
 
 import pmdb.ql.ast.BuiltinFunction;
-import pmdb.ql.ts.TypedData;
+import pmdb.core.TypedValue;
 
 using StringTools;
 using tannus.ds.StringUtils;
@@ -19,24 +19,7 @@ class Neg extends BuiltinFunction {
 
 /* === Methods === */
 
-    override function apply(args: Array<TypedData>):TypedData {
-        return switch args {
-            case [DFloat(n)]: DFloat(-n);
-            case [DInt(i)]: DInt(-i);
-            case [other]:
-                throw 'Invalid operation -$other';
-            case other:
-                throw 'Invalid operation -$other';
-        }
-    }
-
-    @:keep @fn('Float', 'Float')
-    inline function _num(x: Float):Float {
-        return -x;
-    }
-
-    @:keep @fn('Bool', 'Bool')
-    inline function _bool(x: Bool):Bool {
-        return !x;
+    override function apply(args: Array<TypedValue>):TypedValue {
+        return new TypedValue(cast(args[0].value, Float) * -1, TScalar(TDouble));
     }
 }

@@ -112,11 +112,42 @@ class FindCursor<Item> extends QueryCursor<Item, Array<Item>> implements ICursor
     }
 
     /**
+      build and return the lambda function used as a predicate which applies the supplied checks to each document
+     **/
+    public function predicateLambda():(item: Item) -> Bool {
+        return function(itm: Item):Bool {
+            return this.predicate(
+                qi.ctx.setDoc(itm.asObject()),
+                itm
+            );
+        };
+    }
+
+    /**
+      perform FIND operation for a single document
+     **/
+    public function getOneNative():Null<Item> {
+        // get list of possible (candidate) results
+        var ca = candidates();
+        if (ca.empty()) return null;
+
+        // perform further filtering by [predicate]
+        if (checkNode != null && !(checkNode is pmdb.ql.ast.nodes.NoCheck)) {
+            return ca.find(function(itm: Item):Bool {
+                return this.predicate(qi.ctx.setDoc(itm.asObject()), itm);
+            });
+        }
+
+        return ca[0];
+    }
+
+    /**
       skip the Resultset step and just get the results of [this] FIND operation as an array directly
      **/
     public function getAllNative():Array<Item> {
         // get list of possible (candidate) results
         var res = candidates();
+        if (res.empty()) return [];
 
         // perform further filtering by [predicate]
         if (checkNode != null && !(checkNode is pmdb.ql.ast.nodes.NoCheck)) {
@@ -165,6 +196,9 @@ class FindCursor<Item> extends QueryCursor<Item, Array<Item>> implements ICursor
         if (itr == null)
             itr = new FindIteration( this );
         return itr;
+    }
+    public inline function itrCandidates() {
+        return this.store.getCandidates(cast this.searchIndex).iterator();
     }
 
     public function sort(criteria: Dynamic<SortOrder>):FindCursor<Item> {

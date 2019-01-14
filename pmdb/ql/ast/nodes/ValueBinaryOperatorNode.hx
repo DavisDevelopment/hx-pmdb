@@ -5,7 +5,6 @@ import tannus.ds.Pair;
 import tannus.ds.Set;
 
 import pmdb.ql.ts.DataType;
-import pmdb.ql.ts.TypedData;
 import pmdb.core.Error;
 import pmdb.core.Object;
 import pmdb.core.Equator;
@@ -44,7 +43,7 @@ class ValueBinaryOperatorNode extends ValueOperatorNode {
                 throw new Error('No builtin for $op operator');
 
             case fn:
-                return fn.safeApply([left.eval(ctx), right.eval(ctx)]).getUnderlyingValue();
+                return fn.safeApply([left.eval(ctx), right.eval(ctx)]).value;
         }
     }
 

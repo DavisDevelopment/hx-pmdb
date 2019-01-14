@@ -58,7 +58,7 @@ class DataTypes {
       commutative unification
      **/
     public static inline function unify(a:DataType, b:DataType):Bool {
-        return (unifyLeft(a, b) || unifyRight(a, b));
+        return (a == b || a.equals(b) || unifyLeft(a, b) || unifyRight(a, b));
     }
 
     /**
@@ -141,6 +141,7 @@ class DataTypes {
      **/
     public static function checkValue(type:DataType, value:Dynamic):Bool {
         return switch type {
+            case TVoid|TUndefined: value == null;
             case TAny|TMono(null)|TUnknown: true;
             case TMono(type): checkValue(type, value);
             case TNull(type): (checkValue(type, value) || value == null);
@@ -199,6 +200,7 @@ class DataTypes {
      **/
     public static function getTypedComparator(type:DataType, guard:Bool=false):Comparator<Dynamic> {
         return switch type {
+            case TVoid|TUndefined: throw new Error('Y u want that?');
             case TAny|TMono(_)|TUnknown: Comparator.cany();
             case TScalar(stype): switch stype {
                 case TBoolean: Comparator.cboolean();
@@ -222,7 +224,7 @@ class DataTypes {
       get an Equator<Dynamic> for the given DataType
      **/
     public static function getTypedEquator(type: DataType):Equator<Dynamic> {
-        throw 'Unimpl';
+        //throw 'Unimpl';
         return switch type {
             case TUnknown|TMono(null)|TAny: Equator.anyEq();
             case TScalar(stype): switch stype {
@@ -242,22 +244,8 @@ class DataTypes {
     /**
       convert [v] a TypedData value
      **/
-    public static function typed(v: Dynamic):TypedData {
-        return switch (Type.typeof( v )) {
-            case TNull: DNull;
-            case TUnknown: DAny( v );
-            case TInt: DInt(cast(v, Int));
-            case TFloat: DFloat(cast(v, Float));
-            case TBool: DBool(cast(v, Bool));
-            case TClass(Array): type_array(cast(v, Array<Dynamic>));
-            case TClass(cl): DClass(cl, cast v);
-            case TEnum(TypedData): (v : TypedData);// => pretyped): pretyped;
-            case TEnum(e): TypedData.DEnum(e, cast v);
-            //case TObject: DObject([for (k in Reflect.fields(v)) {name:k, value:typed(Reflect.field(v, k))}]);
-            case TObject: type_object(cast v);    
-            case TFunction:
-                throw new Error('TFunction type not implemented');
-        }
+    public static function typed(v: Dynamic):TypedValue {
+        return type( v );
     }
 
     /**
@@ -267,52 +255,6 @@ class DataTypes {
         if (value.is_instance(TypedValueImpl))
             return cast(value, TypedValueImpl);
         return TypedValue.of( value );
-    }
-
-    private static function type_object(o: Object<Dynamic>):TypedData {
-        var fields = new Array();
-        for (field in o.keys()) {
-            fields.push({
-                name: field,
-                value: typed(o.get(field))
-            });
-        }
-        return DObject(fields, o);
-    }
-
-    private static function type_array(a: Array<Dynamic>):TypedData {
-        if (a.empty()) {
-            return DArray(TAny, []);
-        }
-        else {
-            var _nul = false;
-            var type: Null<DataType> = null;
-            for (x in a) {
-                switch (Type.typeof( x )) {
-                    case TNull:
-                        if (type != null)
-                            type = makeNullable(type);
-                        else
-                            _nul = true;
-
-                    case concreteType:
-                        if (type == null) {
-                            type = ValueTypes.toDataType( concreteType );
-                            if ( _nul ) {
-                                type = makeNullable( type );
-                                _nul = false;
-                            }
-                        }
-                        else {
-                            var cdType = ValueTypes.toDataType(concreteType);
-                            if (!unifyLeft(type, cdType)) {
-                                throw new pmdb.ql.ts.TypeSystemError.DataTypeError(x, type);
-                            }
-                        }
-                }
-            }
-            return TypedData.DArray(type, a);
-        }
     }
 
     /**
@@ -380,42 +322,6 @@ class ValueTypes {
 
             case _:
                 return TAny;
-        }
-    }
-}
-
-class TypedDatas {
-    public static function getUnderlyingValue(typed: TypedData):Dynamic {
-        return switch typed {
-            case DNull: null;
-            case DAny(x), DBool((_ : Dynamic) => x), DInt((_ : Dynamic) => x), DFloat((_ : Dynamic) => x): x;
-            case DArray(_, (_ : Dynamic) => x), DTuple(_, (_ : Dynamic) => x): x;
-            case DObject(_, x): x;
-            case DClass(_, (_ : Dynamic) => x): x;
-            case DEnum(_, (_ : Dynamic) => x): x;
-        }
-    }
-
-    public static inline function isNull(d: TypedData):Bool {
-        return d.match(DNull);
-    }
-
-    public static inline function isScalar(d: TypedData):Bool {
-        return d.match(DNull|DBool(_)|DInt(_)|DFloat(_)|DClass(String,_)|DClass(Date,_)|DClass(haxe.io.Bytes,_));
-    }
-
-    public static function getDataType(d: TypedData):DataType {
-        return switch d {
-            case TypedData.DNull: TNull(TUnknown);
-            case TypedData.DAny(_): TAny;
-            case TypedData.DArray(type, _): TArray(type);
-            case TypedData.DBool(_): TScalar(TBoolean);
-            case TypedData.DInt(_): TScalar(TInteger);
-            case TypedData.DFloat(_): TScalar(TDouble);
-            case TypedData.DObject(fields, _): TAnon(new CObjectType([for (f in fields) new Property(f.name, getDataType(f.value))]));
-            case TypedData.DClass(proto, _): TClass(proto);
-            case TypedData.DTuple(types, _): TTuple(types.map(getDataType));
-            case TypedData.DEnum(proto, _): TAny;
         }
     }
 }

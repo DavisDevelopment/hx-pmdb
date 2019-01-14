@@ -5,7 +5,6 @@ import tannus.ds.Lazy;
 import hscript.Expr;
 
 import pmdb.ql.ast.TypeExpr;
-import pmdb.ql.ts.TypedData;
 import pmdb.ql.ts.DataType;
 
 //import pmdb.core.Error;
@@ -96,7 +95,8 @@ enum ConstExpr {
       by the compiler/optimizer during the compilation phase. This will only be created if the executable node-tree structure
       is transformed back to an AST for some reason
      **/
-    CCompiled(value: TypedData);
+    //CCompiled(value: TypedData);
+    CCompiled(value: pmdb.core.TypedValue);
 }
 
 enum EvUnop {

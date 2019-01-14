@@ -7,7 +7,6 @@ import tannus.ds.Set;
 import tannus.math.TMath as M;
 
 import pmdb.ql.ts.DataType;
-import pmdb.ql.ts.TypedData;
 import pmdb.ql.ast.BoundingValue;
 import pmdb.core.Index;
 import pmdb.core.Arch;
@@ -233,8 +232,7 @@ class PredicateExpressions {
      **/
     public static function getIndexableExpr(pe: PredicateExpr):Null<PredicateExpr> {
         return switch ( pe ) {
-            case Pe.POpEq(ce=(isColumn(_)=>true), ve=(isConst(_)=>true)): pe;
-            case Pe.POpEq(ve=(isConst(_)=>true), ce=(isColumn(_)=>true)): pe;
+            case Pe.POpEq(ce=(isColumn(_)=>true), ve), Pe.POpEq(ve, ce=(isColumn(_)=>true)): pe;
             case Pe.POpExists(ce=(isColumn(_)=>true)): pe;
             case Pe.POpGt(ce=(isColumn(_)=>true), ve=(isConst(_)=>true)): pe;
             case Pe.POpGt(ve=(isConst(_)=>true), ce=(isColumn(_)=>true)): pe;
@@ -266,7 +264,7 @@ class PredicateExpressions {
                 case CInt(n): Some(n);
                 case CString(s): Some(s);
                 case CRegexp(re): Some(re);
-                case CCompiled(v): Some(v.getUnderlyingValue());
+                case CCompiled(v): Some( v.value );
             }
             case EList(values):
                 if (values.every(ve -> extractConstValue(ve).isSome()))
@@ -277,12 +275,13 @@ class PredicateExpressions {
     }
 
     public static inline function isColumn(expr: ValueExpr):Bool {
-        return expr.expr.match(ValueExprDef.ECol(_));
+        return columnName(expr) != null;
     }
 
     public static inline function columnName(expr: ValueExpr):Null<String> {
         return switch ( expr.expr ) {
             case ECol(name): name;
+            case EAttr({expr:EThis}, name): name;
             case ECast(ce=(isColumn(_)=>true), _): columnName(ce);
             case _: null;
         }

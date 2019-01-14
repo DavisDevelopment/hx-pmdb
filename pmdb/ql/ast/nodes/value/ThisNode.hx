@@ -5,7 +5,6 @@ import pmdb.core.Object;
 import pmdb.core.Arch;
 
 import pmdb.ql.ts.DataType;
-import pmdb.ql.ts.TypedData;
 import pmdb.ql.types.DotPath;
 
 using pmdb.ql.ts.DataTypes;
@@ -19,7 +18,7 @@ class ThisNode extends ValueNode {
 /* === Methods === */
 
     override function eval(ctx: QueryInterp):Dynamic {
-        return ctx.document;
+        return this.doc( ctx );
     }
 
     override function compile() {

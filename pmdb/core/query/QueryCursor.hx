@@ -67,7 +67,10 @@ class QueryCursorBase<Item> {
         this.checkNode = null;
 
         this.predicate = function(ctx, item:Item) {
-            return checkNode.eval(ctx.setDoc(item.asObject()));
+            ctx.enterMode( Compute );
+            var res = checkNode.eval(ctx.setDoc(item.asObject()));
+            ctx.leaveMode();
+            return res;
         }
     }
 

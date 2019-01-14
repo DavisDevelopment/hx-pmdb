@@ -1,6 +1,7 @@
 
 import pmdb.core.Arch;
 import pmdb.core.Error;
+import pmdb.core.Object;
 import pmdb.ql.ts.TypeSystemError;
 //import pmdb.core.ValType;
 //import pmdb.ql.ts.DataType;

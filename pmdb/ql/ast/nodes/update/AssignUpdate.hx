@@ -37,33 +37,13 @@ class AssignUpdate extends BinaryUpdate {
         return new AssignUpdate(left.clone(), right.clone(), expr, position);
     }
 
-    override function apply(i:QueryInterp, left:ValueNode, right:ValueNode, doc:Ref<Object<Dynamic>>) {
-        switch column( left ) {
-            case {dotPath: path, fieldName:name}:
-                if (path != null)
-                    path.set(doc.value, right.eval( i ));
-                else
-                    doc.get().set(name, right.eval( i ));
-
-            case _:
-                throw new Error('Invalid left-hand node');
-        }
+    override function eval(ctx: QueryInterp) {
+        left.assign(ctx, right.eval( ctx ));
     }
 
-    override function isValidLeft(node: ValueNode):Bool {
-        return
-            try (switch column( node ) {
-                case null: false;
-                case _: true;
-            })
-            catch (err: Dynamic) false;
-    }
-
-    public inline function column(node: ValueNode):Null<ColumnNode> {
-        return
-            if ((node is ColumnNode)) cast(node, ColumnNode);
-            else null;
-    }
+    //override function apply(i:QueryInterp, left:ValueNode, right:ValueNode, doc:Ref<Object<Dynamic>>) {
+        //left.assign(i, right.eval( i ));
+    //}
 
     override function getExpr():UpdateExpr {
         return UAssign(left.getExpr(), right.getExpr());

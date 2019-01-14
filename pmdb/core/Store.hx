@@ -63,8 +63,8 @@ class Store<Item> {
         // - default schema
         if (schema == null) {
             schema = new StructSchema();
-            schema.addField('_id', DataType.TAny, [Primary]);
-            schema.putIndex(IndexType.Simple('_id'));
+            schema.addField(DKEY, DataType.TAny, [Primary]);
+            schema.putIndex(IndexType.Simple(DKEY));
         }
 
         if (options.persistence != null) {
@@ -114,7 +114,7 @@ class Store<Item> {
      **/
     private function _init_id_() {
         ensureIndex({
-            name: '_id',
+            name: DKEY,
             type: DataType.TAny,
             unique: true,
             sparse: false
@@ -532,6 +532,14 @@ class Store<Item> {
         }
     }
 
+    public function withValues(params: Array<Dynamic>):Store<Item> {
+        q.ctx.parameters = params.copy();        
+        return this;
+    }
+
+    /**
+      open and return a Cursor<Item> object for use in FIND operation
+     **/
     public function find(?check:Criterion<Item>, ?precompile:Bool):FindCursor<Item> {
         return q.find(check != null ? check : cast Criterion.noop(), precompile);
     }
@@ -547,14 +555,15 @@ class Store<Item> {
       return the first item that matches [query]
      **/
     public function findOne(query:Criterion<Item>, ?precompile:Bool):Null<Item> {
-        throw 'Not Implemented';
+        //throw 'Not Implemented';
+        return q.findOne(query, precompile);
     }
 
     /**
       remove items that match the given Query
      **/
     public function remove(query:Criterion<Item>, multiple:Bool=false):Array<Item> {
-        throw 'Not Implemented';
+        //throw 'Not Implemented';
         //var q = query.filter;
         //var numRemoved:Int = 0,
         //removedDocs:Array<Item> = new Array();
@@ -570,6 +579,12 @@ class Store<Item> {
         //_persist();
 
         //return removedDocs;
+
+        final cs = find( query );
+        final test = cs.predicateLambda();
+        var nRemoved = 0, removedDocs = [];
+
+        throw 'Not Implemented';
     }
 
     /**

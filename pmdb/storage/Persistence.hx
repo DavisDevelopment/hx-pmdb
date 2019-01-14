@@ -59,7 +59,13 @@ class Persistence<Item> {
     }
 
     public function decodeRawStoreData(data: Bytes):RawStoreData<Item> {
+        //#if neko
+        //trace(data.toString());
+        //#end
         var data:Array<String> = data.toString().split('\n');
+        #if neko
+        trace(data[0]);
+        #end
         var dataById:Map<String, Item> = new Map();
         var tdata = new Array();
         var indexes = new Map();
@@ -70,12 +76,14 @@ class Persistence<Item> {
 
             try {
                 doc = deserialize(data[i]);
+                //#if neko trace( doc ); #end
+
                 if (doc.exists( '_id' )) {
                     if (doc["$$deleted"] == true) {
-                        dataById.remove( doc._id );
+                        dataById.remove(Std.string( doc._id ));
                     }
                     else {
-                        dataById[doc._id] = cast doc;
+                        dataById[Std.string( doc._id )] = cast doc;
                     }
                 }
                 else if (doc.exists("$$indexCreated") && doc["$$indexCreated"].fieldName != null) {
@@ -92,6 +100,10 @@ class Persistence<Item> {
                 }
             }
             catch (error: Dynamic) {
+                #if debug
+                    trace('$error');
+                #end
+
                 corruptItems++;
             }
         }
@@ -187,7 +199,8 @@ class Persistence<Item> {
     }
 
     private function deserialize(data: String):Dynamic {
-        return haxe.Json.parse( data );
+        var parsed = haxe.Json.parse( data );
+        return parsed;
     }
 
 /* === Fields === */

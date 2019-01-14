@@ -145,6 +145,7 @@ class QueryCaret<Item> extends StdIndexItemCaret<Item> {
             case TNull(type): isSimpleKey(type);
             case TUnion(ltype, rtype): isSimpleKey(ltype)&&isSimpleKey(rtype);
             case TAnon(_)|TClass(_)|TStruct(_): false;
+            default: false;
         }
     }
 

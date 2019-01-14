@@ -1,7 +1,7 @@
 package pmdb.ql.ast.nodes;
 
 import pmdb.ql.ts.DataType;
-import pmdb.ql.ts.TypedData;
+import pmdb.core.TypedValue;
 import pmdb.ql.ast.Value;
 
 import pmdb.core.Assert.assert;
@@ -11,12 +11,12 @@ using tannus.FunctionTools;
 
 class ConstNode extends ValueNode {
     /* Constructor Function */
-    public function new(value:Dynamic, ?typed:TypedData, ?type:DataType, ?expr, ?pos) {
+    public function new(value:Dynamic, ?typed:TypedValue, ?type:DataType, ?expr, ?pos) {
         super(expr, pos);
 
         this.value = value;
-        this.type = type != null ? type : typed != null ? typed.getDataType() : value.dataTypeOf();
-        this.typed = (typed != null ? typed : value.typed());
+        this.type = type != null ? type : typed != null ? typed.type : value.dataTypeOf();
+        this.typed = (typed != null ? typed : value.type());
         if (expr != null && expr.type != null) {
             assert(type.unify(expr.type), 'const ${expr.expr} has been mistyped {$type, ${expr.type}}');
         }
@@ -59,6 +59,6 @@ class ConstNode extends ValueNode {
 
 /* === Variables === */
 
-    public var typed(default, null): TypedData;
+    public var typed(default, null): TypedValue;
     public var value(default, null): Dynamic;
 }

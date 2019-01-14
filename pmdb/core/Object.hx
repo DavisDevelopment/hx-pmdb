@@ -129,3 +129,6 @@ abstract Object<T> (DynamicAccess<T>) from Dynamic<T> to Dynamic<T> from Dynamic
         return of(cast o);
     }
 }
+
+typedef Doc = Object<Dynamic>;
+

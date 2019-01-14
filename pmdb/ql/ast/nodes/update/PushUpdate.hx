@@ -39,26 +39,32 @@ class PushUpdate extends BinaryUpdate {
         return new PushUpdate(left, right, expr, position);
     }
 
-    override function apply(i:QueryInterp, left:ValueNode, right:ValueNode, doc:Ref<Object<Dynamic>>) {
-        switch (column( left )) {
-            case null:
-                throw new Error('$left is not an acceptible left-hand value');
-
-            case (col={dotPath:path, fieldName:name}):
-                col.ensure(doc.get(), new Array());
-
-                cast(path != null ? path.get(cast doc.get()) : doc.get()[name], Array<Dynamic>).push(right.eval( i ));
-
-            default:
-                //
+    private function push_onto(list:Dynamic, value:Dynamic) {
+        if ((list is Array)) {
+            var arr = cast(list, Array<Dynamic>);
+            arr.push( value );
+            return ;
         }
+
+        throw new Error('$list should be an array');
     }
 
+    override function apply(i:QueryInterp, left:ValueNode, right:ValueNode, doc:Ref<Object<Dynamic>>) {
+        inline push_onto(left.eval( i ), right.eval( i ));
+    }
+
+    /*
     public inline function column(node: ValueNode):Null<ColumnNode> {
         return
             if ((node is ColumnNode)) cast(node, ColumnNode);
             else null;
     }
+    public inline function attracc(node: ValueNode):Null<AttrAccessNode> {
+        return
+            if ((node is AttrAccessNode)) cast(node, AttrAccessNode);
+            else null;
+    }
+    */
 
     override function getExpr():UpdateExpr {
         return UPush(left.getExpr(), right.getExpr());

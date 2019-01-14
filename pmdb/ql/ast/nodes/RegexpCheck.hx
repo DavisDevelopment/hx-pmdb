@@ -1,7 +1,6 @@
 package pmdb.ql.ast.nodes;
 
 import pmdb.ql.ts.DataType;
-import pmdb.ql.ts.TypedData;
 import pmdb.core.Error;
 import pmdb.core.Object;
 import pmdb.core.Equator;
@@ -34,8 +33,8 @@ class RegexpCheck extends BinaryCheck {
     override function init() {
         if ((right is ConstNode)) {
             this.pattern = switch cast(right, ConstNode).typed {
-                case DClass(EReg, (_ : EReg) => re): cast(re, EReg);
-                case DClass(String, (_ : String) => re): new EReg(re, '');
+                case {type:TClass(EReg), value:(_ : EReg) => re}: re;
+                case {type:TScalar(TString), value:(_ : String) => new EReg(_, '') => re}: re;
                 case other: 
                     throw new Error('Invalid Regexp pattern ${other}');
             }

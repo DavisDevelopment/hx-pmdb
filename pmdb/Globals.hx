@@ -48,4 +48,7 @@ class Globals {
         func();
         return (timestamp(pos) - start);
     }
+
+    public static var DKEY = '_id';
+    public static var METAKEYPRE = "$$";
 }

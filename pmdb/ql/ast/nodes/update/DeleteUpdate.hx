@@ -1,6 +1,6 @@
 package pmdb.ql.ast.nodes.update;
 
-import pmdb.ql.ts.TypedData;
+import pmdb.core.TypedValue;
 import pmdb.ql.ts.DataType;
 import pmdb.ql.ast.Value;
 import pmdb.ql.ast.PredicateExpr;
@@ -133,9 +133,9 @@ class DeleteUpdate extends UnaryUpdate {
     function validIndexExpr(e: ValueExpr):Bool {
         return switch e.expr {
             case EConst(c): switch c {
-                case CBool(_), CCompiled(DBool(_)): true;
-                case CInt(_) | CFloat(_) | CCompiled(DInt(_) | DFloat(_)): true;
-                case CString(_) | CCompiled(TypedData.DClass(String, _)): true;
+                case CBool(_), CCompiled({type:TScalar(TBoolean)}): true;
+                case CInt(_) | CFloat(_) | CCompiled({type:TScalar(TInteger|TDouble)}): true;
+                case CString(_) | CCompiled({type:TScalar(TString)}): true;
                 case other: false;
             }
             case ERange(validIndexExpr(_)=>true, validIndexExpr(_)=>true): true;

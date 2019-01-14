@@ -191,8 +191,8 @@ class StoreQueryInterface<Item> {
         return getCheckCursor(where, precompile);
     }
 
-    public function findOne(where:Criterion<Item>, precompile:Bool=false):FindCursor<Item> {
-        throw 'Not Implemented';
+    public function findOne(where:Criterion<Item>, precompile:Bool=false):Null<Item> {
+        return find(where, precompile).getOneNative();
     }
 
     public function findAll(where:Criterion<Item>, ?precompile):Array<Item> {

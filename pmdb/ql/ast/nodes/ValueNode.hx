@@ -40,6 +40,14 @@ class ValueNode extends QueryNode {
         throw new NotImplementedError();
     }
 
+    public function assign(i:QueryInterp, value:Dynamic) {
+        throw new Error('Unsupported Operation (assign)');
+    }
+
+    private inline function doc(i: QueryInterp):Null<Doc> {
+        return inline i.getDoc(i.mode.match(Update) ? 1 : 0);
+    }
+
     /**
       create and return a deep copy of [this] node
      **/
