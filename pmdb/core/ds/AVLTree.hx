@@ -399,6 +399,15 @@ class AVLTree<Key, Value> {
         }
     }
 
+    public function nodefind(fn: AVLTreeNode<Key, Value> -> Bool):Null<AVLTreeNode<Key, Value>> {
+        return null;
+    }
+
+    //private function _nodefind(fn:AVLTreeNode<Key, Value>->Bool, root:AVLTreeNode<Key, Value>, ret:Ref<Null<AVLTreeNode<Key, Value>>>) {
+        //if (fn( root )) return root;
+        //_nodeFind(fn, root.left)
+    //}
+
     /**
       execute [f] on every node in [this] tree
      **/
@@ -409,17 +418,25 @@ class AVLTree<Key, Value> {
     /**
       execute [f] on every node in [this] tree
      **/
-    private function _executeOnEveryNode(root:Null<Node<Key, Value>>, f:AVLTreeNode<Key, Value> -> Void) {
+    private static function _executeOnEveryNode<Key, Value>(root:Null<Node<Key, Value>>, func:Node<Key, Value> -> Void) {
         if (root == null)
             return ;
+        var q = new Array();
+        q.push( root );
 
-        if (root.left != null)
-            _executeOnEveryNode(root.left, f);
+        while (q.length > 0) {
+            var n = q[0];
+            if (n.left != null) {
+                //_executeOnEveryNode(root.left, f);
+                q.push( n.left );
+            }
 
-        f( root );
+            func(q.shift());
 
-        if (root.right != null)
-            _executeOnEveryNode(root.right, f);
+            if (n.right != null) {
+                q.push( n.right );
+            }
+        }
     }
 
     /**
@@ -476,7 +493,7 @@ class AVLTree<Key, Value> {
       the 'minimum' key in [this] tree
      **/
     public function findMinimum():Key {
-        final node = inline minValueNode(root);
+        final node = minValueNode(root);
         return node.key;
     }
 
@@ -484,7 +501,7 @@ class AVLTree<Key, Value> {
       the 'maximum' key in [this] tree
      **/
     public function findMaximum():Key {
-        final node = inline maxValueNode(root);
+        final node = maxValueNode(root);
         return node.key;
     }
 
