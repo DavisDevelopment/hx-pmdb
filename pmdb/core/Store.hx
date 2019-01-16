@@ -730,6 +730,10 @@ class Store<Item> {
     public var pid(get, never): Index<Any, Item>;
     private function get_pid():Index<Any, Item> return indexes[primaryKey];
 
+    // Id (primary key) property reference
+    public var idField(get, never): StructSchemaField;
+    private function get_idField() return schema.field( primaryKey );
+
 /* === Instance Fields === */
 
     // Map of Indexes on [this] Store
@@ -777,3 +781,5 @@ enum StoreErrorCode<T> {
     EConstraintViolated;
     ECustom(msg: String);
 }
+
+typedef Id<T> = Dynamic;
