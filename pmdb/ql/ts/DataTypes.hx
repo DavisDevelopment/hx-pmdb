@@ -242,6 +242,30 @@ class DataTypes {
     }
 
     /**
+      returns a human-readable representation of the given DataType
+     **/
+    public static function print(type: DataType):String {
+        return switch type {
+            case TVoid: 'Void';
+            case TUndefined|TUnknown|TMono(null): 'Unknown<?>';
+            case TAny: 'Any';
+            case TScalar(stype): switch stype {
+                case TBoolean: 'Bool';
+                case TInteger: 'Int';
+                case TDouble: 'Float';
+                case TString: 'String';
+                case TBytes: 'Bytes';
+                case TDate: 'Date';
+            }
+            case TNull(type): 'Null<${print(type)}>';
+            case TArray(type): 'Array<${print(type)}>';
+            case TUnion(a, b): 'Either<${print(a)}, ${print(b)}>';
+            case TTuple(types): 'Tuple<' + types.map(t -> print(t)).join(', ') + '>';
+            case other: throw new Error('print($type) not implemented');
+        }
+    }
+
+    /**
       convert [v] a TypedData value
      **/
     public static function typed(v: Dynamic):TypedValue {
