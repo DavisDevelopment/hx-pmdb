@@ -684,7 +684,7 @@ class Store<Item> {
       the current api for creating and defining Update<T> objects 
       is merely a placeholder, and will be replaced with a less verbose, more performant one soon
      **/
-    public function update(what:Mutation<Item>, ?where:Criterion<Item>, ?options:{?precompile:Bool, ?multiple:Bool, ?insert:Bool}):Array<Item> {
+    public function update(what:Mutation<Item>, ?where:Criterion<Item>, ?options:{?precompile:Bool, ?multiple:Bool, ?insert:Bool}):UpdateHandle<Item> {
         // build [options]
         if (options == null)
             options = {};
@@ -696,36 +696,29 @@ class Store<Item> {
             options.insert = false;
 
         // execute the update
-        var affected:Array<Item> = new Array();
         var cursor:UpdateCursor<Item> = q.update(what, where, options.precompile);
         cursor.multiple( options.multiple );
         cursor.insert( options.insert );
-        var updates = cursor.exec();
-
-        // gather the affected documents
-        affected.resize( updates.length );
-        for (i in 0...updates.length) {
-            affected[i] = updates[i].post;
-        }
+        var logs = cursor.exec();
+        var handle = new UpdateHandle(this, logs);
 
         // persist changes to the data
         if ( !ioLocked ) {
-            persistence.persistNewState(cast affected);
+            persistence.persistNewState(logs.map(u -> (u.post : Dynamic)));
         }
 
-        return affected;
+        return handle;
     }
 
     @:noCompletion
     public function _overwrite(oldDoc:Item, newDoc:Item):Item {
-        var idKey = Reflect.field(oldDoc, primaryKey);
-        if (idKey == null)
-            throw new Error();
-        if (Reflect.hasField(newDoc, primaryKey) && !Arch.areThingsEqual(Reflect.field(newDoc, primaryKey), idKey))
-            throw new Error('Item($newDoc) has extra field "$primaryKey"');
-
-        Reflect.setField(newDoc, primaryKey, idKey);
-        return insertOne( newDoc );
+        var idKey = idField.extract( oldDoc );
+        if (idField.access.has(cast newDoc) && idField.access.eq(idField.access.get(cast newDoc), idKey)) {
+            throw new Error('Cannot change primary key');
+        }
+        idField.access.set(cast newDoc, idKey);
+        newDoc = insertOne( newDoc );
+        return newDoc;
     }
 
 /* === Computed Instance Fields === */

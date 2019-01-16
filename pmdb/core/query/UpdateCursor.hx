@@ -209,6 +209,10 @@ class UpdateCursor<Item> extends QueryCursor<Item, Array<UpdateLog<Item>>> {
         }
     }
 
+    /**
+      execute update allowing modification of multiple documents
+      TODO: rollback all changes if any fail
+     **/
     private function multiExec():Array<UpdateLog<Item>> {
         var items:Array<Item> = candidates();
         var updates:Array<Null<UpdateLog<Item>>> = new Array();
@@ -236,7 +240,9 @@ class UpdateCursor<Item> extends QueryCursor<Item, Array<UpdateLog<Item>>> {
             final step = commitUpdate(updates[index]);
             switch ( step ) {
                 case Failure(error):
-                    throw new ValueError(error, 'Update failed');
+                    //trace('' + error);
+                    //throw new ValueError(error, 'Update failed');
+                    throw error;
 
                 case Success:
                     out.push(updates[index]);
@@ -263,15 +269,15 @@ class UpdateCursor<Item> extends QueryCursor<Item, Array<UpdateLog<Item>>> {
       "commit"s the given update to the Store object
      **/
     function commitUpdate(u: UpdateLog<Item>):UpdateStep<Item> {
-        try {
+        //try {
             store.updateIndexes(u.pre, u.post);
             //...
             return Success;
-        }
-        catch (err: Dynamic) {
+        //}
+        //catch (err: Dynamic) {
             // by the time [err] is caught here, all changes associated with this update have been rolled back
-            return Failure( err );
-        }
+            //return Failure( err );
+        //}
     }
 
 /* === Fields === */
