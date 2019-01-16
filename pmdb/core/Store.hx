@@ -14,6 +14,7 @@ import pmdb.ql.QueryIndex;
 import pmdb.core.query.StoreQueryInterface;
 import pmdb.core.query.FindCursor;
 import pmdb.core.query.UpdateCursor;
+import pmdb.core.query.UpdateHandle;
 import pmdb.core.Query;
 import pmdb.core.StructSchema;
 import pmdb.storage.Persistence;
@@ -33,13 +34,14 @@ import Slambda.fn;
 import Std.is as isType;
 import pmdb.core.Assert.assert;
 
+using pmdb.core.Arch;
 using StringTools;
 using tannus.ds.StringUtils;
 using Slambda;
 using tannus.ds.ArrayTools;
 using tannus.ds.DictTools;
 using tannus.ds.MapTools;
-using tannus.async.OptionTools;
+using pmdb.core.ds.tools.Options;
 using tannus.FunctionTools;
 using pmdb.ql.ts.DataTypes;
 
@@ -486,7 +488,7 @@ class Store<Item> {
     }
 
     public function updateIndexes(oldDoc:Item, newDoc:Item) {
-         var failingIndex:Int = -1,
+        var failingIndex:Int = -1,
         error: Dynamic = null,
         keys = indexes.keyArray();
 
@@ -507,6 +509,29 @@ class Store<Item> {
             }
 
             throw error;
+        }
+    }
+
+    public function get(a:Dynamic, ?b:Dynamic):Null<Item> {
+        if (b == null) {
+            b = a;
+            a = primaryKey;
+        }
+        
+        trace('where($a = $b)');
+        return _get(a, b);
+    }
+
+    function _get(path:String, value:Dynamic):Null<Item> {
+        if (indexes.exists( path )) {
+            var idx = index( path );
+            var bk = idx.getByKey(value);
+            return if (bk != null) bk[0] else null;
+        }
+        else {
+            return pid.getAll().find(function(item: Item) {
+                return Arch.getDotValue(item.asObject(), path).isEqualTo( value );
+            });
         }
     }
 
@@ -592,7 +617,7 @@ class Store<Item> {
             return true;
         });
 
-        if (!ioLocked) {
+        if ( !ioLocked ) {
             persistence.persistNewState(removedDocs.map(function(item) {
                 Reflect.setField(item, "$$deleted", true);
                 return item.asObject();
