@@ -60,6 +60,15 @@ abstract Criterion<T> (ECriterion<T>) from ECriterion<T> to ECriterion<T> {
         }
     }
 
+    @:to
+    public function toString():String {
+        return switch ( this ) {
+            case StringCriterion(x): x;
+            case HScriptExprCriterion(x): hscript.Printer.toString( x );
+            default: Std.string( this );
+        }
+    }
+
     @:access( pmdb.core.query.StoreQueryInterface )
     public inline function mkPredicateExpr(parse = false, ?qi:StoreQueryInterface<Dynamic>):PredicateExpr {
         return switch ( this ) {
