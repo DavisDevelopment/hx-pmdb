@@ -145,17 +145,13 @@ class QueryCompiler {
                 new NoCheck( pe );
 
             case Pe.POpEq(left, right):
-                final eq:Null<Equator<Dynamic>> = switch [left, right] {
-                    case [_.expr=>Ve.ECol(column), _], [_, _.expr=>Ve.ECol(column)] if (schema != null): switch schema.field(column) {
-                        case null: null;
-                        case field: field.getEquator();
-                    }
-                    case _: switch left.type {
-                        case TMono(null), TAny, TNull(TAny), TNull(TMono(null)): null;
-                        case other: other.getTypedEquator();
-                    }
+                var eq;
+                if (left.type != null && right.type != null && left.type.unify(right.type)) {
+                    eq = left.type.getTypedEquator();
                 }
-
+                else {
+                    eq = Equator.anyEq();
+                }
                 new EqCheck(eq, vnode(left), vnode(right), pe);
 
             case Pe.POpNotEq(left, right):

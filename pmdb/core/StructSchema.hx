@@ -5,6 +5,7 @@ import pmdb.ql.ast.Value;
 
 import pmdb.core.ds.*;
 import pmdb.core.ds.map.*;
+import pmdb.core.Object;
 
 import haxe.extern.EitherType;
 
@@ -13,6 +14,8 @@ import haxe.Serializer;
 import haxe.Unserializer;
 
 //using pmdb.ql.ts.DataTypes;
+using StringTools;
+using tannus.ds.StringUtils;
 
 class StructSchema {
     /* Constructor Function */
@@ -197,6 +200,19 @@ class StructSchema {
         return o;
     }
 
+    public function toString():String {
+        var res = '{';
+        for (field in fields) {
+            res += field.name;
+            res += ': ';
+            res += field.etype.print();
+            res += ',';
+        }
+        res = res.beforeLast(',');
+        res += '}';
+        return res;
+    }
+
     /**
       get the data type for the field associated with the given FieldPath
      **/
@@ -278,13 +294,15 @@ class StructSchemaField {
         this.flags = flags == null ? new EnumFlags() : flags;
         this.type = type;
 
-        this.comparator = try this.type.getTypedComparator() catch (err: Dynamic) Comparator.cany();
-        this.equator = try this.type.getTypedEquator() catch (err: Dynamic) Equator.anyEq();
+        this.comparator = try this.etype.getTypedComparator() catch (err: Dynamic) Comparator.cany();
+        this.equator = try this.etype.getTypedEquator() catch (err: Dynamic) Equator.anyEq();
 
         this.incrementer = null;
         if (hasFlag(AutoIncrement)) {
             this.incrementer = new Incrementer();
         }
+
+        this.access = new FieldAccessHelper( this );
     }
 
 /* === Methods === */
@@ -321,7 +339,7 @@ class StructSchemaField {
     }
 
     public function getEquator():Equator<Dynamic> {
-        return type.getTypedEquator();
+        return etype.getTypedEquator();
     }
 
     public inline function isOmittable():Bool {
@@ -418,8 +436,9 @@ class StructSchemaField {
     public var flags(default, null): EnumFlags<FieldFlag>;
     public var comparator(default, null): Null<Comparator<Dynamic>>;
     public var equator(default, null): Null<Equator<Dynamic>>;
+    public var access(default, null): FieldAccessHelper;
 
-    private var etype(default, null): DataType;
+    public var etype(default, null): DataType;
     private var incrementer(default, null): Null<Incrementer>;
 }
 
@@ -428,6 +447,39 @@ enum FieldFlag {
     Optional;
     Unique;
     AutoIncrement;
+}
+
+class FieldAccessHelper {
+    private var field: StructSchemaField;
+    public function new(field) {
+        this.field = field;
+    }
+
+    public inline function get(doc: Doc):Null<Dynamic> {
+        return doc[field.name];
+    }
+
+    public inline function set(doc:Doc, value:Dynamic, noCheck=false):Dynamic {
+        if (!noCheck) assert(field.checkValueType(value), new TypeError(value, field.type));
+        doc[field.name] = value;
+        return value;
+    }
+
+    public inline function del(doc: Doc):Bool {
+        return doc.remove( field.name );
+    }
+
+    public inline function has(doc: Doc):Bool {
+        return doc.exists( field.name );
+    }
+
+    public function cmp(x:Dynamic, y:Dynamic):Int {
+        return field.comparator.compare(x, y);
+    }
+
+    public function eq(x:Dynamic, y:Dynamic):Bool {
+        return field.equator.equals(x, y);
+    }
 }
 
 class IndexDefinition {
