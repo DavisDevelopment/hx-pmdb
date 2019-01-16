@@ -512,6 +512,48 @@ class Store<Item> {
         }
     }
 
+    public function pluralUpdateIndexes(updates: Array<{pre:Item, post:Item}>) {
+        var keys = indexes.keyArray();
+        var failingIndex:Int = -1;
+        var error: Dynamic = null;
+
+        for (ui in 0...updates.length) {
+            var oldDoc = updates[ui].pre,
+                newDoc = updates[ui].post;
+
+            for (i in 0...keys.length) {
+                try {
+                    indexes[keys[i]].updateOne(oldDoc, newDoc);
+                }
+                catch (e: Dynamic) {
+                    failingIndex = i;
+                    error = e;
+                    break;
+                }
+            }
+
+            if (error != null) {
+                for (i in 0...failingIndex) {
+                    indexes[keys[i]].revertUpdate(oldDoc, newDoc);
+                }
+
+                failingIndex = ui;
+                break;
+            }
+        }
+
+        if (error != null) {
+            //var didNotFail = updates.slice(0, failingIndex);
+            //var swappedUpdates = didNotFail.map(u -> {pre:u.post, post:u.pre});
+            //pluralUpdateIndexes( swappedUpdates );
+            for (i in 0...failingIndex) {
+                updateIndexes(updates[i].post, updates[i].pre);
+            }
+
+            throw error;
+        }
+    }
+
     public function get(a:Dynamic, ?b:Dynamic):Null<Item> {
         if (b == null) {
             b = a;
