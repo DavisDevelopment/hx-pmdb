@@ -560,6 +560,10 @@ class Arch {
         return x.is_number();
     }
 
+    public static inline function isInt(x: Dynamic):Bool {
+        return x.is_integer();
+    }
+
     public static inline function isString(x: Dynamic):Bool {
         return x.is_string();
     }
@@ -638,6 +642,9 @@ class Arch {
         throw 'Use .clone() instead';
     }
 
+    /**
+      create and return an 'empty' instance of the same type as [value]
+     **/
     public static function emptyCopy<T>(value: T):T {
         return emptyUntypedCopy( value );
     }
@@ -671,11 +678,13 @@ class Arch {
             return Date.fromTime(date.getTime());
         }
 
-        if (isArray( value ))
+        if (isArray( value )) {
             return clone_uarray(cast(value, Array<Dynamic>), method);
+        }
 
-        if (isObject( value ))
+        if (isObject( value )) {
             return clone_object(value, method);
+        }
 
         return value;
     }

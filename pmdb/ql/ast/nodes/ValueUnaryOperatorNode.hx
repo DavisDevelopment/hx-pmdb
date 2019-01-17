@@ -6,6 +6,7 @@ import pmdb.core.Object;
 import pmdb.core.Equator;
 import pmdb.core.Comparator;
 import pmdb.core.Arch;
+import pmdb.runtime.Operator;
 
 import haxe.ds.Either;
 import haxe.ds.Option;
@@ -25,25 +26,16 @@ using pmdb.ql.ast.Predicates;
 class ValueUnaryOperatorNode extends ValueOperatorNode {
     /* Constructor Function */
     public function new(value, op, ?e, ?pos) {
-        super(op, e, pos);
+        super(e, pos);
 
+        this.op = op;
         this.value = value;
     }
 
 /* === Methods === */
 
-    override function opmap(i: QueryInterp):Map<String, String> {
-        return i.unops;
-    }
-
     override function eval(ctx: QueryInterp):Dynamic {
-        return switch gfn( ctx ) {
-            case null:
-                throw new Error('No builtin for $op operator');
-
-            case fn:
-                fn.safeApply([value.eval( ctx )]).value;
-        }
+        return op.f(value.eval(ctx));
     }
 
     override function getChildNodes():Array<QueryNode> {
@@ -53,4 +45,5 @@ class ValueUnaryOperatorNode extends ValueOperatorNode {
 /* === Fields === */
 
     public var value(default, null): ValueNode;
+    public var op(default, null): UnaryOperator<Dynamic, Dynamic>;
 }

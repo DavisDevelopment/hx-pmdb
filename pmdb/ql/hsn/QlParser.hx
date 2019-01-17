@@ -145,21 +145,34 @@ class QlParser {
                 return Ue.UAssign(readValue(left), readValue(right));
 
             // transform "x += 1" => "x = x + 1"
-            case Expr.EBinop(binop, left, right) if (binop.endsWith('=')):
-                var lv = readValue(left);
-                var rv = readValue(Expr.EBinop(binop.before('='), left, right));
-                return Ue.UAssign(lv, rv);
+            //case Expr.EBinop(binop, left, right) if (binop.endsWith('=')):
+                //var lv = readValue(left);
+                //var rv = readValue(Expr.EBinop(binop.before('='), left, right));
+                //return Ue.UAssign(lv, rv);
+
+            case Expr.EBinop(op='+='|'-=', left, right=isNumericExpr(_)=>true):
+                switch op {
+                    case '+=':
+                        return UIncr(readValue(left), readValue(right));
+
+                    case '-=':
+                        return UDecr(readValue(left), readValue(right));
+
+                    default:
+                        throw 'Unexpected "$op"';
+                }
 
             /**
               TODO add support for dedicated increment/decrement operators
              **/
             // transform "--x" => "x = x - 1"
             case Expr.EUnop('--', _, expr):
-                return readUpdateExpr(Expr.EBinop('-=', expr, EConst(Const.CInt(1))));
+                //return readUpdateExpr(Expr.EBinop('-=', expr, EConst(Const.CInt(1))));
+                return UDecr(readValue(expr), readValue(EConst(Const.CInt(1))));
 
-            // transform "++x" => "x = x + 1"
             case Expr.EUnop('++', _, expr):
-                return readUpdateExpr(Expr.EBinop('+=', expr, EConst(Const.CInt(1))));
+                //return readUpdateExpr(Expr.EBinop('+=', expr, EConst(Const.CInt(1))));
+                return UIncr(readValue(expr), readValue(EConst(Const.CInt(1))));
 
             case Expr.EMeta('delete', null, attr) | Expr.ECall(EIdent('delete'), [attr]):
                 return Ue.UDelete(readValue( attr ));
@@ -471,6 +484,16 @@ class QlParser {
             case Expr.ECall(EIdent('cast'), [_, EIdent('String')]): true;
             case EParent(e): isExprOfString(e);
             case EBinop('+', isExprOfString(_)=>l, isExprOfString(_)=>r): (l || r);
+            default: false;
+        }
+    }
+
+    function isNumericExpr(e: Expr) {
+        return switch e {
+            case Expr.EConst(CInt(_)|CFloat(_)): true;
+            case Expr.EObject(fields): fields.every(f -> isNumericExpr(f.e));
+            case Expr.EParent(e): isNumericExpr(e);
+
             default: false;
         }
     }

@@ -28,43 +28,11 @@ using pmdb.ql.ast.Predicates;
 
 class ValueOperatorNode extends ValueNode {
     /* Constructor Function */
-    public function new(op, ?e, ?pos) {
+    public function new(?e, ?pos) {
         super(e, pos);
-
-        this.op = op;
-        this._fn = null;
-    }
-
-/* === Methods === */
-
-    inline function get_fn():Null<BuiltinFunction> {
-        return _fn;
-    }
-
-    inline function gfn(i: QueryInterp) {
-        if (fn == null) {
-            _fn = cast i.builtins[opmap(i)[op]];
-        }
-        return _fn;
-    }
-
-    private function opmap(i: QueryInterp):Map<String, String> {
-        throw 'Betty';
     }
 
     override function eval(i: QueryInterp):Dynamic {
         return null;
     }
-
-    override function attachInterp(i: QueryInterp) {
-        super.attachInterp( i );
-        gfn( interp );
-    }
-
-/* === Fields === */
-
-    public var op(default, null): String;
-    public var fn(get, never): Null<BuiltinFunction>;
-
-    private var _fn(default, null): Null<BuiltinFunction>;
 }

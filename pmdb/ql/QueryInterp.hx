@@ -23,6 +23,7 @@ import pmdb.core.Object;
 import pmdb.core.Equator;
 import pmdb.core.Comparator;
 import pmdb.core.Arch;
+import pmdb.runtime.Operator;
 
 import haxe.ds.Option;
 import haxe.PosInfos;
@@ -174,17 +175,19 @@ class QueryInterp {
     /**
       initialize binary operators
      **/
-    inline function initOperators() {
-        binops = [
-            '+' => '__add__',
-            '-' => '__sub__',
-            '*' => '__mul__',
-            '/' => '__div__'
-        ];
+    function initOperators() {
+        binops = new Map();
+        inline function op(n:String, f:Dynamic->Dynamic->Dynamic) {
+            binops[n] = new BinaryOperator(n, f);
+        }
 
-        unops = [
-            '-' => '__neg__'
-        ];
+        op('+', Operators.__add__);
+        op('-', Operators.__sub__);
+
+        unops = new Map();
+        inline function op(n:String, f:Dynamic->Dynamic, pre=false) {
+            return unops[n] = new UnaryOperator(n, f, pre);
+        }
     }
 
 /* === Properties === */
@@ -209,8 +212,8 @@ class QueryInterp {
     public var modeStack(default, null): Stack<InterpMode>;
 
     public var builtins(default, null): Map<String, BuiltinFunction>;
-    public var binops(default, null): Map<String, String>;
-    public var unops(default, null): Map<String, String>;
+    public var binops(default, null): Map<String, BinaryOperator<Dynamic, Dynamic, Dynamic>>;
+    public var unops(default, null): Map<String, UnaryOperator<Dynamic, Dynamic>>;
 
     // the root-node for the Query-tree
     public var tree(default, null): Null<QueryNode>;
