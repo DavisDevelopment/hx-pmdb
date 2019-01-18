@@ -11,7 +11,7 @@ using tannus.ds.ArrayTools;
 
 //@:runtimeValue
 @:forward
-abstract Object<T> (DynamicAccess<T>) from Dynamic<T> to Dynamic<T> from DynamicAccess<T> to DynamicAccess<T> {
+abstract Object<T> (DynamicAccess<T>) from DynamicAccess<T> to DynamicAccess<T> {
     /* Constructor Function */
     public inline function new() {
         this = {};
@@ -21,7 +21,10 @@ abstract Object<T> (DynamicAccess<T>) from Dynamic<T> to Dynamic<T> from Dynamic
 
     @:arrayAccess
     public inline function get(key: String):Null<T> {
-        return this.get( key );
+        return _get( key );
+    }
+    private inline function _get(k: String):Null<T> {
+        return this.get( k );
     }
 
     /**
@@ -33,7 +36,10 @@ abstract Object<T> (DynamicAccess<T>) from Dynamic<T> to Dynamic<T> from Dynamic
 
     @:arrayAccess
     public inline function set(key:String, value:T):Null<T> {
-        return this.set(key, value);
+        return _set(key, value);
+    }
+    private inline function _set(k:String, v:T):Null<T> {
+        return this.set(k, v);
     }
 
     /**
@@ -61,7 +67,7 @@ abstract Object<T> (DynamicAccess<T>) from Dynamic<T> to Dynamic<T> from Dynamic
       create and return a shallow copy of [this]
      **/
     public inline function copy():Object<T> {
-        return Arch.clone_object(this, Shallow);
+        return Arch.clone_object((this : Dynamic), Shallow);
     }
 
     /**
@@ -70,7 +76,7 @@ abstract Object<T> (DynamicAccess<T>) from Dynamic<T> to Dynamic<T> from Dynamic
     public function clone(?method: CloneMethod):Object<T> {
         if (method == null)
             method = ShallowRecurse;
-        return Arch.clone_object(this, method);
+        return Arch.clone_object((this:Dynamic), method);
     }
 
     public function pull(src: Object<T>) {
@@ -108,20 +114,28 @@ abstract Object<T> (DynamicAccess<T>) from Dynamic<T> to Dynamic<T> from Dynamic
     }
 
     @:resolve
+    @:access(pmdb.core.Object)
     public static inline function getattr<T>(o:Object<T>, name:String):T {
-        return o[name];
+        return o._get( name );
     }
 
     @:resolve
+    @:access(pmdb.core.Object)
     public static inline function setattr<T>(o:Object<T>, name:String, value:T):T {
-        return o[name] = value;
+        //return o.set(name, value);
+        return o._set(name, value);
     }
 
 /* === Casting Methods === */
 
     @:from
     public static inline function of<T>(o: Dynamic<T>):Object<T> {
-        return o;
+        return (o : haxe.DynamicAccess<T>);
+    }
+
+    @:to
+    public static inline function as<T>(o: Object<T>):Dynamic<T> {
+        return (o : Dynamic<T>);
     }
 
     @:from
