@@ -697,13 +697,22 @@ class Arch {
         switch ( method ) {
             case Shallow:
                 if (oClass == null) {
+                    #if (js && js_optimizations)
+                    cloned = js.Object.assign({}, o);
+                    #else
                     cloned = Reflect.copy( o );
+                    #end
                 }
                 else {
                     cloned = Type.createEmptyInstance(oClass);
+                    #if (js && js_optimizations)
+                    js.Object.assign(cloned, o);
+                    #else
+                    //
                     for (k in Reflect.fields(o)) {
                         Reflect.setField(cloned, k, Reflect.field(o, k));
                     }
+                    #end
                 }
 
             case ShallowRecurse:
@@ -732,15 +741,81 @@ class Arch {
         return cloned;
     }
 
-    public static function clone_object_onto(src:Object<Dynamic>, dest:Object<Dynamic>, ?fields:Array<String>):Void {
+    /**
+      copy all data from [src] onto [dest]
+     **/
+    public static function clone_object_onto(src:Object<Dynamic>, dest:Object<Dynamic>, ?fields:Array<String>, ?copy_value:Dynamic->Dynamic):Void {
         if (fields == null)
             fields = src.keys();
 
+        if (copy_value == null)
+            copy_value = FunctionTools.identity;
+
         for (k in fields) {
-            dest[k] = src[k];
+            dest[k] = copy_value(src[k]);
         }
     }
 
+    public static function anon_copy(o:Dynamic, ?dest:Object<Dynamic>, ?copy_value:Dynamic->Dynamic):Dynamic {
+        var o:Object<Dynamic> = o.asObject();
+        if (o.exists('hxGetState')) {
+            try {
+                return Reflect.callMethod(o, o.hxGetState, []);
+            }
+            catch (e: Dynamic) {}
+        }
+
+        if (dest == null)
+            dest = new Object();
+        clone_object_onto(o.asObject(), dest, copy_value);
+        return dest;
+    }
+
+    /**
+      given an object [o], ensures that the returned object is not a class instance, but has the same attributes as [o]
+     **/
+    public static function ensure_anon(o:Object<Dynamic>, copy=false):Object<Dynamic> {
+        var value;
+        if ( !copy ) value = FunctionTools.identity;
+        else value = (x: Dynamic) -> dclone(x, ShallowRecurse);
+        return (Type.getClass( o ) != null) ? anon_copy(o, value) : value( o );
+    }
+
+    public static function buildClassInstance<T>(type:Class<T>, state:Object<Dynamic>):T {
+        var inst = Type.createEmptyInstance( type );
+        if (Reflect.hasField(inst, 'hxSetState')) {
+            Reflect.callMethod(inst, Reflect.field(inst, 'hxSetState'), [state]);
+        }
+        else {
+            clone_object_onto(state, inst.asObject());
+        }
+        return inst;
+    }
+
+    public static function allInstanceFields(type: Class<Dynamic>):Array<String> {
+        var fields = [];
+        var set:Map<String, Bool> = new Map();
+        inline function add(s: String) {
+            if (!set.exists(s)) {
+                set[s] = true;
+                fields.push( s );
+            }
+        }
+
+        var t = type;
+        while (t != null) {
+            for (field in Type.getInstanceFields(t)) {
+                add( field  );
+            }
+            t = Type.getSuperClass( t  );
+        }
+
+        return fields;
+    }
+
+    /**
+      create and return a 'clone' of the given [array]
+     **/
     public static function clone_uarray(array:Array<Dynamic>, ?method:CloneMethod):Array<Dynamic> {
         if (method == null)
             method = ShallowRecurse;
