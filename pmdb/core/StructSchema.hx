@@ -7,6 +7,8 @@ import pmdb.core.ds.*;
 import pmdb.core.ds.map.*;
 import pmdb.core.Object;
 
+import haxe.rtti.*;
+import haxe.rtti.CType;
 import haxe.extern.EitherType;
 
 import haxe.EnumFlags;
@@ -19,9 +21,17 @@ using tannus.ds.StringUtils;
 
 class StructSchema {
     /* Constructor Function */
-    public function new() {
+    public function new(?typeClass: Class<Dynamic>) {
         fields = new Dictionary();
         indexes = new Dictionary();
+
+        this.type = if (typeClass != null) ({ proto: typeClass }) else null;
+        if (type != null) {
+            if (Rtti.hasRtti( typeClass )) {
+                var rt = Rtti.getRtti( typeClass );
+                type.info = rt;
+            }
+        }
 
         _init();
     }
@@ -30,6 +40,19 @@ class StructSchema {
 
     function _init() {
         inline _refresh();
+
+        _type_init_();
+    }
+
+    function _type_init_() {
+        if (type != null) {
+            if (type.info != null) {
+                //TODO
+                //for (field in type.info.fields) {
+                    
+                //}
+            }
+        }
     }
 
     function _refresh() {
@@ -46,9 +69,11 @@ class StructSchema {
                 break;
             }
         }
+
         if (_pk == null) {
             addField(_pk = '_id', String, [Primary, Unique]);
         }
+
         return _pk;
     }
 
@@ -116,8 +141,25 @@ class StructSchema {
         return true;
     }
 
+    /**
+      perform initialization on [o] to prepare it for insertion into the data store
+     **/
     public function prepareStruct(o: Object<Dynamic>):Object<Dynamic> {
-        var doc:Object<Dynamic> = Arch.clone(o, ShallowRecurse);
+        var doc:Object<Dynamic>;
+        #if (row_type_coerce)
+        if (type != null && !Std.is(o, type.proto)) {
+            doc = Arch.buildClassInstance(type.proto, Arch.clone(o, ShallowRecurse));
+        }
+        else if (type == null && Type.getClass(o) != null) {
+            doc = Arch.anon_copy(o, null, v -> Arch.clone(v, ShallowRecurse));
+        }
+        else {
+            doc = Arch.clone(o, ShallowRecurse);
+        }
+        #else
+        doc = Arch.clone(o, ShallowRecurse);
+        #end
+        var doc:Object<Dynamic> = Arch.clone(Arch.ensure_anon(o), ShallowRecurse);
 
         if (!doc.exists(primaryKey) || doc[primaryKey] == null) {
             switch (field( primaryKey )) {
@@ -284,6 +326,7 @@ class StructSchema {
 
     public var fields(default, null): Dictionary<StructSchemaField>;
     public var indexes(default, null): Dictionary<IndexDefinition>;
+    public var type(default, null): Null<StructClassInfo> = null;
 
     private var _pk(default, null): Null<String> = null;
 }
@@ -564,3 +607,8 @@ typedef IndexInit = {
     ?kind: IndexType,
     ?algorithm: IndexAlgo
 };
+
+typedef StructClassInfo = {
+    proto : Class<Dynamic>,
+    ?info  : Null<Classdef>
+}
