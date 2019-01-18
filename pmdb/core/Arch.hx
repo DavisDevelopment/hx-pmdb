@@ -757,7 +757,8 @@ class Arch {
     }
 
     public static function anon_copy(o:Dynamic, ?dest:Object<Dynamic>, ?copy_value:Dynamic->Dynamic):Dynamic {
-        var o:Object<Dynamic> = o.asObject();
+        var o = o.asObject();
+        //
         if (o.exists('hxGetState')) {
             try {
                 return Reflect.callMethod(o, o.hxGetState, []);
