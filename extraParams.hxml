@@ -1,0 +1,23 @@
+
+-lib slambda
+-lib hscript
+-lib tnative
+
+# enables type-coercion of documents upon insertion
+-D row_type_coerce 
+# disables schema-validation of documents
+# -D no_validate_rows
+# enables js-specific optimizations
+-D js_optimizations
+# enables python-specific optimizations
+-D py_optimizations
+# enables at-runtime dynamic generation of optimized JavaScript code for optimizing repeated queries
+# -D js_jit
+
+# Language Features
+# noComputedRightOperandInPredicate
+# noComputedRightOperandInValue
+# allowSqlStmt
+
+--macro pmdb.utils.macro.PmDbMacros.init()
+
