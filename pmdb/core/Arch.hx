@@ -698,7 +698,7 @@ class Arch {
             case Shallow:
                 if (oClass == null) {
                     #if (js && js_optimizations)
-                    cloned = js.Object.assign({}, o);
+                        cloned = untyped {js.Object.assign(({}:Dynamic), (o : Dynamic));};
                     #else
                     cloned = Reflect.copy( o );
                     #end
@@ -706,7 +706,7 @@ class Arch {
                 else {
                     cloned = Type.createEmptyInstance(oClass);
                     #if (js && js_optimizations)
-                    js.Object.assign(cloned, o);
+                        untyped js.Object.assign((cloned : Dynamic), (o : Dynamic));
                     #else
                     //
                     for (k in Reflect.fields(o)) {

@@ -1,4 +1,7 @@
-package polygonal.ds;
+package pmdb.core.ds;
+
+import haxe.ds.Vector;
+import pmdb.core.ds.tools.ArrayTools;
 
 class IntIntHashTable {
     public var key(default, null):Int = HashKey.next();
@@ -735,7 +738,7 @@ class IntIntHashTableValIterator implements polygonal.ds.Itr<Int> {
     var mI:Int;
     var mS:Int;
 
-    var mData:NativeArray<Int>;
+    var mData:<Int>;
 
     public function new(x:IntIntHashTable) {
         mObject = x;
@@ -777,7 +780,7 @@ class IntIntHashTableValIterator implements polygonal.ds.Itr<Int> {
     }
 }
 
-@:access(polygonal.ds.IntIntHashTable)
+@:access(pmdb.core.ds.IntIntHashTable)
 @:dox(hide)
 class IntIntHashTableKeyIterator implements polygonal.ds.Itr<Int> {
     var mObject:IntIntHashTable;

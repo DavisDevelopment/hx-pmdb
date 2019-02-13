@@ -1,7 +1,8 @@
 
 -lib slambda
 -lib hscript
--lib tnative
+-cp ../tannus/
+#-lib tnative
 
 # enables type-coercion of documents upon insertion
 -D row_type_coerce 
@@ -13,6 +14,8 @@
 -D py_optimizations
 # enables at-runtime dynamic generation of optimized JavaScript code for optimizing repeated queries
 # -D js_jit
+# disables internal runtime type-checking
+#-D pmdb_no_typechecks
 
 # Language Features
 # noComputedRightOperandInPredicate

@@ -82,7 +82,7 @@ class ColumnNode extends ValueNode {
                 }
                 #if python
                 catch (err: python.Exceptions.AttributeError) {
-                    cast(d.__dict__, python.Dict<Dynamic, Dynamic>)[fieldName] = val;
+                    python.Syntax.arraySet(d.__dict__, fieldName, val);
                 }
                 #end
                 catch (err: Dynamic) {

@@ -91,3 +91,4 @@ class ValueError<T> extends Error {
 }
 
 class NotImplementedError extends Error {}
+class WTFError extends Error {}
