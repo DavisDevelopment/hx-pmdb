@@ -8,7 +8,8 @@
     ],
     "dependencies": {
         "slambda": "0.8.5", 
-        "tnative": "latest"
+        "tnative": "latest",
+        "pm-core": "latest"
     },
     "releasenote": "Updated readme",
     "url": "http://github.com/DavisDevelopment/hx-pmdb",
