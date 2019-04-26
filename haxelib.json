@@ -8,7 +8,7 @@
     ],
     "dependencies": {
         "slambda": "0.8.5", 
-        "tnative": "2.0.1"
+        "tnative": "latest"
     },
     "releasenote": "Updated readme",
     "url": "http://github.com/DavisDevelopment/hx-pmdb",
