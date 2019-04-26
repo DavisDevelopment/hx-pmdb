@@ -1,11 +1,12 @@
 package pmdb.ql.ast;
 
-import pmdb.core.ds.Lazy;
+import pm.Lazy;
 import pmdb.ql.ts.DataType;
 import pmdb.ql.ts.TypeSignature;
 import pmdb.core.TypedValue;
 import pmdb.core.Error;
 import pmdb.core.Object;
+
 import pmdb.core.ds.tools.ArrayTools;
 import pmdb.ql.ast.nodes.*;
 
@@ -24,12 +25,12 @@ import haxe.DynamicAccess as Da;
 import pmdb.ql.ts.DataTypes.typed as type;
 
 using StringTools;
-using tannus.ds.StringUtils;
+using pm.Strings;
 using Slambda;
-using tannus.ds.ArrayTools;
-using tannus.FunctionTools;
+using pm.Arrays;
+using pm.Functions;
 using pmdb.ql.ts.DataTypes;
-using pmdb.core.ds.tools.Options;
+using pm.Options;
 
 
 class BuiltinFunction {
