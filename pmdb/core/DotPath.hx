@@ -1,7 +1,7 @@
 package pmdb.core;
 
-import tannus.io.Char;
-import tannus.ds.Lazy;
+import pm.Byte;
+import pm.Lazy;
 
 import pmdb.core.Arch;
 import pmdb.core.Object;
@@ -9,13 +9,13 @@ import pmdb.core.Object;
 import haxe.PosInfos;
 import haxe.ds.Option;
 
-import pmdb.core.Assert.assert;
+import pm.Assert.assert;
 
 using Slambda;
-using tannus.ds.ArrayTools;
+using pm.Arrays;
 using StringTools;
-using tannus.ds.StringUtils;
-using tannus.FunctionTools;
+using pm.Strings;
+using pm.Functions;
 
 @:forward
 abstract DotPath (DotPathObject) from DotPathObject to DotPathObject {
@@ -228,21 +228,21 @@ class DotPathParser {
         char = null;
     }
 
-    function readChar():Null<Char> {
+    function readChar():Null<Byte> {
         if (char != null) {
             var res = this.char;
             char = null;
             return res;
         }
         else if (cursor < input.length - 1) {
-            return input.characterAt( cursor++ );
+            return input.charCodeAt(cursor++);
         }
         else {
             return null;
         }
     }
 
-    var char: Null<Char> = null;
+    var char: Null<Byte> = null;
     var tokens:Array<DotPathToken>;
 
     var input: String;
