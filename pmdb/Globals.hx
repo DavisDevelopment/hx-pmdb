@@ -1,23 +1,13 @@
 package pmdb;
 
-import tannus.io.*;
-import tannus.ds.*;
-import tannus.async.*;
-
 import haxe.PosInfos;
 import haxe.macro.Expr;
 import haxe.macro.Context;
 
 using StringTools;
-using tannus.ds.StringUtils;
-using tannus.math.TMath;
-using Slambda;
-using tannus.ds.ArrayTools;
-using tannus.ds.IteratorTools;
-using tannus.ds.SortingTools;
-using tannus.ds.AnonTools;
-using tannus.FunctionTools;
-using tannus.async.Asyncs;
+using pm.Strings;
+using pm.Numbers;
+using pm.Functions;
 
 class Globals {
     /**
