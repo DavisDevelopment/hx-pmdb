@@ -1,6 +1,6 @@
 package pmdb.ql.ts;
 
-import pmdb.core.ds.Lazy;
+import pm.Lazy;
 
 import haxe.ds.Option;
 
@@ -24,7 +24,7 @@ class TypeErrorLike<TValue, TType> extends TypeSystemError<TValue> {
     }
 
     public var type(get, never): TType;
-    inline function get_type():TType return _type.get();
+    inline function get_type():TType return _type != null ? _type.get() : null;
 
     var _type(default, null): Lazy<TType>;
 }
@@ -33,19 +33,22 @@ class TypeError<T> extends TypeErrorLike<T, DataType> {
     /* Constructor Function */
     public function new(value, type:ValType, ?msg, ?pos) {
         super(value, type, msg, pos);
-        _vtype = _value.map(function(value: T):DataType {
-            return value.dataTypeOf();
-        });
+        if (value == null) {
+            _vtype = DataType.TUnknown;
+        }
+        else {
+            _vtype = value.dataTypeOf();
+        }
     }
 
     override function defaultMessage():String {
-        return '$vtype should be $type';
+        return '$vtype should be ${type!=null?""+type:"Unknown"}';
     }
 
     public var vtype(get, never): DataType;
-    inline function get_vtype():DataType return _vtype.get();
+    inline function get_vtype():DataType return _vtype;
 
-    var _vtype(default, null): Lazy<DataType>;
+    var _vtype(default, null): DataType;
 }
 
 class NullCheckError<T> extends TypeSystemError<T> {
@@ -54,44 +57,23 @@ class NullCheckError<T> extends TypeSystemError<T> {
 
 class Invalid<A, B> extends Error {
     /* Constructor Function */
-    public function new(got:Lazy<A>, ?expected:Lazy<B>, ?msg, ?pos):Void {
+    public function new(got:A, expected:B, ?msg, ?pos):Void {
         super(msg, pos);
         name = 'Error';
 
-        this._a = got;
-        this._b = switch ( expected ) {
-            case null: Option.None;
-            case _: Option.Some( expected );
-        }
+        a = got;
+        b = expected;
     }
 
     override function defaultMessage() {
-        switch ( _b ) {
-            case Some( e ):
-                return '$a should be ${e.get()}';
-
-            case None:
-                return '$a is invalid';
-        }
-    }
-
-/* === Properties === */
-
-    public var a(get, never): A;
-    inline function get_a():A return _a.get();
-
-    public var b(get, never): Null<B>;
-    inline function get_b():Null<B> {
-        return switch ( _b ) {
-            case Some(e): e.get();
-            case None: null;
-        }
+        return '$a should be $b';
     }
 
 /* === Vars === */
 
-    var _a(default, null): Lazy<A>;
-    var _b(default, null): Option<Lazy<B>>;
+    var a: A;
+    //var _b(default, null): Option<Lazy<B>>;
+    var b: B;
 }
 
 class InvalidOperation<Op> extends ValueError<Op> {

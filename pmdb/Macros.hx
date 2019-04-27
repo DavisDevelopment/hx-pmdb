@@ -1,19 +1,16 @@
 package pmdb;
 
-import tannus.io.*;
-import tannus.ds.*;
-import tannus.async.*;
+import pm.Lazy;
 
 import haxe.macro.Expr;
 import haxe.macro.Context;
 
 using StringTools;
-using tannus.ds.StringUtils;
-using tannus.math.TMath;
+using pm.Strings;
+using pm.Numbers;
 using Lambda;
-using tannus.ds.ArrayTools;
-using tannus.FunctionTools;
-using tannus.macro.MacroTools;
+using pm.Arrays;
+using pm.Functions;
 
 class Macros {
     public static macro function lee<X>(e: ExprOf<X>):ExprOf<Void->X> {
@@ -44,12 +41,12 @@ class Macros {
     static function elve<T>(e: Expr):ExprOf<Void -> Void> {
         return macro (() -> {
             ${e};
-            tannus.FunctionTools.noop();
+            pm.Functions.noop();
         });
     }
 
     static function elazy<T>(e: ExprOf<T>):ExprOf<Lazy<T>> {
-        return macro pmdb.core.ds.Lazy.ofFn(${elee(e)});
+        return macro pm.Lazy.ofFn(${elee(e)});
     }
 
 #end

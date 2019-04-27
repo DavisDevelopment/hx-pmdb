@@ -1,6 +1,6 @@
 package pmdb.core;
 
-import pmdb.core.ds.Lazy;
+import pm.Lazy;
 
 import pmdb.core.Error;
 

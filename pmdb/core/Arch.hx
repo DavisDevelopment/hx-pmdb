@@ -569,7 +569,7 @@ class Arch {
     }
 
     public static inline function isBinary(x: Dynamic):Bool {
-        return x.is_direct_instance( x );
+        return (x is Bytes);
     }
 
     /**
@@ -682,11 +682,19 @@ class Arch {
             return clone_uarray(cast(value, Array<Dynamic>), method);
         }
 
+        if (isBinary( value )) {
+            return clone_binary(cast(value, Bytes));
+        }
+
         if (isObject( value )) {
             return clone_object(value, method);
         }
 
         return value;
+    }
+
+    public static function clone_binary(b:Bytes):Bytes {
+        return b.sub(0, b.length);
     }
 
     public static function clone_object<T>(o:T, ?method:CloneMethod, allObjects:Bool=false):T {

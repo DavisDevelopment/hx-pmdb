@@ -1,13 +1,9 @@
 package pmdb.ql.ts;
 
-import tannus.ds.Anon;
-import tannus.ds.Dict;
-import tannus.ds.Pair;
-import tannus.ds.Set;
-
 import haxe.rtti.Rtti;
 import haxe.rtti.CType;
 import haxe.io.Bytes;
+import haxe.io.*;
 
 import pmdb.core.TypedValue;
 import pmdb.core.Check;
@@ -22,12 +18,10 @@ import Std.is as stdIs;
 import Type;
 
 using StringTools;
-using tannus.ds.StringUtils;
-using Slambda;
-using tannus.ds.ArrayTools;
-using tannus.ds.MapTools;
+using pm.Strings;
+using pm.Arrays;
 using tannus.ds.DictTools;
-using tannus.FunctionTools;
+using pm.Functions;
 using pmdb.ql.ts.TypeChecks;
 
 using haxe.rtti.CType.TypeApi;
@@ -177,7 +171,7 @@ class DataTypes {
     /**
       validate a given Object against the given Object-type pattern
      **/
-    public static function checkObjectType(type:CObjectType, value:Anon<Dynamic>):Bool {
+    public static function checkObjectType(type:CObjectType, value:Object<Dynamic>):Bool {
         for (prop in type.fields) {
             if (!checkObjectProperty(prop, value)) {
                 return false;
@@ -189,7 +183,7 @@ class DataTypes {
     /**
       check a given property of an object
      **/
-    public static function checkObjectProperty(property:Property, value:Anon<Dynamic>):Bool {
+    public static function checkObjectProperty(property:Property, value:Object<Dynamic>):Bool {
         if (!value.exists(property.name))
             return false;
         return checkValue(property.type, value.get(property.name));
@@ -300,8 +294,6 @@ class DataTypes {
 }
 
 class ValueTypes {
-    static var v2dCache:Dict<ValueType, DataType> = new Dict();
-
     /**
       convert the given ValueType into a DataType value
      **/

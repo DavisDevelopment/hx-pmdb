@@ -70,7 +70,7 @@ class QueryCaret<Item> extends StdIndexItemCaret<Item> {
                 new KeyQueryCaret(q, key);
 
             case IndexConstraint.ICKeyRange(null, null):
-                throw new Invalid( q.filter );
+                throw new Invalid(q.filter, '');
 
             case IndexConstraint.ICKeyRange(min, null):
                 new KeyFloorQueryCaret(q, min);
