@@ -374,3 +374,7 @@ class Anons {
         return ValueTypes.toDataType(Type.typeof( value ));
     }
 }
+
+class ComplexTypes {
+
+}

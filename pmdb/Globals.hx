@@ -39,6 +39,10 @@ class Globals {
         return (timestamp(pos) - start);
     }
 
+    public static inline function nor<T>(a:Null<T>, b:Null<T>):Null<T> {
+        return a != null ? a : b;
+    }
+
     public static var DKEY = '_id';
     public static var METAKEYPRE = "$$";
 }

@@ -14,8 +14,9 @@ import haxe.extern.EitherType;
 import haxe.EnumFlags;
 import haxe.Serializer;
 import haxe.Unserializer;
+import haxe.macro.Expr;
 
-//using pmdb.ql.ts.DataTypes;
+using pmdb.ql.ts.DataTypes;
 using StringTools;
 using tannus.ds.StringUtils;
 
@@ -127,13 +128,13 @@ class StructSchema {
         for (field in fields) {
             if (!o.exists(field.name) || o[field.name] == null) {
                 if (!field.isOmittable()) {
-                    throw new Error('missing field "${field.name}"');
+                    throw new pmdb.core.Error('missing field "${field.name}"');
                     return false;
                 }
             }
 
             if (!field.checkValueType(o[field.name])) {
-                throw new Error('${o[field.name]} should be ${field.type}');
+                throw new pmdb.core.Error('${o[field.name]} should be ${field.type}');
                 return false;
             }
         }
@@ -170,7 +171,7 @@ class StructSchema {
                     doc[primaryKey] = f.incr();
 
                 case _:
-                    throw new Error('Cannot auto-generate doc\'s primary-key, as the assigned column ("$primaryKey") is declared as a ${fieldType(primaryKey)} value');
+                    throw new pmdb.core.Error('Cannot auto-generate doc\'s primary-key, as the assigned column ("$primaryKey") is declared as a ${fieldType(primaryKey)} value');
             }
         }
 
@@ -196,7 +197,7 @@ class StructSchema {
     public function addIndex(desc: IndexInit):IndexDefinition {
         return switch desc {
             case {name:null, kind:null}:
-                throw new Error('Either "name" or "kind" fields MUST be provided');
+                throw new pmdb.core.Error('Either "name" or "kind" fields MUST be provided');
 
             case {name:_, kind:null}: putIndex(
                     Simple(DotPath.fromPathName(desc.name)),
@@ -213,7 +214,7 @@ class StructSchema {
                 );
 
             case other:
-                throw new Error('Invalid IndexInit object $other');
+                throw new pmdb.core.Error('Invalid IndexInit object $other');
         }
     }
 
@@ -315,6 +316,57 @@ class StructSchema {
             case _:
                 throw 'Invalid lookup';
         }
+    }
+
+    public static function ofComplexType(type: haxe.macro.ComplexType):StructSchema {
+        return switch type {
+            case haxe.macro.ComplexType.TAnonymous(fields):
+                var res = new StructSchema();
+                for (f in fields) {
+                    betty(res, f);
+                }
+                return res;
+
+            default:
+                throw 'ass';
+        }
+    }
+
+    private static function betty(schema:StructSchema, f:haxe.macro.Expr.Field) {
+        var flags:Array<FieldFlag> = new Array();
+        var type:ValType = DataType.TAny;
+
+        if (f.meta != null) {
+            for (m in f.meta) {
+                switch m.name {
+                    case ':optional', 'optional':
+                        flags.push(FieldFlag.Optional);
+
+                    case ':primary', 'primary':
+                        flags.push(FieldFlag.Primary);
+
+                    case ':unique', 'unique':
+                        flags.push(FieldFlag.Unique);
+
+                    case ':autoincrement', 'autoincrement':
+                        flags.push(FieldFlag.AutoIncrement);
+                }
+            }
+        }
+
+        switch f.kind {
+            case FieldType.FVar(null, _):
+                type = DataType.TAny;
+
+            case FieldType.FVar(t, _):
+                type = ValType.ofComplexType( t );
+
+            default:
+                throw 'ass';
+        }
+
+        schema.addField(f.name, type, flags);
+        schema.putIndex(Simple( f.name ));
     }
 
 /* === Properties === */
@@ -571,6 +623,8 @@ class IndexDefinition {
             case Compound(arr): TTuple(arr.map(x -> kindType(schema, x)));
         }
     }
+
+
 
 /* === Fields === */
 

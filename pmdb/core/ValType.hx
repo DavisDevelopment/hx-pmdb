@@ -85,6 +85,8 @@ abstract ValType (DataType) from DataType  to DataType {
             case {name: 'Float'}|{name: 'StdTypes', sub:'Float'}: DataType.TScalar( TDouble  );
             case {name: 'Int'  }|{name: 'StdTypes', sub:'Int'  }: DataType.TScalar( TInteger );
             case {name: 'Date' }|{name: 'StdTypes', sub:'Date' }: DataType.TScalar( TDate    );
+            case {name: 'String' }|{name: 'StdTypes', sub:'String' }: DataType.TScalar( TString    );
+            case {name: 'Bytes' }: DataType.TScalar( TBytes    );
 
             default: throw '[TODO]';
         }
