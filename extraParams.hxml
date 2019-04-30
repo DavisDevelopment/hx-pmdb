@@ -1,6 +1,8 @@
 
 -lib slambda
 -lib hscript
+-lib pm
+
 -cp ../tannus/
 #-lib tnative
 

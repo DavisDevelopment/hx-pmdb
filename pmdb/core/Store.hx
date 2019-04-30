@@ -19,6 +19,9 @@ import pmdb.core.Query;
 import pmdb.core.StructSchema;
 import pmdb.storage.Persistence;
 import pmdb.storage.Storage;
+import pmdb.async.Executor;
+
+import pm.async.*;
 
 import haxe.ds.Either;
 import haxe.extern.EitherType;
@@ -80,6 +83,14 @@ class Store<Item> {
             });
         }
 
+        if (options.executor != null) {
+            executor = options.executor;
+        }
+
+        if (executor == null) {
+            executor = new Executor();
+        }
+
         _init_();
 
         q = new StoreQueryInterface( this );
@@ -136,6 +147,7 @@ class Store<Item> {
     private function createNewId():String {
         return Arch.createNewIdString();
     }
+
     //TODO implement this in DocumentSchema
     private var pkcounter:Int = 0;
     private function incrementId():Int {
@@ -156,7 +168,7 @@ class Store<Item> {
     }
 
     /**
-      betty
+      -
      **/
     private function _persist() {
         //TODO
@@ -166,12 +178,33 @@ class Store<Item> {
     /**
       persist [this] Store to a data file
      **/
-    public function _compact() {
-        persistence.persistCachedDataStore( this );
+    public function _compact():Promise<Store<Item>> {
+        var fp = (() -> persistence.persistCachedDataStore( this ));
+        return new Promise<Promise<Store<Item>>>(function(accept) {
+            executor.exec('store', fp, function(prom: Promise<Store<Item>>) {
+                accept( prom );
+            });
+        });
     }
 
-    public function _load() {
-        persistence.loadDataStore( this );
+    public function _load():Promise<Store<Item>> {
+        var fp = (() -> persistence.loadDataStore( this ));
+        return new Promise<Promise<Store<Item>>>(function(accept) {
+            executor.exec('store', fp, function(prom: Promise<Store<Item>>) {
+                accept( prom );
+            });
+        });
+    }
+
+    public function schedule<T>(fn:Store<Item>->T):Promise<T> {
+        return new Promise<T>(function(accept, reject) {
+            var res:Null<T> = null;
+            executor.exec('store', function() {
+                return Promise.resolve(res = fn( this ));
+            })
+            .map(x -> res)
+            .then(x -> accept( x ), x -> reject( x ));
+        });
     }
 
     private function _syncCacheWithSchema() {
@@ -728,6 +761,9 @@ class Store<Item> {
     // object used to persist [this] Store
     public var persistence(default, null): Persistence<Item>;
 
+    // object used to schedule async tasks
+    public var executor(default, null): Executor;
+
     //public var inMemoryOnly(default, null): Bool;
     //public var filename(default, null): String;
 
@@ -750,6 +786,7 @@ typedef StoreOptions = {
     ?inMemoryOnly: Bool,
     ?filename: String,
     ?persistence: Persistence<Any>,
+    ?executor: Executor,
     ?storage: Storage
 };
 

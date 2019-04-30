@@ -4,6 +4,7 @@ import pmdb.core.ds.*;
 import pmdb.core.StructSchema;
 import pmdb.core.Store;
 import pmdb.core.Object;
+import pmdb.async.Executor;
 import pmdb.core.query.*;
 
 import haxe.io.Path;
@@ -18,11 +19,13 @@ class Database {
     public function new(options: DbOptions) {
         stores = new Map();
         path = '<in-memory>';
+
+        executor = new Executor();
     }
 
 /* === Methods === */
 
-    public function addStore<Row>(name:String, store:Store<Row>):Store<Row> {
+    public function addStore<Row>(name:String, store:DbStore<Row>):DbStore<Row> {
         stores[name] = store;//cast(store, Store<Dynamic>);
         return store;
     }
@@ -38,11 +41,12 @@ class Database {
             filename: nor(options.filename, Path.join([this.path, '$name.db'])),
             schema: schema,
             inMemoryOnly: path == '<in-memory>',
-            primary: schema.primaryKey
+            primary: schema.primaryKey,
+            executor: executor
         };
         @:privateAccess schema._init();
 
-        var store:Store<Dynamic> = new Store( o );
+        var store:DbStore<Dynamic> = new DbStore(name, o);
 
         return addStore(name, store);
     }
@@ -71,8 +75,10 @@ class Database {
 /* === Variables === */
 
     @:noCompletion
-    public var stores(default, null): Map<String, Store<Dynamic>>;
+    public var stores(default, null): Map<String, DbStore<Dynamic>>;
     public var path(default, null): String;
+
+    public var executor(default, null): Executor;
 }
 
 typedef DbOptions = {

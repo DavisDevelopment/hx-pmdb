@@ -55,4 +55,5 @@ typedef PersistenceOptions = {
     var ?afterSerialization : String -> String;
     var ?beforeDeserialization : String -> String;
     var ?storage : Storage;
+    var ?format : Format<Dynamic, String>;
 }

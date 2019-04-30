@@ -22,6 +22,7 @@ class Persistence<Item> {
         this.options = options;
         this.filename = options.filename;
         this.storage = (options.storage != null ? options.storage : Storage.targetDefault());
+        this.format = (options.format != null ? options.format : Format.json());
     }
 
 /* === Methods === */
@@ -186,10 +187,10 @@ class Persistence<Item> {
     /**
       persist the given Store instance to the datafile
      **/
-    public function persistCachedDataStore(store: Store<Item>):Promise<Bytes> {
+    public function persistCachedDataStore(store: Store<Item>):Promise<Store<Item>> {
         try {
             final data = encodeDataStore( store );
-            return storage.crashSafeWriteFile(filename, data).map(x -> data);
+            return storage.crashSafeWriteFile(filename, data).map(x -> store);
         }
         catch (error: Dynamic) {
             return Promise.reject( error );
@@ -218,11 +219,16 @@ class Persistence<Item> {
     }
 
     private function serialize(item: Dynamic):String {
-        return haxe.Json.stringify( item );
+        var enc = format.encode( item );
+        if (options.afterSerialization != null)
+            enc = options.afterSerialization( enc );
+        return enc;
     }
 
     private function deserialize(data: String):Dynamic {
-        var parsed = haxe.Json.parse( data );
+        if (options.beforeDeserialization != null)
+            data = options.beforeDeserialization( data );
+        var parsed = format.decode( data );
         return parsed;
     }
 
@@ -232,6 +238,7 @@ class Persistence<Item> {
 
     public var filename(default, null): String;
     public var storage(default, null): Storage;
+    public var format(default, null): Format<Dynamic, String>;
 
     public var corruptAlertThreshold : Float = 0.1;
 }
