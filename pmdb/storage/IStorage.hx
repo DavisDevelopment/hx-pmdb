@@ -1,12 +1,30 @@
 package pmdb.storage;
 
-import pmdb.core.ds.Lazy;
-import pmdb.core.ds.Outcome;
+import pm.Lazy;
+import pm.Outcome;
+import pm.async.*;
 
 import haxe.io.Bytes;
 import haxe.PosInfos;
 
 interface IStorage {
+    public function exists(path: String):Promise<Bool>;
+    public function rename(oldPath:String, newPath:String):Promise<Bool>;
+    public function writeFileBinary(path:String, data:Bytes):Promise<Bool>;
+    public function readFileBinary(path: String):Promise<Bytes>;
+    public function appendFileBinary(path:String, data:Bytes):Promise<Bool>;
+    public function writeFile(path:String, data:String):Promise<Bool>;
+    public function readFile(path: String):Promise<String>;
+    public function appendFile(path:String, data:String):Promise<Bool>;
+    public function unlink(path: String):Promise<Bool>;
+    public function mkdirp(path: String):Promise<Bool>;
+    public function ensureFileDoesntExist(path: String):Promise<Bool>;
+    public function flushToStorage(options: {filename:String, ?isDir:Bool}):Promise<Bool>;
+    public function crashSafeWriteFile(path:String, data:Bytes):Promise<Bool>;
+    public function ensureDatafileIntegrity(filename: String):Promise<Bool>;
+}
+
+interface IStorageSync {
     public function exists(path: String):Bool;
     public function rename(oldPath:String, newPath:String):Void;
     public function writeFileBinary(path:String, data:Bytes):Void;
