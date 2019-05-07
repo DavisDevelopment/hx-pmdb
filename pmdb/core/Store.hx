@@ -82,6 +82,9 @@ class Store<Item> {
                 storage: options.storage
             });
         }
+        if (options.storage != null && options.persistence != null) {
+            @:privateAccess persistence.storage = options.storage;
+        }
 
         if (options.executor != null) {
             executor = options.executor;
