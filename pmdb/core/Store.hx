@@ -178,16 +178,23 @@ class Store<Item> {
         // this method is a placeholder for an actual persistence implementation
     }
 
+    private function _execKey():String {
+        return 'store';
+    }
+    private function _updatePromise(promise: Promise<Store<Item>>):Promise<Store<Item>> {
+        return promise;
+    }
+
     /**
       persist [this] Store to a data file
      **/
     public function _compact():Promise<Store<Item>> {
         var fp = (() -> persistence.persistCachedDataStore( this ));
-        return new Promise<Promise<Store<Item>>>(function(accept) {
-            executor.exec('store', fp, function(prom: Promise<Store<Item>>) {
+        return _updatePromise(new Promise<Promise<Store<Item>>>(function(accept) {
+            executor.exec(_execKey(), fp, function(prom: Promise<Store<Item>>) {
                 accept( prom );
             });
-        });
+        }));
     }
 
     /**
@@ -195,17 +202,17 @@ class Store<Item> {
      **/
     public function _load():Promise<Store<Item>> {
         var fp = (() -> persistence.loadDataStore( this ));
-        return new Promise<Promise<Store<Item>>>(function(accept) {
-            executor.exec('store', fp, function(prom: Promise<Store<Item>>) {
+        return _updatePromise(new Promise<Promise<Store<Item>>>(function(accept) {
+            executor.exec(_execKey(), fp, function(prom: Promise<Store<Item>>) {
                 accept( prom );
             });
-        });
+        }));
     }
 
     public function schedule<T>(fn:Store<Item>->T):Promise<T> {
         return new Promise<T>(function(accept, reject) {
             var res:Null<T> = null;
-            executor.exec('store', function() {
+            executor.exec(_execKey(), function() {
                 return Promise.resolve(res = fn( this ));
             })
             .map(x -> res)
@@ -348,7 +355,8 @@ class Store<Item> {
             _insertIntoCache( doc );
             
             if ( !ioLocked ) {
-                persistence.persistNewState(cast doc.asMany());
+                executor.exec(_execKey(), (() -> persistence.persistNewState(cast doc.asMany())));
+                //persistence.persistNewState(cast doc.asMany());
             }
         }
         catch (err: Dynamic) {
@@ -611,8 +619,6 @@ class Store<Item> {
             b = a;
             a = primaryKey;
         }
-        
-        trace('where($a = $b)');
         return _get(a, b);
     }
 
@@ -690,15 +696,18 @@ class Store<Item> {
             removedDocs.push( item );
             removeOneFromIndexes( item );
 
-            if (!multiple) return false;
+            if ( !multiple )
+                return false;
             return true;
         });
 
         if ( !ioLocked ) {
-            persistence.persistNewState(removedDocs.map(function(item) {
-                Reflect.setField(item, "$$deleted", true);
-                return item.asObject();
-            }));
+            executor.exec(_execKey(), function() {
+                return persistence.persistNewState(removedDocs.map(function(item) {
+                    Reflect.setField(item, "$$deleted", true);
+                    return item.asObject();
+                }));
+            });
         }
 
         return removedDocs;
@@ -739,7 +748,9 @@ class Store<Item> {
 
         // persist changes to the data
         if ( !ioLocked ) {
-            persistence.persistNewState(logs.map(u -> (u.post : Dynamic)));
+            executor.exec(_execKey(), function() {
+                return persistence.persistNewState(logs.map(u -> (u.post : Dynamic)));
+            });
         }
 
         return handle;
