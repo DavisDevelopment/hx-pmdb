@@ -6,6 +6,7 @@ import pmdb.core.Store;
 import pmdb.core.Object;
 import pmdb.async.Executor;
 import pmdb.core.query.*;
+import pmdb.storage.*;
 
 import haxe.io.Path;
 
@@ -19,21 +20,49 @@ class Database {
     public function new(options: DbOptions) {
         stores = new Map();
         path = '<in-memory>';
+        if (options.path != null)
+            path = options.path;
 
         executor = new Executor();
+        storage = options.storage;
+        if (storage == null) {
+            storage = Storage.targetDefault();
+        }
     }
 
 /* === Methods === */
 
+    public function compact(n: String) {
+        stores[n]._compact();
+    }
+
+    /**
+      obtain a reference to the given table
+     **/
+    public function table<Row>(name: String):DbStore<Row> {
+        return cast stores[name];
+    }
+
     public function addStore<Row>(name:String, store:DbStore<Row>):DbStore<Row> {
-        stores[name] = store;//cast(store, Store<Dynamic>);
+        stores[name] = store;
         return store;
+    }
+
+    public function dropStore(name: String) {
+        var store = table( name );
+        return executor.exec(name, function() {
+            return storage.unlink(@:privateAccess store.options.filename);
+        }).map(function(_) {
+            store.reset();
+            stores.remove( name );
+            return true;
+        });
     }
 
     /**
       create and register a Store<Dynamic> on [this] Database
      **/
-    public function createStore(name:String, schema:StructSchema, ?options:StoreOptions):Store<Dynamic> {
+    public function createStore(name:String, schema:StructSchema, ?options:StoreOptions):DbStore<Dynamic> {
         if (options == null) {
             options = {};
         }
@@ -42,13 +71,15 @@ class Database {
             schema: schema,
             inMemoryOnly: path == '<in-memory>',
             primary: schema.primaryKey,
-            executor: executor
+            executor: executor,
+            storage: storage
         };
         @:privateAccess schema._init();
+        Arch.anon_copy(options, o);
 
         var store:DbStore<Dynamic> = new DbStore(name, o);
-
-        return addStore(name, store);
+        store = addStore(name, store);
+        return store;
     }
 
     public function dropStore(name: String):Bool {
@@ -79,8 +110,10 @@ class Database {
     public var path(default, null): String;
 
     public var executor(default, null): Executor;
+    public var storage(default, null): Null<Storage>;
 }
 
 typedef DbOptions = {
-    ?path: String
+    ?path: String,
+    ?storage: Storage
 };
