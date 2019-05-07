@@ -187,6 +187,9 @@ class Store<Item> {
         });
     }
 
+    /**
+      load [this] Store from a data file
+     **/
     public function _load():Promise<Store<Item>> {
         var fp = (() -> persistence.loadDataStore( this ));
         return new Promise<Promise<Store<Item>>>(function(accept) {
@@ -205,6 +208,19 @@ class Store<Item> {
             .map(x -> res)
             .then(x -> accept( x ), x -> reject( x ));
         });
+    }
+
+    public function lockio(?force: Int):Int {
+        if (force == null) {
+            return ++this.ioLock;
+        }
+        else {
+            return this.ioLock = force;
+        }
+    }
+
+    public function unlockio():Int {
+        return --this.ioLock;
     }
 
     private function _syncCacheWithSchema() {
@@ -750,6 +766,9 @@ class Store<Item> {
     public var idField(get, never): StructSchemaField;
     private function get_idField() return schema.field( primaryKey );
 
+    public var ioLocked(get, never): Bool;
+    private function get_ioLocked() return ioLock > 0;
+
 /* === Instance Fields === */
 
     // Map of Indexes on [this] Store
@@ -776,7 +795,9 @@ class Store<Item> {
     // interface for 'next-generation' queries
     public var q: StoreQueryInterface<Item>;
 
-    public var ioLocked(default, null): Bool = false;
+    // numeric counter for io locks
+    @:noCompletion
+    public var ioLock(default, null): Int = 0;
 }
 
 typedef StoreOptions = {
