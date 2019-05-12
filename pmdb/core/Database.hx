@@ -55,6 +55,8 @@ class Database {
         return loadedStores[name];
     }
 
+    
+
     /**
       obtain a reference to the given table
      **/
@@ -64,6 +66,7 @@ class Database {
 
     public function addStore<Row>(name:String, store:DbStore<Row>):DbStore<Row> {
         stores[name] = store;
+        store._load();
         return store;
     }
 
@@ -84,7 +87,7 @@ class Database {
     /**
       create and register a Store<Dynamic> on [this] Database
      **/
-    public function createStore(name:String, schema:StructSchema, ?options:StoreOptions):DbStore<Dynamic> {
+    public function createStore(name:String, schema:StructSchema, ?options:StoreOptions) {
         if (options == null) {
             options = {};
         }
@@ -101,7 +104,7 @@ class Database {
 
         var store:DbStore<Dynamic> = new DbStore(name, this, o);
         store = addStore(name, store);
-        return store;
+        //return store;
     }
 
     /**
@@ -134,8 +137,13 @@ class Database {
     public function open<Item>(table: String):StoreConnection<Item> {
         if (!loadedStores.exists( table )) {
             //
+            throw 'iEatAss';
         }
-        return cast (connections[table] = cast new StoreConnection<Item>(this, table));
+        if (!connections.exists( table )) {
+            connections[table] = cast new StoreConnection<Item>(this, table);
+        }
+        //return cast (connections[table] = cast new StoreConnection<Item>(this, table));
+        return cast connections[table];
     }
 
 /* === Variables === */
@@ -166,9 +174,7 @@ class StoreConnection<Item> {
         this.storeName = name;
     }
 
-    public function all() {
-        return fmr(store -> store.getAllData());
-    }
+    public function all() {return fmr(store -> store.getAllData());}
     public function get(a:Dynamic, ?b:Dynamic):Promise<Null<Item>> {
         return fmr.fn(_.get(a, b));
     }
