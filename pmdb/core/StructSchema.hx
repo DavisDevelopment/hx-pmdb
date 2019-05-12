@@ -18,7 +18,11 @@ import haxe.macro.Expr;
 
 using pmdb.ql.ts.DataTypes;
 using StringTools;
-using tannus.ds.StringUtils;
+//using tannus.ds.StringUtils;
+using pm.Strings;
+using pm.Arrays;
+using pm.Iterators;
+using pm.Functions;
 
 class StructSchema {
     /* Constructor Function */
@@ -76,6 +80,32 @@ class StructSchema {
         }
 
         return _pk;
+    }
+
+    public function freeze():FrozenStructSchema {
+        return new FrozenStructSchema(
+            this.fields.keys().array().map(function(k) {
+                return {
+                    name: k,
+                    type: fields[k].type,
+                    flags: {
+                        optional: fields[k].optional,
+                        unique: fields[k].unique,
+                        primary: fields[k].primary,
+                        autoIncrement: fields[k].autoIncrement
+                    }
+                };
+            }),
+            //[],
+            this.indexes.iterator().map(function(i) {
+                return {
+                    name: i.name,
+                    type: i.type,
+                    algorithm: i.algorithm,
+                    kind: i.kind
+                };
+            }).array()
+        );
     }
 
     public function createField(name, type:ValType, ?flags) {
@@ -269,6 +299,7 @@ class StructSchema {
         }
     }
 
+    /*
     @:keep
     public function hxSerialize(s: Serializer) {
         s.serialize( fields.length );
@@ -296,6 +327,7 @@ class StructSchema {
             insertIndex( idx );
         }
     }
+    */
 
     static function lookupLoopType<Prop:TypedAttr>(prop:Prop, path:Array<String>):Null<DataType> {
         switch ( prop.type ) {
@@ -544,6 +576,9 @@ enum FieldFlag {
     AutoIncrement;
 }
 
+/**
+    class which encapsulates and provides convenient methods for accessing fields of stored documents
+**/
 class FieldAccessHelper {
     private var field: StructSchemaField;
     public function new(field) {
@@ -577,6 +612,9 @@ class FieldAccessHelper {
     }
 }
 
+/**
+    IndexDefinition - object which represents a Store index
+**/
 class IndexDefinition {
     public function new(schema, kind, ?name, ?algo, ?type) {
         this.owner = schema;
@@ -587,7 +625,7 @@ class IndexDefinition {
     }
 
 /* === Methods === */
-
+    /*
     @:keep
     public function hxSerialize(s: Serializer) {
         s.serialize( name );
@@ -602,6 +640,7 @@ class IndexDefinition {
         algorithm = u.unserialize();
         type = u.unserialize();
     }
+    */
 
     static function kindName(k: IndexType):String {
         return switch k {
