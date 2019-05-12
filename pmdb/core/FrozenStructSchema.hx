@@ -25,6 +25,7 @@ import haxe.macro.Expr;
 using pmdb.ql.ts.DataTypes;
 using StringTools;
 //using tannus.ds.StringUtils;
+using pm.Arrays;
 using pm.Strings;
 using pm.Iterators;
 using pm.Functions;
@@ -101,6 +102,14 @@ class FrozenStructSchema {
             for (k in indexNameToOffset.keys())
                 indexNameToOffset[k]++;
         }
+        else if (myindexes.empty()) {
+            myindexes.unshift(new FrozenIndexDefinition(this, {
+                name: myfields[myprimary].name,
+                kind: Simple(Arch.getDotPath('_id')),
+                type: DataType.TScalar(TInteger),
+                algorithm: IndexAlgo.AVLIndex
+            }));
+        }
 
         // finally commit computed values onto [this] instance
         this.fields = myfields;
@@ -108,7 +117,7 @@ class FrozenStructSchema {
         this.pkey = myprimary;
 
         #if debug
-            assert(!fields.empty() && !indexes.empty() && pkey != -1, 'Not a valid schema structure');
+            assert(!fields.empty() && !indexes.empty() && pkey != -1, new pm.Error('Not a valid schema structure'));
         #end
     }
 
@@ -143,6 +152,143 @@ class FrozenStructSchema {
         return this.methods.prepare( o );
     }
 
+    public function hasIndex(id: EitherType<String, IndexType>):Bool {
+        if ((id is String)) {
+            return this.indexNameToOffset.exists( id );
+        }
+        else if ((id is IndexType)) {
+            return switch (cast(id, IndexType)) {
+                case IndexType.Simple({pathName:name}): indexNameToOffset.exists(name);
+                case other: throw new pm.Error.ValueError(other, 'Lookup via $other is currently unsupported');
+            }
+        }
+        else {
+            throw 'wtf';
+        }
+    }
+
+    public function fieldType(name: String):Null<DataType> {
+        var path = name.split('.');
+        if (path.length == 1) {
+            return field(path[0]).type;
+        }
+        else {
+            return lookupLoopType(PField(field(path.shift())), path);
+        }
+    }
+
+    public static function ofComplexType(type: haxe.macro.ComplexType):FrozenStructSchema {
+        return switch type {
+            case haxe.macro.ComplexType.TAnonymous(fields):
+                var res:FrozenStructSchemaInit = {
+                    fields: new Array<FieldInit>(),
+                    indexes: new Array<IndexDefInit>(),
+                    options: (cast {} : Dynamic)
+                };
+
+                for (f in fields) {
+                    betty(res, f);
+                }
+
+                var prim = null;
+                for (f in res.fields) {
+                    if (f.flags.primary) {
+                        if (prim == null) {
+                            prim = f;
+                        }
+                    }
+                }
+
+                return buildInit(res);
+
+            default:
+                throw 'ass';
+        }
+    }
+
+    private static function buildInit(schema : FrozenStructSchemaInit):FrozenStructSchema {
+        return new FrozenStructSchema(schema.fields, schema.indexes, schema.options);
+    }
+
+    private static function betty(schema:FrozenStructSchemaInit, f:haxe.macro.Expr.Field) {
+        var flags:Array<FieldFlag> = new Array();
+        var type:ValType = DataType.TAny;
+        var idx = false;
+
+        if (f.meta != null) {
+            for (m in f.meta) {
+                switch m.name {
+                    case ':optional', 'optional':
+                        flags.push(FieldFlag.Optional);
+
+                    case ':primary', 'primary':
+                        flags.push(FieldFlag.Primary);
+
+                    case ':unique', 'unique':
+                        flags.push(FieldFlag.Unique);
+
+                    case ':autoincrement', 'autoincrement':
+                        flags.push(FieldFlag.AutoIncrement);
+
+                    case ':index', 'index':
+                        idx = true;
+                }
+            }
+        }
+
+        switch f.kind {
+            case FieldType.FVar(null, _):
+                type = DataType.TAny;
+
+            case FieldType.FVar(t, _):
+                type = ValType.ofComplexType( t );
+
+            default:
+                throw 'ass';
+        }
+
+        //schema.addField(f.name, type, flags);
+        //schema.putIndex(Simple( f.name ));
+        schema.fields.push({
+            name: f.name,
+            type: type,
+            flags: {
+                optional: flags.has(Optional),
+                primary: flags.has(Primary),
+                unique: flags.has(Unique)||flags.has(Primary),
+                autoIncrement: flags.has(AutoIncrement)
+            }
+        });
+        if ( idx ) {
+            schema.indexes.push({name: f.name});
+        }
+    }
+
+    static function lookupLoopType(prop:Prop, path:Array<String>):Null<DataType> {
+        switch (switch prop {
+            case PField(f): f.type;
+            case PSub(f): f.type;
+        }) {
+            case DataType.TAnon(anon), DataType.TNull(DataType.TAnon(anon)):
+
+                switch (anon.get(path.shift())) {
+                    case null:
+                        return null;
+
+                    case field:
+                        if (path.length == 0) {
+                            return field.type;
+                        }
+                        else {
+                            return lookupLoopType(PSub(field), path);
+                        }
+                }
+
+            case _:
+                throw 'Invalid lookup';
+        }
+    }
+
     static function freezeFieldInit(i: FieldInit):FrozenStructSchemaField {
         assert(i.name!=null&&!i.name.empty());
         if (i.flags == null) i.flags = {};
@@ -168,7 +314,8 @@ class FrozenStructSchema {
                 //TODO
                 i.type = DataType.TAny;
                 i.name = name;
-                i.kind = IndexType.Simple(new DotPath(name.split('.'), name));
+                
+                i.kind = IndexType.Simple(Arch.getDotPath(name));
                 i.algorithm = switch i.type {
                     case TAny, TUnknown, TUndefined: IndexAlgo.AVLIndex;
                     case other: IndexAlgo.AVLIndex;
@@ -271,7 +418,7 @@ class DefaultStructSchemaMethods {
         // ensure that the primary-key field is present on [doc]
         if (!cc.exists( schema.primaryKey ) || cc[schema.primaryKey] == null) {
             switch (schema.field(schema.primaryKey)) {
-                case f={type:TAny|TScalar(TInteger)} if (f.autoIncrement):
+                case f={type:TAny|TScalar(TInteger)} if (f.state.flags.autoIncrement):
                     cc[schema.primaryKey] = f.incr();
 
                 case {type: TScalar(TString)}:
@@ -303,6 +450,12 @@ class DefaultStructSchemaMethods {
         return stub;
     }
 }
+
+typedef FrozenStructSchemaInit = {
+    fields: Array<FieldInit>,
+    indexes: Array<IndexDefInit>,
+    ?options: Dynamic
+};
 
 typedef FrozenStructSchemaFieldState = {
     final name : String;
@@ -341,7 +494,7 @@ class FrozenStructSchemaField {
     }
 
     public function incr():Int {
-        assert(state.autoIncrement, 'Invalid Call to incr()');
+        assert(state.flags.autoIncrement, 'Invalid Call to incr()');
         if (incrementer == null) {
             incrementer = new Incrementer();
         }
@@ -367,4 +520,9 @@ class FrozenIndexDefinition {
         this.schema = schema;
         this.state = state;
     }
+}
+
+private enum Prop {
+    PField(f: FrozenStructSchemaField);
+    PSub(f: pmdb.ql.ts.DataType.Property);
 }
