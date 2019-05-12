@@ -916,9 +916,23 @@ class Arch {
     }
     #end
 
+    public static function getComparator(t: DataType):Comparator<Dynamic> {
+        var tk = t.print();
+        if (!typedComparatorCache.exists( tk )) {
+            t = t.simplify();
+            tk = t.print();
+        }
+        if (!typedComparatorCache.exists( tk )) {
+            typedComparatorCache[tk] = t.getTypedComparator();
+        }
+        return typedComparatorCache[tk];
+    } 
+
 /* === Variables === */
 
     private static var dotPathCache:Map<String, DotPath> = new Map();
+    private static var typedComparatorCache : Map<String, Comparator<Dynamic>> = new Map();
+
 }
 
 /**
