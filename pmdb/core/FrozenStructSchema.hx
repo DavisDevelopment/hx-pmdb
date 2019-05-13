@@ -116,6 +116,10 @@ class FrozenStructSchema {
         this.indexes = myindexes;
         this.pkey = myprimary;
 
+        this.methods =
+            if (opt==null||opt.methods == null) new DefaultStructSchemaMethods(this)
+            else throw '[TODO]';
+
         #if debug
             assert(!fields.empty() && !indexes.empty() && pkey != -1, new pm.Error('Not a valid schema structure'));
         #end
@@ -175,6 +179,22 @@ class FrozenStructSchema {
         else {
             return lookupLoopType(PField(field(path.shift())), path);
         }
+    }
+
+    public function thaw():StructSchema {
+        var res = new StructSchema();
+        for (f in fields) {
+            var flags = [];
+            if (f.state.flags.optional) flags.push(FieldFlag.Optional);
+            if (f.state.flags.primary) flags.push(FieldFlag.Primary);
+            if (f.state.flags.autoIncrement) flags.push(FieldFlag.AutoIncrement);
+            if (f.state.flags.unique) flags.push(FieldFlag.Unique);
+            res.addField(f.name, f.type, flags);
+        }
+        for (i in indexes) {
+            res.putIndex(i.state.kind, i.state.name, i.state.algorithm, i.state.type);
+        }
+        return res;
     }
 
     public static function ofComplexType(type: haxe.macro.ComplexType):FrozenStructSchema {
@@ -403,8 +423,12 @@ class DefaultStructSchemaMethods {
             //
             // ...
             if (!f.type.checkValue(o.get(f.name))) {
+                if (o[f.name] == null && f.isOmittable()) {
+                    continue;
+                }
+
                 throw new pm.Error('${o[f.name].dataTypeOf().print()} should be ${f.type.print()}', 'for doc.${f.name}: ');
-                return false;
+                //return false;
             }
         }
 
@@ -502,7 +526,7 @@ class FrozenStructSchemaField {
     }
 
     public function isOmittable() {
-        return state.flags.optional || (state.flags.autoIncrement) || state.etype.match(TNull(_));
+        return state.flags.optional || (state.flags.primary && state.flags.autoIncrement) || state.etype.match(TNull(_));
     }
 
     public var name(get, never): String;
