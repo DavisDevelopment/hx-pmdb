@@ -126,10 +126,16 @@ class Database {
         return cast stores[d].getAllData();
     }
 
+    /**
+      perform a 'find', or a 'select' query on [this] Database
+    **/
     public function find(d:String, ?check:Criterion<Dynamic>, ?precompile:Bool):FindCursor<Dynamic> {
         return stores[d].find(check, precompile);
     }
 
+    /**
+      perform a single-index lookup
+    **/
     public function get<Row>(table:String, a:Dynamic, ?b:Dynamic):Null<Row> {
         return stores[table].get(a, b);
     }

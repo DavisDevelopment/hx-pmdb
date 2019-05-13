@@ -255,8 +255,22 @@ class DataTypes {
             case TArray(type): 'Array<${print(type)}>';
             case TUnion(a, b): 'Either<${print(a)}, ${print(b)}>';
             case TTuple(types): 'Tuple<' + types.map(t -> print(t)).join(', ') + '>';
+            case TAnon(null): '{}';
+            case TAnon(anon): printAnon(anon);
             case other: throw new Error('print($type) not implemented');
         }
+    }
+    static function printAnon(o:CObjectType, pretty=false):String {
+        var res = '{';
+        for (field in o.fields) {
+            res += field.name;
+            res += pretty ? ' : ' : ':';
+            res += print(field.type);
+            res += ',';
+        }
+        res = res.beforeLast(',');
+        res += '}';
+        return res;
     }
 
     /**
