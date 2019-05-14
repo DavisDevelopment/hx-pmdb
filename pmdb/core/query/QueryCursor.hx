@@ -95,7 +95,16 @@ class QueryCursorBase<Item> {
       method invoked to initialize the search index
      **/
     private function initSearchIndex() {
-        searchIndex = qi.getSearchIndex( checkNode );
+        var usePlanner = true;
+        if ( usePlanner ) {
+            var plan = qi.planSearch( checkNode );
+            checkNode = compileCriterion(plan.check.get());
+            searchIndex = cast plan.index.get();
+            trace('$plan');
+        }
+        else {
+            searchIndex = qi.getSearchIndex( checkNode );
+        }
     }
 
     /**
@@ -107,7 +116,11 @@ class QueryCursorBase<Item> {
         assert(criterion != null, new Invalid(criterion, Check));
 
         checkNode = compileCriterion( criterion );
-        searchIndex = qi.getSearchIndex( checkNode );
+        var plan = qi.planSearch( checkNode );
+        checkNode = compileCriterion(plan.check.get());
+        searchIndex = cast plan.index.get();
+        trace(this.searchIndex);
+        trace(this.checkNode);
 
         onSearchIndexObtained( searchIndex );
     }

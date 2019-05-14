@@ -29,10 +29,29 @@ class Macros {
     }
 
     public static macro function clock(e: Expr):ExprOf<Float> {
-        return macro pmdb.Globals.measure(${elve(e)});
+        return clockMacro( e );
     }
 
 #if macro
+
+    static function clockMacro(e: Expr):Expr {
+        var result:Expr = macro throw 'eat ass';
+        switch e {
+            case macro var $x = $y:
+                result = macro {
+                    var $x;
+                    ${clockMacro(macro $i{x} = $y)};
+                };
+
+            //case macro for ($n in $it) $elem:
+                
+
+            default:
+                result = macro pmdb.Globals.measure(${elve(e)});
+        }
+
+        return macro $result;
+    }
 
     static function elee<T>(e: ExprOf<T>):ExprOf<Void -> T> {
         return macro (() -> $e);

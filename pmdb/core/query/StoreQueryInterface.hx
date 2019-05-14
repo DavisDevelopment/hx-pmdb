@@ -36,13 +36,22 @@ import Std.is as isType;
 import pmdb.Macros.*;
 import pmdb.Globals.*;
 
+import pm.Ref;
+
 using StringTools;
-using tannus.ds.StringUtils;
-using Slambda;
-using tannus.ds.ArrayTools;
-using tannus.async.OptionTools;
-using tannus.ds.IteratorTools;
-using tannus.FunctionTools;
+//using tannus.ds.StringUtils;
+using pm.Strings;
+//using Slambda;
+using Lambda;
+using pm.Functions;
+//using tannus.ds.ArrayTools;
+//using tannus.async.OptionTools;
+//using tannus.ds.IteratorTools;
+//using tannus.FunctionTools;
+using pm.Arrays;
+using pm.Iterators;
+using pm.Options;
+using pm.Functions;
 using pmdb.ql.ast.Predicates;
 
 @:access( pmdb.core.Store )
@@ -51,7 +60,7 @@ class StoreQueryInterface<Item> {
     public function new(store) {
         this.store = store;
 
-        if (SANDBOX) {
+        if ( SANDBOX ) {
             this.ctx = new QueryInterp( store );
 
             this.parser = new QlParser();
@@ -211,6 +220,17 @@ class StoreQueryInterface<Item> {
         return store.getAllData().filter(function(item: Item):Bool {
             return where.eval(globalCtx.setDoc(cast item));
         });
+    }
+
+    public function planSearch(check: Check):Plan {
+        var plan:Plan = {
+            index: new Ref<QueryIndex<Dynamic, Dynamic>>(),
+            check: new Ref<PredicateExpr>()
+        };
+        plan.check.assign(check.getExpr());
+        plan.index.assign(cast new QueryIndex( store.pid ));
+        PredicateExpressions.plan(store.indexes, plan);
+        return plan;
     }
 
     /**

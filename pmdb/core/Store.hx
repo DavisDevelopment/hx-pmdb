@@ -31,21 +31,25 @@ import haxe.PosInfos;
 import haxe.macro.Expr;
 import haxe.macro.Context;
 
-import tannus.math.TMath as M;
+//import tannus.math.TMath as M;
 import pmdb.core.Error;
-import Slambda.fn;
+import pm.Functions.fn;
 import Std.is as isType;
-import pmdb.core.Assert.assert;
+import pm.Assert.assert;
 
 using pmdb.core.Arch;
 using StringTools;
-using tannus.ds.StringUtils;
-using Slambda;
-using tannus.ds.ArrayTools;
-using tannus.ds.DictTools;
-using tannus.ds.MapTools;
+//using tannus.ds.StringUtils;
+using pm.Strings;
+using Lambda;
+//using tannus.ds.ArrayTools;
+using pm.Arrays;
+//using tannus.ds.DictTools;
+//using tannus.ds.MapTools;
+using pm.Maps;
 using pmdb.core.ds.tools.Options;
-using tannus.FunctionTools;
+//using tannus.FunctionTools;
+using pm.Functions;
 using pmdb.ql.ts.DataTypes;
 
 /**
@@ -660,6 +664,14 @@ class Store<Item> {
     public function withValues(params: Array<Dynamic>):Store<Item> {
         q.ctx.parameters = params.copy();        
         return this;
+    }
+
+    public function explain(qs: String) {
+        var expr = (@:privateAccess q.compileStringToPredicate( qs ));
+        var a = expr.getTraversalIndex( indexes );
+        var b = q.planSearch(q.check(expr)).index.get();
+        trace('$a == $b');
+        assert(Arch.areThingsEqual(a, b), 'neq!');
     }
 
     /**

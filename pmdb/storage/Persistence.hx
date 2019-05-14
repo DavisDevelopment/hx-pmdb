@@ -143,21 +143,26 @@ class Persistence<Item> {
       load the datafile onto the given Store instance
      **/
     public function loadDataStore(store: Store<Item>):Promise<Store<Item>> {
-        store.reset();
+        //store.reset();
         return loadRawStoreData().map(function(raw: Null<RawStoreData<Item>>) {
             if (raw == null) {
                 return store;
             }
             else {
-                for (index in raw.indexes) {
-                    store.ensureIndex({
-                        name: index.fieldName,
-                        type: index.fieldType,
-                        unique: index.unique,
-                        sparse: index.sparse
-                    });
+                //TODO add internal methods for stash/pop management of store state
+                if (!(raw.docs.empty() || raw.indexes.empty())) {
+                    store.reset();
+                    for (index in raw.indexes) {
+                        store.ensureIndex({
+                            name: index.fieldName,
+                            type: index.fieldType,
+                            unique: index.unique,
+                            sparse: index.sparse
+                        });
+                    }
+
+                    store.insertMany( raw.docs );
                 }
-                store.insertMany( raw.docs );
                 return store;
             }
         });
