@@ -104,7 +104,7 @@ class Database {
 
         var store:DbStore<Dynamic> = new DbStore(name, this, o);
         store = addStore(name, store);
-        //return store;
+        return store;
     }
 
     /**

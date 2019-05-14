@@ -33,9 +33,12 @@ using Slambda;
 using tannus.ds.ArrayTools;
 using tannus.ds.DictTools;
 using tannus.ds.MapTools;
-using tannus.async.OptionTools;
+//using tannus.async.OptionTools;
 using tannus.FunctionTools;
 using pmdb.ql.ts.DataTypes;
+
+using pm.Options;
+using pm.Functions;
 
 class Predicates {}
 
@@ -164,9 +167,28 @@ class PredicateExpressions {
             return indices[columnName(ce)];
         }
 
+        var result = null;
+        inline function handle(a:ValueExpr, b:ValueExpr, kc:Dynamic->IndexConstraint<Dynamic, Dynamic>) {
+            var tmp = kv(a, b);
+            if (indices.exists(tmp.key)) {
+                result = new QueryIndex(indices[tmp.key], kc(tmp.value));
+            }
+        }
+
         var usableExpr = getIndexableExpr( expr );
-        if (usableExpr == null) return null;
+        trace('$usableExpr');
+
+        if (usableExpr == null)
+            return null;
         switch ( usableExpr ) {
+            case Pe.POpExists(columnName(_)=>name):
+                if (indices.exists(name))
+                    return new QueryIndex(indices[name]);
+
+            case Pe.POpEq(a, b):
+                handle(a, b, fn(ICKey(_)));
+                trace(result);
+            
             case Pe.POpEq(columnName(_)=>name, extractConstValue(_).getValue()=>val):
                 if (indices.exists(name)) {
                     return new QueryIndex(indices[name], ICKey(val));
@@ -177,9 +199,6 @@ class PredicateExpressions {
                     return new QueryIndex(indices[name], ICKey(val));
                 }
 
-            case Pe.POpExists(columnName(_)=>name):
-                if (indices.exists(name))
-                    return new QueryIndex(indices[name]);
                 
             case Pe.POpGt(columnName(_)=>name, extractConstValue(_).getValue()=>val):
                 if (indices.exists(name))
@@ -224,7 +243,15 @@ class PredicateExpressions {
             default:
                 //
         }
-        return null;
+
+        return result;
+    }
+
+    static function kv(a:ValueExpr, b:ValueExpr):{key:String, value:Dynamic} {
+        var name = nor(columnName(a), columnName(b));
+        var val = extractConstValue(a).orOpt(extractConstValue(b)).getValue();
+        assert(name != null && val != null, 'uStoopid');
+        return {key:name, value:val};
     }
 
     /**
@@ -232,23 +259,29 @@ class PredicateExpressions {
      **/
     public static function getIndexableExpr(pe: PredicateExpr):Null<PredicateExpr> {
         return switch ( pe ) {
-            case Pe.POpEq(ce=(isColumn(_)=>true), ve), Pe.POpEq(ve, ce=(isColumn(_)=>true)): pe;
+            case Pe.POpEq(a, b): isIndexableBinaryArgs(a, b) ? pe : null;
             case Pe.POpExists(ce=(isColumn(_)=>true)): pe;
-            case Pe.POpGt(ce=(isColumn(_)=>true), ve=(isConst(_)=>true)): pe;
-            case Pe.POpGt(ve=(isConst(_)=>true), ce=(isColumn(_)=>true)): pe;
-            case Pe.POpGte(ce=(isColumn(_)=>true), ve=(isConst(_)=>true)): pe;
-            case Pe.POpGte(ve=(isConst(_)=>true), ce=(isColumn(_)=>true)): pe;
-            case Pe.POpLt(ce=(isColumn(_)=>true), ve=(isConst(_)=>true)): pe;
-            case Pe.POpLt(ve=(isConst(_)=>true), ce=(isColumn(_)=>true)): pe;
-            case Pe.POpLte(ce=(isColumn(_)=>true), ve=(isConst(_)=>true)): pe;
-            case Pe.POpLte(ve=(isConst(_)=>true), ce=(isColumn(_)=>true)): pe;
-            case Pe.POpInRange(ce=(isColumn(_)=>true), emin=(isConst(_)=>true), emax=(isConst(_)=>true)): pe;
-            case Pe.POpIn(ce=(isColumn(_)=>true), ve=(isConst(_)=>true)): pe;
-            case Pe.POpIn(ve=(isConst(_)=>true), ce=(isColumn(_)=>true)): Pe.POpIn(ce, ve);
-            case Pe.POpBoolAnd(left, _): getIndexableExpr( left );
+            case Pe.POpGt(a, b): isIndexableBinaryArgs(a, b) ? pe : null;
+            //case Pe.POpGt(a, b): isIndexableBinaryArgs(a, b) ? pe : null;
+            case Pe.POpGte(a, b): isIndexableBinaryArgs(a, b) ? pe : null;
+            //case Pe.POpGte(a, b): isIndexableBinaryArgs(a, b) ? pe : null;
+            case Pe.POpLt(a, b): isIndexableBinaryArgs(a, b) ? pe : null;
+            //case Pe.POpLt(a, b): isIndexableBinaryArgs(a, b) ? pe : null;
+            case Pe.POpLte(a, b): isIndexableBinaryArgs(a, b) ? pe : null;
+            //case Pe.POpLte(a, b): isIndexableBinaryArgs(a, b) ? pe : null;
 
+            //case Pe.POpInRange(a, b): isIndexableBinaryArgs(a, b) ? pe : null;
+            case Pe.POpIn(a, b): isIndexableBinaryArgs(a, b) ? pe : null;
+            //case Pe.POpIn(a, b): Pe.POpIn(ce, ve);
+            case Pe.POpBoolAnd(a, b): nor(getIndexableExpr(a), getIndexableExpr(b));
             default: null;
         }
+    }
+
+    static function isIndexableBinaryArgs(a:ValueExpr, b:ValueExpr):Bool {
+        if (isColumn( a )) return isConst( b );
+        if (isConst( a )) return isColumn( b );
+        return false;
     }
 
     public static inline function isConst(e: ValueExpr):Bool {
