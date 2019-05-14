@@ -374,6 +374,46 @@ class ValueExpressions {
     public static function expr(e: ValueExpr) {
         return e.expr;
     }
+
+    public static function print(e:ValueExpr, compat:Bool=false) {
+        return switch e.expr {
+            case EVoid: 'undefined';
+            case EThis: 'this';
+            case EReificate(argn): 'arguments[$argn]';
+            case EConst(c): switch c {
+                case ConstExpr.CBool((_:Dynamic)=>x), CFloat((_:Dynamic)=>x), CInt((_:Dynamic)=>x), CString((_:Dynamic)=>x): Std.string(x);
+                case ConstExpr.CNull: 'null';
+                case ConstExpr.CCompiled(v): Std.string(v);
+                case ConstExpr.CRegexp(re): '$re';
+            }
+            case ECol(n): n;
+            case ECast(_, _): Std.string(e.expr);
+            case ECall(f, args): '$f('+[for (x in args) print(x, compat)].join(', ')+')';
+            case EUnop(UNeg, x): '-'+print(x, compat);
+            case EBinop(printBinop(_)=>op, print(_, compat)=>a, print(_, compat)=>b): '$a $op $b';
+            case EList(vals): '['+[for (x in vals) print(x, compat)].join(', ')+']';
+            case EObject(fields): 
+                (
+                '{' +
+                 [for (f in fields) (f.k+': '+print(f.v, compat))].join(',') +
+                '}'
+                );
+            case EArrayAccess(a, i): print(a, compat) + '['+print(i, compat)+']';
+            case EAttr(o, n): print(o, compat) + '.' + n;
+            case ERange(a, b): '['+print(a,compat)+'...'+print(b, compat)+']';
+        }
+
+    }
+
+    static function printBinop(op:EvBinop) {
+        return switch op {
+            case OpAdd: '+';
+            case OpSub: '-';
+            case OpMult: '*';
+            case OpDiv: '/';
+            case other: throw 'unsupported $other';
+        }
+    }
 }
 
 private typedef Idx = pmdb.core.Index<Dynamic, Dynamic>;
