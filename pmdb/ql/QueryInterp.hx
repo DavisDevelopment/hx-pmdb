@@ -174,6 +174,7 @@ class QueryInterp {
 
     /**
       initialize binary operators
+      TODO: store operators as a Tuple<function(any, any):any, Map<Signature, {typesafe function}>>
      **/
     function initOperators() {
         binops = new Map();
@@ -183,6 +184,8 @@ class QueryInterp {
 
         op('+', Operators.__add__);
         op('-', Operators.__sub__);
+        op('/', Operators.__div__);
+        op('*', Operators.__mult__);
 
         unops = new Map();
         inline function op(n:String, f:Dynamic->Dynamic, pre=false) {
