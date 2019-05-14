@@ -7,8 +7,8 @@ import pmdb.core.TypedValue;
 class Function implements FunctionObject {
     public function new(fn:NativeFnProxy, signature:Sig) {
         this.r = fn;
-        this.isBuiltin = false;
-        this.isLeaf = true;
+        //this.isBuiltin = false;
+        //this.isLeaf = true;
     }
 
     /**
@@ -34,22 +34,22 @@ class Function implements FunctionObject {
     }
 
     var r(default, null): NativeFnProxy;
-    public var isBuiltin(default, null): Bool;
-    public var isLeaf(default, null): Bool;
+    //public var isBuiltin(default, null): Bool;
+    //public var isLeaf(default, null): Bool;
 }
 
-interface FunctionObject {
-    function __call__(args: Array<Dynamic>):Dynamic;
+interface FunctionObject extends Callable {
+    //function __call__(args: Array<Dynamic>):Dynamic;
 
     // whether `this` function is built-in with the PmDb runtime
-    var isBuiltin(default, null): Bool;
+    //var isBuiltin(default, null): Bool;
 
     // whether `this` function is a 'leaf' (has no overload-branches)
-    var isLeaf(default, null): Bool;
+    //var isLeaf(default, null): Bool;
 }
 
 interface Callable {
-    var signature(get, never): Sig;
+    //var signature(get, never): Sig;
 
     function __call__(args: Array<Dynamic>):Dynamic;
 }
