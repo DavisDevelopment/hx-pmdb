@@ -2,6 +2,7 @@ package pmdb.ql.ast;
 
 import pmdb.ql.ast.Value;
 
+@:using(pmdb.ql.ast.Predicates)
 enum PredicateExpr {
     // * ({})
     PNoOp;

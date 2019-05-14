@@ -152,6 +152,8 @@ class FindCursor<Item> extends QueryCursor<Item, Array<Item>> implements ICursor
         // get list of possible (candidate) results
         var res = candidates();
         if (res.empty()) return [];
+        if (res.empty())
+            return [];
 
         // perform further filtering by [predicate]
         if (checkNode != null && !(checkNode is pmdb.ql.ast.nodes.NoCheck)) {
@@ -231,6 +233,7 @@ class FindCursor<Item> extends QueryCursor<Item, Array<Item>> implements ICursor
     public var _output(default, null): Null<Array<Item>> = null;
 
     var _compile(default, null): Bool = false;
+    var _filter(default, null):Bool = true;
     var _filterc(default, null): Null<QueryInterp -> Bool> = null;
 }
 

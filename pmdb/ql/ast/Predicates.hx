@@ -24,7 +24,10 @@ import haxe.ds.Either;
 import haxe.ds.Option;
 import haxe.PosInfos;
 
-import Slambda.fn;
+import pm.Pair;
+import pm.Ref;
+
+import pm.Functions.fn;
 import Std.is as isType;
 
 using StringTools;
@@ -34,7 +37,9 @@ using tannus.ds.ArrayTools;
 using tannus.ds.DictTools;
 using tannus.ds.MapTools;
 //using tannus.async.OptionTools;
-using tannus.FunctionTools;
+//using tannus.FunctionTools;
+using pm.Options;
+using pm.Functions;
 using pmdb.ql.ts.DataTypes;
 
 using pm.Options;
@@ -46,111 +51,6 @@ class PredicateExpressions {
     public static inline function isBoolOp(e: PredicateExpr):Bool {
         return e.match(POpBoolAnd(_,_)|POpBoolOr(_,_)|POpBoolNot(_));
     }
-
-    /*
-    public static function iter(e:PredicateExpr, fn:PredicateExpr->Void):Void {
-        switch e {
-            case Pe.POpBoolAnd(a, b)|Pe.POpBoolOr(a, b):
-                fn( a );
-                fn( b );
-
-            case Pe.POpBoolNot(x):
-                fn( x );
-
-            case _:
-                //
-        }
-    }
-    */
-
-    /*
-    public static function iterValues(e:PredicateExpr, fn:ValueExpr->Void):Void {
-        function vi(ve: PredicateExpr) {
-            switch ve {
-                case Pe.POpBoolAnd(a, b)|Pe.POpBoolOr(a, b):
-                    vi( a );
-                    vi( b );
-
-                case Pe.POpBoolNot(x):
-                    vi( x );
-
-                case Pe.POpElemMatch(a, b, _) | Pe.POpWith(a, b):
-                    fn( a );
-                    vi( b );
-
-                case Pe.POpEq(a, b)|Pe.POpNotEq(a, b)|Pe.POpGt(a, b)|Pe.POpLt(a, b)|Pe.POpGte(a, b)|Pe.POpLte(a, b)|Pe.POpIn(a, b)|Pe.POpNotIn(a, b)|Pe.POpContains(a, b)|Pe.POpRegex(a, b)|Pe.POpIs(a, b):
-                    fn(a);
-                    fn(b);
-
-                case Pe.POpInRange(a, b, c):
-                    fn( a );
-                    fn( b );
-                    fn( c );
-
-                case Pe.POpExists(x): 
-                    fn( x );
-
-                case Pe.POpMatch(a, _):
-                    fn( a );
-
-                case Pe.PNoOp:
-                    return ;
-            }
-        }
-
-        iter(e, vi);
-    }
-    */
-
-    //public static function map(e:PredicateExpr, fn:PredicateExpr->PredicateExpr, ?vfn:ValueExpr->ValueExpr):PredicateExpr {
-        //if (vfn == null)
-            //vfn = FunctionTools.identity;
-        //return switch e {
-            //case Pe.POpBoolAnd(a, b): POpBoolAnd(fn(a), fn(b));
-            //case Pe.POpBoolOr(a, b): POpBoolOr(fn(a), fn(b));
-            //case Pe.POpBoolNot(x): POpBoolNot(fn(x));
-            //case Pe.PNoOp: Pe.PNoOp;
-            //case Pe.POpExists(x): POpExists(vfn(x)); //TODO
-            //case Pe.POpMatch(a, b):
-                //return POpMatch(vfn(a), b);
-            //case Pe.POpEq(a, b)|Pe.POpNotEq(a, b)|Pe.POpGt(a, b)|Pe.POpLt(a, b)|Pe.POpGte(a, b)|Pe.POpLte(a, b)|Pe.POpIn(a, b)|Pe.POpNotIn(a, b)|Pe.POpContains(a, b)|Pe.POpRegex(a, b)|Pe.POpIs(a, b):
-                //return Pe.createByIndex(e.getIndex(), [vfn(a), vfn(b)]);
-            //case Pe.POpInRange(a, b, c):
-                //Pe.POpInRange(vfn(a), vfn(b), vfn(c));
-        //}
-    //}
-
-    /*
-    public static function mapValues(e:PredicateExpr, fn:ValueExpr->ValueExpr):PredicateExpr {
-        function vmapper(pe: PredicateExpr):PredicateExpr {
-            return switch pe {
-                case Pe.POpBoolAnd(a, b): POpBoolAnd(vmapper(a), vmapper(b));
-                case Pe.POpBoolOr(a, b): POpBoolOr(vmapper(a), vmapper(b));
-                case Pe.POpBoolNot(x): POpBoolNot(vmapper(x));
-                case Pe.POpEq(a, b)|Pe.POpNotEq(a, b)|Pe.POpGt(a, b)|Pe.POpLt(a, b)|Pe.POpGte(a, b)|Pe.POpLte(a, b)|Pe.POpContains(a, b)|Pe.POpIn(a, b)|Pe.POpNotIn(a, b)|Pe.POpRegex(a, b)|Pe.POpIs(a, b)|Pe.POpElemMatch(a, b, _):
-                    Pe.createByIndex(pe.getIndex(), [fn(a), fn(b)]);
-                case Pe.POpExists(x): POpExists(fn(x));
-                case Pe.POpInRange(a, b, c):
-                    Pe.POpInRange(fn(a), fn(b), fn(c));
-                case Pe.POpMatch(a, b):
-                    Pe.POpMatch(fn(a), b);
-                case Pe.PNoOp: PNoOp;
-            }
-        }
-        return map(e, vmapper);
-    }
-
-    public static function replace(e:PredicateExpr, what:PredicateExpr, replacement:PredicateExpr):PredicateExpr {
-        return replaceAny(e, x->x.equals(what), (_)->replacement);
-    }
-
-    public static function replaceAny(e:PredicateExpr, repl:PredicateExpr->Bool, what:PredicateExpr->PredicateExpr):PredicateExpr {
-        if (repl( e )) {
-            return what( e );
-        }
-        return map(e, replaceAny.bind(_, repl, what));
-    }
-    */
 
     /**
       ...
@@ -254,6 +154,88 @@ class PredicateExpressions {
         return {key:name, value:val};
     }
 
+    public static function plan(indexes:Map<String, Idx>, thePlan:Plan):Void {
+        //var res = expr;
+        var pp = _plan_(thePlan.check.get(), indexes);
+        switch pp {
+            case {left:exprRef, right:idx}:
+                thePlan.check.assign(exprRef.get());
+                switch idx {
+                    case Some(qi):
+                        thePlan.index.assign( qi );
+
+                    case None:
+                        //
+                }
+
+            case other:
+                throw 'wtf';
+        }
+    }
+
+    static function _plan_(e:PredicateExpr, indexes:Map<String, Idx>):Pair<pm.Ref<PredicateExpr>, Option<QueryIndex<Dynamic, Dynamic>>> {
+        var predicate:pm.Ref<PredicateExpr> = pm.Ref.to( e );
+        var traversalIndex:Option<QueryIndex<Dynamic, Dynamic>> = None;
+        switch e {
+            // $left && $right
+            case POpBoolAnd(left, right):
+                //trace(left, right);
+                //trace('${getIndexableExpr(left)}, ${getIndexableExpr(right)}');
+                switch [getIndexableExpr(left), getIndexableExpr(right)] {
+                    case [null, null]:
+                        null;
+
+                    case [pe, _]|[null, pe]:
+                        var rest = Pe.PNoOp;
+                        if (left.equals(pe)) {
+                            rest = right;
+                        }
+                        else if (right.equals(pe)) {
+                            rest = left;
+                        }
+                        //trace( pe );
+
+                        var qi = getTraversalIndex(pe, indexes);
+                        if (qi != null) {
+                            traversalIndex = Some(qi);
+                            if (rest != null) {
+                                predicate.assign( rest );
+                            }
+                        }
+
+                    default:
+                        //
+                }
+
+            // betty
+            case other:
+                switch (getIndexableExpr(other)) {
+                    case null:
+                        //
+
+                    case ide:
+                        var rest = Pe.PNoOp;
+                        var qi = getTraversalIndex(ide, indexes);
+                        trace( qi );
+
+                        if (qi != null) {
+                            traversalIndex = Some( qi );
+                            if (rest != null) {
+                                predicate.assign( rest );
+                            }
+                        }
+                }
+
+            //case other:
+                //
+        }
+
+        var res = new Pair(predicate, traversalIndex);
+        trace(res);
+
+        return res;
+    }
+
     /**
       determine whether the given PredicateExpr is an indexible one
      **/
@@ -319,6 +301,42 @@ class PredicateExpressions {
             case _: null;
         }
     }
+
+    public static function map(expr:PredicateExpr, fun:PredicateExpr->PredicateExpr):PredicateExpr {
+        return switch expr {
+            case Pe.POpBoolAnd(a, b): Pe.POpBoolAnd(fun(a), fun(b));
+            case Pe.POpBoolOr(a, b): (Pe.POpBoolOr(fun(a), fun(b)));
+            case Pe.POpBoolNot(sub): (Pe.POpBoolNot(fun(sub)));
+            default: fun( expr );
+        }
+    }
+
+    public static function simplify(e:PredicateExpr):PredicateExpr {
+        //e.simplify
+        return map(_simplify_(e), _simplify_);
+    }
+    static function _simplify_(e: PredicateExpr):PredicateExpr {
+        switch e {
+            case POpBoolAnd(pred, PNoOp)|POpBoolAnd(PNoOp, pred):
+                return _simplify_( pred );
+
+            case POpBoolOr(pred, PNoOp)|POpBoolOr(PNoOp, pred):
+                return PNoOp;
+
+            case POpBoolNot(simplify(_) => neg):
+                return switch neg {
+                    case POpEq(a, b): POpNotEq(a, b);
+                    case POpNotEq(a, b): POpEq(a, b);
+                    case _: POpBoolNot(neg);
+                }
+
+            case POpEq(a, b):
+                return simplify(POpEq(a.simplify(), b.simplify()));
+
+            case _:
+                return e;
+        }
+    }
 }
 
 class ValueExpressions {
@@ -344,7 +362,31 @@ class ValueExpressions {
         }
     }
 
+    public static function simplify(e:ValueExpr):ValueExpr {
+        return map(e, _simplify_);
+    }
+    static function _simplify_(e: ValueExpr):ValueExpr {
+        return switch expr(e) {
+            case _: e;
+        }
+    }
+
     public static function expr(e: ValueExpr) {
         return e.expr;
+    }
+}
+
+private typedef Idx = pmdb.core.Index<Dynamic, Dynamic>;
+
+@:structInit
+class Plan {
+    public var index : Ref<QueryIndex<Dynamic, Dynamic>>;
+    public var check : Ref<PredicateExpr>;
+
+    public function toString():String {
+        return Std.string({
+            index: index.toString(),
+            check: check.toString()
+        });
     }
 }
