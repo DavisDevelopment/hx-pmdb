@@ -16,6 +16,10 @@ class QueryIndex<K, T> {
 
 /* === Methods === */
 
+    public function toString() {
+        return 'QueryIndex(${index.fieldType.print()} ${index.fieldName}, $filter)';
+    }
+
 /* === Variables === */
 
     public var index: Index<K, T>;
