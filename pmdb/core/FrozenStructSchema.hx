@@ -363,6 +363,18 @@ class FrozenStructSchema {
     }
 
     //
+    public function toString():String {
+        var res = '{';
+        for (field in fields) {
+            res += field.state.name;
+            res += ': ';
+            res += field.state.etype.print();
+            res += ',';
+        }
+        res = res.beforeLast(',');
+        res += '}';
+        return res;
+    }
 
 /* === Properties === */
 
