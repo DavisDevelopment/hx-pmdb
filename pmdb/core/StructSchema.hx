@@ -2,6 +2,7 @@ package pmdb.core;
 
 import pmdb.ql.ts.DataType;
 import pmdb.ql.ast.Value;
+import pmdb.ql.ts.TypeSystemError;
 
 import pmdb.core.ds.*;
 import pmdb.core.ds.map.*;

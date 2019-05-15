@@ -16,7 +16,7 @@ import pmdb.ql.ast.QueryCompiler;
 import pmdb.ql.hsn.QlParser;
 import pmdb.core.ds.*;
 import pmdb.ql.ts.*;
-import pmdb.core.Assert.assert;
+import pm.Assert.assert;
 import pmdb.core.Store;
 import pmdb.core.Error;
 import pmdb.core.Object;

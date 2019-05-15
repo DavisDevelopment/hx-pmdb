@@ -7,7 +7,7 @@ import pmdb.core.Object;
 import pmdb.ql.ast.ASTError;
 
 import pmdb.core.Assert.*;
-import pmdb.Macros.*;
+//import pmdb.Macros.*;
 
 import haxe.ds.Either;
 import haxe.ds.Option;
@@ -181,7 +181,9 @@ class QueryNode {
     }
 
     private inline function safeNode<N:QueryNode>(node:QueryNode, nodeClass:Class<N>):N {
-        return Std.is(node, nodeClass) ? Std.instance(node, nodeClass) : throw new Error(Macros.lazy('$node is not an instance of ' + Type.getClassName(nodeClass)));
+        return Std.is(node, nodeClass) ? 
+            Std.instance(node, nodeClass) : 
+            throw new Error('$node is not an instance of ' + Type.getClassName(nodeClass));
     }
 
     private inline function ensureInterpLinked(n: QueryNode) {

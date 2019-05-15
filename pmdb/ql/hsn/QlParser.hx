@@ -27,13 +27,19 @@ import pmdb.ql.ast.UpdateExpr as Ue;
 import haxe.ds.Either;
 import haxe.ds.Option;
 import haxe.extern.EitherType;
-
+/*
 using StringTools;
 using tannus.ds.StringUtils;
 using Slambda;
 using tannus.ds.ArrayTools;
 using tannus.async.OptionTools;
 using tannus.FunctionTools;
+*/
+using pm.Strings;
+using Lambda;
+using pm.Arrays;
+using pm.Options;
+using pm.Functions;
 using hscript.Tools;
 using pmdb.ql.hsn.Tools;
 
@@ -57,10 +63,8 @@ class QlParser {
 
 /* === Methods === */
 
-    public static inline function run(code:String, ?schema:StructSchema) {
-        return new QlParser()
-            .apply(x -> schema != null ? x.useSchema(schema) : x)
-            .parse( code );
+    public static function run(code:String, ?schema:StructSchema) {
+        return ((x:QlParser) -> schema != null ? x.useSchema(schema) : x).call(new QlParser()).parse(code);
     }
 
     public function useSchema(x: StructSchema):QlParser {

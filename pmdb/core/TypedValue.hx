@@ -1,6 +1,7 @@
 package pmdb.core;
 
 import pmdb.ql.ts.DataType;
+import pmdb.ql.ts.TypeSystemError;
 import pmdb.core.ValType;
 
 import haxe.PosInfos;

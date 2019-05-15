@@ -13,6 +13,15 @@ using pm.Arrays;
 using pm.Functions;
 
 class Macros {
+
+    public static macro function clock(e: Expr) {
+        return clockMacro( e );
+    }
+    public static macro function monad(e: Expr):ExprOf<Void -> Void> {
+        return elve( e );
+    }
+#if !macro
+
     public static macro function lee<X>(e: ExprOf<X>):ExprOf<Void->X> {
         return elee( e );
     }
@@ -20,17 +29,13 @@ class Macros {
         return elee( e );
     }
 
+    /*
     public static macro function lazy<T>(e: ExprOf<T>):ExprOf<Lazy<T>> {
         return elazy( e );
     }
+    */
 
-    public static macro function monad(e: Expr):ExprOf<Void -> Void> {
-        return elve( e );
-    }
-
-    public static macro function clock(e: Expr):ExprOf<Float> {
-        return clockMacro( e );
-    }
+#end
 
 #if macro
 
@@ -38,7 +43,7 @@ class Macros {
         var result:Expr = macro throw 'eat ass';
         switch e {
             case macro var $x = $y:
-                result = macro {
+                result = macro @:mergeBlock @:pos(e.pos) {
                     var $x;
                     ${clockMacro(macro $i{x} = $y)};
                 };
