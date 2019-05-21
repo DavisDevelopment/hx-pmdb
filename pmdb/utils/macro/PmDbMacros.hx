@@ -1,5 +1,6 @@
 package pmdb.utils.macro;
 
+import pm.Pair;
 import haxe.ds.Option;
 
 import haxe.macro.Compiler;
@@ -49,6 +50,120 @@ class PmDbMacros {
             Compiler.addGlobalMetadata(pack, '@:build(pmdb.utils.macro.PmDbMacros.build())', true, true, false);
         */
         Compiler.addGlobalMetadata('', '@:build(pmdb.utils.macro.PmDbMacros.build())', true, true, false);
+        PmDbMacros.exprLevel.inward.push(new FunctionalExprLevelSyntax(_shouldEnhance, _enhance));
+    }
+
+    static function _shouldEnhance(c: ClassBuilder):Bool {
+        return true;
+    }
+
+    static function _enhance(e: Expr):Expr {
+        return switchType( e );
+        switch (e) {
+            case {expr:expr}:
+                switch (expr) {
+                    case ExprDef.ESwitch(val, cases, edef) if (edef != null):
+                        var newCases = new Array();
+                        var defBlock = new Array();
+                        for (c in cases) {
+                            var newValues = [];
+                            for (v in c.values) {
+                                switch v {
+                                    case macro ($i{name} : $type):
+                                    var te = switch type {
+                                        case TPath({ pack: parts, name: name, params: params, sub: sub}): 
+                                        parts = parts.copy();
+                                        parts.push(name);
+                                        
+                                        if (params != null)
+                                            for (p in params)
+                                            switch p {
+                                                case TPType(macro : Dynamic):
+                                                default: v.pos.contextError('Can only use `Dynamic` type parameters in type switching');
+                                            }
+                                        if (sub != null)
+                                            parts.push(sub);
+                                            
+                                        (macro $p{parts});
+                                            
+                                        default: 
+                                            v.pos.contextError('Invalid type for switching');
+                                    }
+                                        defBlock.push(macro @:mergeBlock {
+                                            if (($val is $te)) {
+                                                var $name:$type = cast $val;
+                                                ${c.expr};
+                                            }
+                                        });
+
+                                    case other:
+                                        newValues.push( other );
+                                }
+                            }
+                            if (!newValues.empty()) {
+                                newCases.push({
+                                    expr: c.expr,
+                                    values: newValues,
+                                    guard: c.guard
+                                });
+                            }
+                        }
+                        return ExprDef.ESwitch(val, newCases, macro @:mergeBlock $b{defBlock}).at();
+
+                    case other:
+                        return e;
+                }
+
+            case other:
+                return other;
+        }
+    }
+
+    static function switchType(e:Expr):Expr {
+        return switch e.expr {
+            case ESwitch(target, cases, def) if (cases.length > 0):
+            switch cases[0].values {
+                case [macro ($_: $_)]:
+                if (def == null) target.reject('Type switches need default clause');
+                for (c in cases) 
+                    c.values = 
+                    switch c.values {
+                        case [macro ($pattern : $t)]:
+                            var pos = c.values[0].pos;
+                            
+                            var te = switch t {
+                                case TPath({ pack: parts, name: name, params: params, sub: sub}): 
+                                    parts = parts.copy();
+                                    parts.push(name);
+                                    
+                                    if (params != null)
+                                        for (p in params)
+                                        switch p {
+                                            case TPType(macro : Dynamic):
+                                            default: pos.contextError('Can only use `Dynamic` type parameters in type switching');
+                                        }
+                                    if (sub != null)
+                                        parts.push(sub);
+                                        
+                                    (macro $p{parts});
+                                
+                                default: 
+                                    pos.contextError('Invalid type for switching');
+                            }
+                        
+                            [macro @:pos(pos) (if (Std.is(_, $te)) [(_ : $t)] else []) => [$pattern]];
+                        
+                        case [macro $i{ _ }]:
+                            c.values;
+
+                        default: 
+                            c.values[0].pos.contextError('u failed');
+                    }
+                e;
+                default: e;
+            }
+            default: e;
+        }
     }
 
     static function def(flag:String, ?value:String, mutuallyExclude:Iterable<String>) {
@@ -117,10 +232,10 @@ class PmDbMacros {
                         if (fn.expr != null)
                             fn.expr = rule(fn.expr);
 
-                    /*TODO
+                    
                     if (ctx.hasConstructor())
                         ctx.getConstructor().onGenerate( transform );
-                    */
+                    
                     for (m in ctx)
                         switch m.kind {
                             case FFun(f): transform( f );
@@ -133,6 +248,8 @@ class PmDbMacros {
                     false;
             }
     }
+
+
 
     
     static var MAIN:Null<String> = null;
@@ -174,6 +291,24 @@ class ExprLevelSyntax {
                 }
         }
         return Some(apply);
+    }
+}
+
+class FunctionalExprLevelSyntax {
+    var applies : ClassBuilder -> Bool;
+    var _apply : Expr -> Expr;
+
+    public function new(a, b) {
+        this.applies = a;
+        this._apply = b;
+        //super(id);
+    }
+
+    public function appliesTo(c: ClassBuilder):Bool {
+        return this.applies( c );
+    }
+    public function apply(e: Expr):Expr {
+        return this._apply( e );
     }
 }
 

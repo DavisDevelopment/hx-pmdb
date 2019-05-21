@@ -95,12 +95,15 @@ class QueryCursorBase<Item> {
       method invoked to initialize the search index
      **/
     private function initSearchIndex() {
+        /**
+          [TODO] measure/record timing data for a few stress-tests with `usePlanner` set to `true` AND `false` respectively 
+         **/
         var usePlanner = true;
         if ( usePlanner ) {
             var plan = qi.planSearch( checkNode );
             checkNode = compileCriterion(plan.check.get());
             searchIndex = cast plan.index.get();
-            trace('$plan');
+            
         }
         else {
             searchIndex = qi.getSearchIndex( checkNode );
@@ -119,8 +122,8 @@ class QueryCursorBase<Item> {
         var plan = qi.planSearch( checkNode );
         checkNode = compileCriterion(plan.check.get());
         searchIndex = cast plan.index.get();
-        trace(this.searchIndex);
-        trace(this.checkNode);
+        //trace(this.searchIndex);
+        //trace(this.checkNode);
 
         onSearchIndexObtained( searchIndex );
     }

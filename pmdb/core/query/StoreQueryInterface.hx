@@ -55,6 +55,9 @@ using pm.Functions;
 using pmdb.ql.ast.Predicates;
 
 @:access( pmdb.core.Store )
+/**
+  provides helper functions to the Store<?> module
+ **/
 class StoreQueryInterface<Item> {
     /* Constructor Function */
     public function new(store) {

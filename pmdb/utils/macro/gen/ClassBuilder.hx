@@ -49,6 +49,11 @@ class ClassBuilder {
         }
     }
 
+    public function hasConstructor():Bool {
+        init();
+        return this.constructor != null;
+    }
+
     public function getConstructor(?fallback: Function) {
         init();
         if (constructor == null) {
