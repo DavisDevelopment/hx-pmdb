@@ -184,10 +184,16 @@ class StoreConnection<Item> {
     public function get(a:Dynamic, ?b:Dynamic):Promise<Null<Item>> {
         return fmr.fn(_.get(a, b));
     }
-    public function find(q:Criterion<Item>, ?precompile:Bool):Promise<FindCursor<Item>> return fmr.fn(_.find(q, precompile));
+    public function find(q:Criterion<Item>, ?precompile:Bool):Promise<FindCursor<Item>> {
+        return fmr.fn(_.find(q, precompile));
+    }
 
     public function close():Promise<Bool> {
         return Promise.resolve(true);
+    }
+
+    public function insert(data: OneOrMany<Item>):Promise<DbStore<Item>> {
+        return vfm.fn(_.insert(data.asMany()));
     }
 
     private inline function prom():Promise<DbStore<Item>> {
@@ -200,6 +206,13 @@ class StoreConnection<Item> {
 
     private inline function fmr<T>(f: DbStore<Item> -> T):Promise<T> {
         return fm(x -> Promise.resolve(f(x)));
+    }
+
+    private inline function vfm(f:DbStore<Item> -> Void):Promise<DbStore<Item>> {
+        return fm(function(store) {
+            f(store);
+            return prom();
+        });
     }
 }
 

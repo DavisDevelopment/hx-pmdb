@@ -7,6 +7,7 @@ import pmdb.core.Object;
 import pmdb.core.Equator;
 import pmdb.core.Comparator;
 import pmdb.core.Arch;
+import pmdb.ql.ast.Function;
 
 import haxe.ds.Either;
 import haxe.ds.Option;
@@ -16,10 +17,9 @@ import haxe.Constraints.Function;
 import haxe.rtti.Meta;
 
 using StringTools;
-using tannus.ds.StringUtils;
-using Slambda;
-using tannus.ds.ArrayTools;
-using tannus.FunctionTools;
+using pm.Strings;
+using pm.Arrays;
+using pm.Functions;
 using pmdb.ql.ts.DataTypes;
 using pmdb.ql.ast.Predicates;
 
@@ -50,7 +50,7 @@ class BuiltinCallNode extends CompoundValueNode {
                 throw new Error('No builtin "$name" found');
 
             case fn:
-                fn.safeApply(childValues.map(x -> x.eval( ctx )));
+                fn.__call__(childValues.map(x -> x.eval( ctx )));
         }
     }
 
@@ -64,7 +64,7 @@ class BuiltinCallNode extends CompoundValueNode {
             throw new Error('Cannot locate function $name');
         final values = childValues.map(v -> v.compile());
         return function(doc:Dynamic, params:Array<Dynamic>):Dynamic {
-            return bfn.safeApply(values.map(v -> v(doc, params))).value;
+            return bfn.__call__(values.map(v -> v(doc, params)));
         }
     }
 

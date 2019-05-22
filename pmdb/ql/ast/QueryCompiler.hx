@@ -265,8 +265,14 @@ class QueryCompiler {
                 new ArrayAccessNode(vnode(value), vnode(index), e);
 
             //TODO implement EObject(...)
-            case Ve.EObject(_):
-                throw new NotImplementedError();
+            case Ve.EObject(fields):
+                new ObjectNode(fields.map(function(f) {
+                    return {
+                        field: f.k,
+                        value: vnode(f.v)
+                    };
+                }), e);
+                //throw new NotImplementedError();
 
             case Ve.ERange(_, _):
                 throw new NotImplementedError();

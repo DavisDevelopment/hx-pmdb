@@ -8,7 +8,6 @@ import pmdb.ql.ts.DataType;
 import pmdb.core.ValType;
 import pmdb.core.StructSchema;
 import pmdb.ql.ast.BuiltinFunction;
-import pmdb.ql.ast.BuiltinModule;
 import pmdb.ql.ast.nodes.*;
 import pmdb.ql.ast.nodes.QueryNode;
 import pmdb.ql.ast.builtins.*;
@@ -162,11 +161,7 @@ class QueryInterp {
         //inline function imprt(m: BuiltinModule)
             //m.importInto( this );
 
-        init(new Add());
-        init(new Sub());
-        init(new Mul());
-        init(new Div());
-        init(new Neg());
+        init(new Substr());
 
         //imprt(new MathModule());
         //imprt(new TypeCastModule());

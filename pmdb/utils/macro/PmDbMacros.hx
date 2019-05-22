@@ -156,6 +156,49 @@ class PmDbMacros {
                         case [macro $i{ _ }]:
                             c.values;
 
+                        case values:
+                            trace(values);
+                            var shouldMutate = values.every(function(e: Expr) {
+                                return switch e {
+                                    case macro ($pattern : $t): true;
+                                    default: false;
+                                }
+                            });
+                            if (shouldMutate) {
+                                trace('should mutate');
+                                var mutatedValues = values.map(function(e: Expr) {
+                                    return switch e {
+                                        case macro ($pattern : $t):
+                                            var pos = e.pos;
+                                            var te = switch t {
+                                                case TPath({ pack: parts, name: name, params: params, sub: sub}): 
+                                                    parts = parts.copy();
+                                                    parts.push(name);
+                                                    
+                                                    if (params != null)
+                                                        for (p in params)
+                                                        switch p {
+                                                            case TPType(macro : Dynamic):
+                                                            default: pos.contextError('Can only use `Dynamic` type parameters in type switching');
+                                                        }
+                                                    if (sub != null)
+                                                        parts.push(sub);
+                                                        
+                                                    (macro $p{parts});
+                                                
+                                                default: 
+                                                    pos.contextError('Invalid type for switching');
+                                            }
+                                            (macro @:pos(pos) (if (Std.is(_, $te)) [(_ : $t)] else []) => [$pattern]);
+
+                                        default:
+                                            e;
+                                    }
+                                });
+                                mutatedValues;
+                            }
+                            else values;
+
                         default: 
                             c.values[0].pos.contextError('u failed');
                     }
