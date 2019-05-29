@@ -135,8 +135,8 @@ class DataTypes {
      **/
     public static function checkValue(type:DataType, value:Dynamic):Bool {
         return switch type {
-            case TVoid|TUndefined: value == null;
-            case TAny|TMono(null)|TUnknown: true;
+            case TVoid: value == null;
+            case TAny|TMono(null)|TUnknown|TUndefined: true;
             case TMono(type): checkValue(type, value);
             case TNull(type): (checkValue(type, value) || value == null);
             case TArray(type): value.is_array(x -> checkValue(type, x));
