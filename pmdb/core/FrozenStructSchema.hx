@@ -221,8 +221,11 @@ class FrozenStructSchema {
 
                 return buildInit(res);
 
-            default:
-                throw 'ass';
+            case ComplexType.TNamed(_, type), ComplexType.TParent(type):
+                ofComplexType(type);
+
+            case other:
+                throw 'Unhandled $other';
         }
     }
 
