@@ -17,13 +17,18 @@ using pm.Arrays;
 using pm.Iterators;
 using pm.Functions;
 
+/**
+  class which represents a collection of tables (`Store` instances) 
+ **/
+@:expose
 class Database {
     /* Constructor Function */
     public function new(options: DbOptions) {
         stores = new Map();
         path = '<in-memory>';
-        if (options.path != null)
+        if (options.path != null) {
             path = options.path;
+        }
 
         executor = new Executor();
         storage = options.storage;
@@ -31,36 +36,35 @@ class Database {
             storage = Storage.targetDefault();
         }
 
+        persistence = new DatabasePersistence( this );
+
         loadedStores = new Map();
         connections = new Map();
     }
 
 /* === Methods === */
 
-    public function compact(n: String) {
-        stores[n]._compact();
-        return loadedStores[n];
-    }
-
-    public function load(name: String):Promise<DbStore<Dynamic>> {
-        /*
-        if (loadedStores.exists( name )) {
-            return loadedStores[name];
-        }
-        else {
-            return (loadedStores[name] = cast table(name)._load());
-        }
-        */
-        stores[name]._load();
+    /**
+      compact the table denoted by @param name
+      @returns `DbStore<Dynamic>`
+     **/
+    public function compact(name: String) {
+        stores[name]._compact();
         return loadedStores[name];
     }
 
-    
+    /**
+      load the table denoted by @param name
+     **/
+    public function load(name: String):Promise<DbStore<Dynamic>> {
+        stores[name]._load();
+        return loadedStores[name];
+    }    
 
     /**
       obtain a reference to the given table
      **/
-    public function table<Row>(name: String):DbStore<Row> {
+    public inline function table<Row>(name: String):DbStore<Row> {
         return cast stores[name];
     }
 
@@ -75,9 +79,15 @@ class Database {
     **/
     public function dropStore(name: String) {
         var store = table( name );
-        return executor.exec(name, function() {
-            return storage.unlink(@:privateAccess store.options.filename);
-        }).map(function(_) {
+        return executor.exec(
+            name, 
+            function() {
+                return storage.unlink(
+                    @:privateAccess store.options.filename
+                );
+            }
+        )
+        .map(function(_) {
             store.reset();
             stores.remove( name );
             return true;
@@ -140,15 +150,25 @@ class Database {
         return stores[table].get(a, b);
     }
 
+    /**
+      opens a `Connection` to the given table
+      @param table - the name of the table to connect to
+     **/
     public function open<Item>(table: String):StoreConnection<Item> {
+        // if [table] is not loaded
         if (!loadedStores.exists( table )) {
-            //
+            if ( false ) {
+                load( table );
+            }
+
             throw 'iEatAss';
         }
+
+        // if `table` has not yet been connected to
         if (!connections.exists( table )) {
             connections[table] = cast new StoreConnection<Item>(this, table);
         }
-        //return cast (connections[table] = cast new StoreConnection<Item>(this, table));
+
         return cast connections[table];
     }
 
@@ -156,9 +176,11 @@ class Database {
 
     @:noCompletion
     public var stores(default, null): Map<String, DbStore<Dynamic>>;
+    
     public var path(default, null): String;
 
     public var executor(default, null): Executor;
+    public var persistence(default, null): DatabasePersistence;
     public var storage(default, null): Null<Storage>;
 
     private var loadedStores: Map<String, Promise<DbStore<Dynamic>>>;
