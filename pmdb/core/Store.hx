@@ -194,9 +194,9 @@ class Store<Item> {
      **/
     public function _compact():Promise<Store<Item>> {
         var fp = (() -> persistence.persistCachedDataStore( this ));
-        return _updatePromise(new Promise<Promise<Store<Item>>>(function(accept) {
+        return _updatePromise(new Promise<Store<Item>>(function(accept, reject) {
             executor.exec(_execKey(), fp, function(prom: Promise<Store<Item>>) {
-                accept( prom );
+                prom.then(cast accept, cast reject);
             });
         }));
     }
@@ -206,9 +206,9 @@ class Store<Item> {
      **/
     public function _load():Promise<Store<Item>> {
         var fp = (() -> persistence.loadDataStore( this ));
-        return _updatePromise(new Promise<Promise<Store<Item>>>(function(accept) {
+        return _updatePromise(new Promise<Store<Item>>(function(accept, reject) {
             executor.exec(_execKey(), fp, function(prom: Promise<Store<Item>>) {
-                accept( prom );
+                prom.then(accept, reject);
             });
         }));
     }
