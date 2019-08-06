@@ -315,9 +315,11 @@ class FrozenStructSchema {
     static function freezeFieldInit(i: FieldInit):FrozenStructSchemaField {
         assert(i.name!=null&&!i.name.empty());
         if (i.flags == null) i.flags = {};
+        var etype = nor(i.type, DataType.TUndefined);
+        assert(!etype.match(TUndefined|TUnknown));
         return new FrozenStructSchemaField({
             name: i.name,
-            etype: nor(i.type, DataType.TUndefined).tap(t -> assert(!t.match(TUndefined|TUnknown))),
+            etype: etype,
             flags: {
                 optional: nor(i.flags.optional, false),
                 unique: nor(i.flags.unique, false),
