@@ -618,6 +618,11 @@ class Store<Item> {
         }
     }
 
+    public function del(doc: Item):Bool {
+        removeOneFromIndexes( doc );
+        return true;
+    }
+
     public function get(a:Dynamic, ?b:Dynamic):Null<Item> {
         if (b == null) {
             b = a;
