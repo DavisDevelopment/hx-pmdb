@@ -10,12 +10,6 @@ import haxe.io.Bytes;
 import pmdb.storage.IPersistence;
 import pm.async.*;
 
-using Lambda;
-using tannus.ds.ArrayTools;
-using StringTools;
-using tannus.ds.StringUtils;
-using tannus.FunctionTools;
-
 class Persistence<Item> {
     /* Constructor Function */
     public function new(options) {
