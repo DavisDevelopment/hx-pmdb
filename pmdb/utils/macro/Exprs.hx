@@ -8,6 +8,7 @@ using pm.Arrays;
 using pm.Strings;
 using pm.Functions;
 using pm.Options;
+using pm.Outcome;
 using pmdb.utils.macro.Exprs;
 
 class Exprs {
@@ -192,6 +193,62 @@ class Types {
 			params: params == null ? [] : params,
 			sub: sub
 		};
+	}
+
+	static function getDeclaredFields(t:ClassType, out:Array<ClassField>, marker:Map<String,Bool>) {
+		for (field in t.fields.get())
+		if (!marker.exists(field.name)) {
+			marker.set(field.name, true);
+			out.push(field);
+		}
+		if (t.isInterface)
+		for (t in t.interfaces)
+			getDeclaredFields(t.t.get(), out, marker);
+		else if (t.superClass != null)
+		getDeclaredFields(t.superClass.t.get(), out, marker);
+	}
+
+	static var fieldsCache:Map<String, Outcome<Array<ClassField>, Dynamic>> = new Map();
+	static public function getFields(t:Type, ?substituteParams = true) {
+		return switch (reduce(t)) {
+			case TInst(c, params):
+				var id = c.toString(),
+					c = c.get();
+				if (!fieldsCache.exists(id)) {
+					var fields = [];
+					getDeclaredFields(c, fields, new Map());
+					fieldsCache.set(id, Success(fields));
+				}
+				var ret = fieldsCache.get(id);
+				if (substituteParams && ret.isSuccess()) {
+					var fields = Reflect.copy(ret.sure());
+
+					for (field in fields) {
+						field.type = haxe.macro.TypeTools.applyTypeParameters(field.type, c.params, params);
+					}
+				}
+				fieldsCache.remove( id ); //TODO: find a proper solution to avoid stale cache
+				return ret;
+
+			case TAnonymous(anon):
+				Success(anon.get().fields);
+
+			default:
+				Context.currentPos().makeFailure('type $t has no fields');
+		}
+	}
+
+	static public function reduce(type:Type, ?once) {
+		function rec(t:Type) {
+			return if (once) t else reduce(t, false);
+		}
+
+		return switch type {
+			case TAbstract(_.get() => { name: 'Null', pack: [] }, [t]): rec(t);
+			case TLazy(f): rec(f());
+			case TType(_, _): rec(Context.follow(type, once));
+			default: type;
+		}
 	}
 }
 

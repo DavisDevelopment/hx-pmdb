@@ -120,6 +120,10 @@ abstract Member(Field) from Field to Field {
 		return this;
 	}
 
+	public function hasMeta(name):Bool {
+		return metaNamed( name ).length != 0;
+	}
+
 	public function extractMeta(name) {
         //this.
 		if (this.meta != null) {
