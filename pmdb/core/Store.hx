@@ -773,15 +773,86 @@ class Store<Item> {
         return handle;
     }
 
+    /**
+      overwrite an existing document in [this] `Store<?>`
+     **/
+    public function replaceOne(p1:Item, ?p2:Item) {
+        var oldDoc:Item, newDoc:Item;
+        switch [p1, p2] {
+            case [a, null]:
+                newDoc = a;
+                oldDoc = get(Reflect.field(newDoc, primaryKey));
+
+            case [a, b]:
+                oldDoc = a;
+                newDoc = b;
+        }
+
+        var uid = Reflect.field(oldDoc, primaryKey);
+        Reflect.setField(newDoc, primaryKey, uid);
+        updateIndexes(oldDoc, newDoc);
+        
+        if ( !ioLocked ) {
+            executor.exec(_execKey(), function() {
+                return persistence.persistNewState([cast newDoc]);
+            });
+        }
+
+        return {
+            pre: oldDoc,
+            post: newDoc
+        };
+    }
+
+    /**
+      overwrites an `Array` of existing documents
+     **/
+    public function replaceMany(docs: Array<Item>) {
+        var failingIndex:Int = -1, exception:Dynamic = null;
+        var completed = [];
+        lockio();
+        for (idx in 0...docs.length) {
+            try {
+                var log = inline replaceOne(docs[idx]);
+                completed.push( log );
+            }
+            catch (err: Dynamic) {
+                failingIndex = idx;
+                exception = err;
+                break;
+            }
+        }
+        unlockio();
+        if (exception != null && failingIndex != -1) {
+            // rollback
+            for (re in completed) {
+                replaceOne(re.post, re.pre);
+            }
+            throw exception;
+        }
+        else {
+            if (!ioLocked) {
+                executor.exec(_execKey(), function() {
+                    return persistence.persistNewState(cast completed.map(x -> x.post));
+                });
+            }
+            return completed;
+        }
+        throw 'wtf';
+    }
+
     @:noCompletion
-    public function _overwrite(oldDoc:Item, newDoc:Item):Item {
+    public function _overwrite(oldDoc:Item, newDoc:Item) {
         var idKey = idField.extract( oldDoc );
-        if (idField.access.has(cast newDoc) && idField.access.eq(idField.access.get(cast newDoc), idKey)) {
+        if (idField.access.has(cast newDoc) && idField.access.eq(idField.extract(newDoc), idKey)) {
             throw new Error('Cannot change primary key');
         }
-        idField.access.set(cast newDoc, idKey);
-        newDoc = insertOne( newDoc );
-        return newDoc;
+
+        idField.access.set(cast newDoc, idKey, true);
+        
+        //newDoc = insertOne( newDoc );
+        //return newDoc;
+        updateIndexes(oldDoc, newDoc);
     }
 
 /* === Computed Instance Fields === */
