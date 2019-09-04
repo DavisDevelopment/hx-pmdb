@@ -7,8 +7,7 @@
         "DavisDevelopment"
     ],
     "dependencies": {
-        "slambda": "0.8.5", 
-        "tnative": "latest",
+        "slambda": "0.8.5",
         "pm-core": "latest"
     },
     "releasenote": "Updated readme",
