@@ -10,6 +10,7 @@ import pmdb.core.Object;
 import pmdb.core.Equator;
 import pmdb.core.Comparator;
 import pmdb.core.Arch;
+import pmdb.runtime.Operator;
 
 import haxe.ds.Either;
 import haxe.ds.Option;
@@ -29,22 +30,17 @@ using pmdb.ql.ast.Predicates;
 class ValueBinaryOperatorNode extends ValueOperatorNode {
     /* Constructor Function */
     public function new(left, right, op, ?e, ?pos) {
-        super(op, e, pos);
+        super(e, pos);
 
         this.left = left;
         this.right = right;
+        this.op = op;
     }
 
 /* === Methods === */
 
     override function eval(ctx: QueryInterp):Dynamic {
-        switch gfn( ctx ) {
-            case null:
-                throw new Error('No builtin for $op operator');
-
-            case fn:
-                return fn.safeApply([left.eval(ctx), right.eval(ctx)]).value;
-        }
+        return op.f(left.eval(ctx), right.eval(ctx));
     }
 
     override function clone():ValueNode {
@@ -52,27 +48,13 @@ class ValueBinaryOperatorNode extends ValueOperatorNode {
     }
 
     override function compile() {
-        if (_fn == null) {
-            throw new Error('Betty');
-        }
-        else {
-            final l = left.compile();
-            final r = right.compile();
-            final dopFn = _fn.toVarArgFunction();
-            final opFn = (x, y) -> dopFn(x, y);
+        final l = left.compile();
+        final r = right.compile();
+        final opFn = (x, y) -> op.f(x, y);
 
-            return function(doc:Dynamic, args:Array<Dynamic>):Dynamic {
-                return opFn(l(doc, args), r(doc, args));
-            }
-            //var cfn = (cast _fn.toVarArgFunction() : Dynamic->Dynamic->Dynamic);
-            //return (function(cfn, left, right):Dynamic {
-                //return ctx -> cfn(left(ctx), right(ctx));
-            //})(cfn, left.compile(), right.compile());
+        return function(doc:Dynamic, args:Array<Dynamic>):Dynamic {
+            return opFn(l(doc, args), r(doc, args));
         }
-    }
-
-    override function opmap(i: QueryInterp) {
-        return i.binops;
     }
 
     override function getChildNodes():Array<QueryNode> {
@@ -83,4 +65,6 @@ class ValueBinaryOperatorNode extends ValueOperatorNode {
 
     public var left(default, null): ValueNode;
     public var right(default, null): ValueNode;
+
+    public var op(default, null):BinaryOperator<Dynamic, Dynamic, Dynamic>;
 }

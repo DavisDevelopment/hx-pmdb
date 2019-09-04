@@ -1,8 +1,5 @@
 package pmdb.core;
 
-import tannus.io.ByteArray;
-import tannus.ds.Dict;
-
 import tannus.math.TMath as Math;
 
 import haxe.io.Bytes;
@@ -15,8 +12,7 @@ import pmdb.ql.ts.TypeSystemError;
 
 import pmdb.ql.ts.TypeChecks.*;
 
-using tannus.ds.SortingTools;
-using tannus.FunctionTools;
+using pm.Functions;
 using pmdb.ql.ts.DataTypes;
 
 @:forward(compare)

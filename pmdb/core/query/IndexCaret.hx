@@ -12,8 +12,6 @@ import pmdb.core.*;
 import haxe.ds.Option;
 
 import tannus.math.TMath as M;
-import pmdb.Globals.*;
-import pmdb.Macros.*;
 
 using Slambda;
 using StringTools;
@@ -126,7 +124,10 @@ class IndexCaret <Key, Item> {
       queue up the left node for processing
      **/
     public function left() {
-        assert(!isClosed(), lazy(new Error('Invalid call to IndexCaret::left. Instance has closed')));
+        #if !macro
+        assert(!isClosed(), (new Error('Invalid call to IndexCaret::left. Instance has closed')));
+        #end
+
         if (node.left != null)
             route.push( node.left );
     }
@@ -135,7 +136,9 @@ class IndexCaret <Key, Item> {
       queue up the right node for processing
      **/
     public function right() {
-        assert(!isClosed(), lazy(new Error('Invalid call to IndexCaret::left. Instance has closed')));
+        #if !macro
+        assert(!isClosed(), (new Error('Invalid call to IndexCaret::left. Instance has closed')));
+        #end
         if (node.right != null)
             route.push( node.right );
     }

@@ -14,6 +14,7 @@ abstract Value (ValueExpr) from ValueExpr to ValueExpr {
     
 }
 
+@:using(pmdb.ql.ast.Predicates.ValueExpressions)
 @:structInit
 class ValueExpr {
     /* Constructor Function */

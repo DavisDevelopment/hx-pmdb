@@ -19,6 +19,9 @@ import pmdb.core.Query;
 import pmdb.core.StructSchema;
 import pmdb.storage.Persistence;
 import pmdb.storage.Storage;
+import pmdb.async.Executor;
+
+import pm.async.*;
 
 import haxe.ds.Either;
 import haxe.extern.EitherType;
@@ -28,21 +31,25 @@ import haxe.PosInfos;
 import haxe.macro.Expr;
 import haxe.macro.Context;
 
-import tannus.math.TMath as M;
+//import tannus.math.TMath as M;
 import pmdb.core.Error;
-import Slambda.fn;
+import pm.Functions.fn;
 import Std.is as isType;
-import pmdb.core.Assert.assert;
+import pm.Assert.assert;
 
 using pmdb.core.Arch;
 using StringTools;
-using tannus.ds.StringUtils;
-using Slambda;
-using tannus.ds.ArrayTools;
-using tannus.ds.DictTools;
-using tannus.ds.MapTools;
+//using tannus.ds.StringUtils;
+using pm.Strings;
+using Lambda;
+//using tannus.ds.ArrayTools;
+using pm.Arrays;
+//using tannus.ds.DictTools;
+//using tannus.ds.MapTools;
+using pm.Maps;
 using pmdb.core.ds.tools.Options;
-using tannus.FunctionTools;
+//using tannus.FunctionTools;
+using pm.Functions;
 using pmdb.ql.ts.DataTypes;
 
 /**
@@ -78,6 +85,17 @@ class Store<Item> {
                 filename: options.filename,
                 storage: options.storage
             });
+        }
+        if (options.storage != null && options.persistence != null) {
+            @:privateAccess persistence.storage = options.storage;
+        }
+
+        if (options.executor != null) {
+            executor = options.executor;
+        }
+
+        if (executor == null) {
+            executor = new Executor();
         }
 
         _init_();
@@ -136,6 +154,7 @@ class Store<Item> {
     private function createNewId():String {
         return Arch.createNewIdString();
     }
+
     //TODO implement this in DocumentSchema
     private var pkcounter:Int = 0;
     private function incrementId():Int {
@@ -156,22 +175,66 @@ class Store<Item> {
     }
 
     /**
-      betty
+      -
      **/
     private function _persist() {
         //TODO
         // this method is a placeholder for an actual persistence implementation
     }
 
+    private function _execKey():String {
+        return 'store';
+    }
+    private function _updatePromise(promise: Promise<Store<Item>>):Promise<Store<Item>> {
+        return promise;
+    }
+
     /**
       persist [this] Store to a data file
      **/
-    public function _compact() {
-        persistence.persistCachedDataStore( this );
+    public function _compact():Promise<Store<Item>> {
+        var fp = (() -> persistence.persistCachedDataStore( this ));
+        return _updatePromise(new Promise<Store<Item>>(function(accept, reject) {
+            executor.exec(_execKey(), fp, function(prom: Promise<Store<Item>>) {
+                prom.then(cast accept, cast reject);
+            });
+        }));
     }
 
-    public function _load() {
-        persistence.loadDataStore( this );
+    /**
+      load [this] Store from a data file
+     **/
+    public function _load():Promise<Store<Item>> {
+        var fp = (() -> persistence.loadDataStore( this ));
+        return _updatePromise(new Promise<Store<Item>>(function(accept, reject) {
+            executor.exec(_execKey(), fp, function(prom: Promise<Store<Item>>) {
+                prom.then(accept, reject);
+            });
+        }));
+    }
+
+    public function schedule<T>(fn:Store<Item>->T):Promise<T> {
+        return new Promise<T>(function(accept, reject) {
+            var res:Null<T> = null;
+            executor.exec(_execKey(), function() {
+                return Promise.resolve(res = fn( this ));
+            })
+            .map(x -> res)
+            .then(x -> accept( x ), x -> reject( x ));
+        });
+    }
+
+    public function lockio(?force: Int):Int {
+        if (force == null) {
+            return ++this.ioLock;
+        }
+        else {
+            return this.ioLock = force;
+        }
+    }
+
+    public function unlockio():Int {
+        return --this.ioLock;
     }
 
     private function _syncCacheWithSchema() {
@@ -296,7 +359,8 @@ class Store<Item> {
             _insertIntoCache( doc );
             
             if ( !ioLocked ) {
-                persistence.persistNewState(cast doc.asMany());
+                executor.exec(_execKey(), (() -> persistence.persistNewState(cast doc.asMany())));
+                //persistence.persistNewState(cast doc.asMany());
             }
         }
         catch (err: Dynamic) {
@@ -554,13 +618,16 @@ class Store<Item> {
         }
     }
 
+    public function del(doc: Item):Bool {
+        removeOneFromIndexes( doc );
+        return true;
+    }
+
     public function get(a:Dynamic, ?b:Dynamic):Null<Item> {
         if (b == null) {
             b = a;
             a = primaryKey;
         }
-        
-        trace('where($a = $b)');
         return _get(a, b);
     }
 
@@ -604,6 +671,14 @@ class Store<Item> {
         return this;
     }
 
+    public function explain(qs: String) {
+        var expr = (@:privateAccess q.compileStringToPredicate( qs ));
+        var a = expr.getTraversalIndex( indexes );
+        var b = q.planSearch(q.check(expr)).index.get();
+        trace('$a == $b');
+        assert(Arch.areThingsEqual(a, b), 'neq!');
+    }
+
     /**
       open and return a Cursor<Item> object for use in FIND operation
      **/
@@ -630,23 +705,6 @@ class Store<Item> {
       remove items that match the given Query
      **/
     public function remove(query:Criterion<Item>, multiple:Bool=false):Array<Item> {
-        //throw 'Not Implemented';
-        //var q = query.filter;
-        //var numRemoved:Int = 0,
-        //removedDocs:Array<Item> = new Array();
-
-        //for (d in getCandidates( q )) {
-            //if (q.match(cast d) && (multiple || numRemoved == 0)) {
-                //numRemoved++;
-                //removedDocs.push( d );
-                //removeOneFromIndexes( d );
-            //}
-        //}
-
-        //_persist();
-
-        //return removedDocs;
-
         final cs = find( query );
         var nRemoved = 0, removedDocs = [];
 
@@ -655,15 +713,18 @@ class Store<Item> {
             removedDocs.push( item );
             removeOneFromIndexes( item );
 
-            if (!multiple) return false;
+            if ( !multiple )
+                return false;
             return true;
         });
 
         if ( !ioLocked ) {
-            persistence.persistNewState(removedDocs.map(function(item) {
-                Reflect.setField(item, "$$deleted", true);
-                return item.asObject();
-            }));
+            executor.exec(_execKey(), function() {
+                return persistence.persistNewState(removedDocs.map(function(item) {
+                    Reflect.setField(item, "$$deleted", true);
+                    return item.asObject();
+                }));
+            });
         }
 
         return removedDocs;
@@ -704,21 +765,94 @@ class Store<Item> {
 
         // persist changes to the data
         if ( !ioLocked ) {
-            persistence.persistNewState(logs.map(u -> (u.post : Dynamic)));
+            executor.exec(_execKey(), function() {
+                return persistence.persistNewState(logs.map(u -> (u.post : Dynamic)));
+            });
         }
 
         return handle;
     }
 
+    /**
+      overwrite an existing document in [this] `Store<?>`
+     **/
+    public function replaceOne(p1:Item, ?p2:Item) {
+        var oldDoc:Item, newDoc:Item;
+        switch [p1, p2] {
+            case [a, null]:
+                newDoc = a;
+                oldDoc = get(Reflect.field(newDoc, primaryKey));
+
+            case [a, b]:
+                oldDoc = a;
+                newDoc = b;
+        }
+
+        var uid = Reflect.field(oldDoc, primaryKey);
+        Reflect.setField(newDoc, primaryKey, uid);
+        updateIndexes(oldDoc, newDoc);
+        
+        if ( !ioLocked ) {
+            executor.exec(_execKey(), function() {
+                return persistence.persistNewState([cast newDoc]);
+            });
+        }
+
+        return {
+            pre: oldDoc,
+            post: newDoc
+        };
+    }
+
+    /**
+      overwrites an `Array` of existing documents
+     **/
+    public function replaceMany(docs: Array<Item>) {
+        var failingIndex:Int = -1, exception:Dynamic = null;
+        var completed = [];
+        lockio();
+        for (idx in 0...docs.length) {
+            try {
+                var log = inline replaceOne(docs[idx]);
+                completed.push( log );
+            }
+            catch (err: Dynamic) {
+                failingIndex = idx;
+                exception = err;
+                break;
+            }
+        }
+        unlockio();
+        if (exception != null && failingIndex != -1) {
+            // rollback
+            for (re in completed) {
+                replaceOne(re.post, re.pre);
+            }
+            throw exception;
+        }
+        else {
+            if (!ioLocked) {
+                executor.exec(_execKey(), function() {
+                    return persistence.persistNewState(cast completed.map(x -> x.post));
+                });
+            }
+            return completed;
+        }
+        throw 'wtf';
+    }
+
     @:noCompletion
-    public function _overwrite(oldDoc:Item, newDoc:Item):Item {
+    public function _overwrite(oldDoc:Item, newDoc:Item) {
         var idKey = idField.extract( oldDoc );
-        if (idField.access.has(cast newDoc) && idField.access.eq(idField.access.get(cast newDoc), idKey)) {
+        if (idField.access.has(cast newDoc) && idField.access.eq(idField.extract(newDoc), idKey)) {
             throw new Error('Cannot change primary key');
         }
-        idField.access.set(cast newDoc, idKey);
-        newDoc = insertOne( newDoc );
-        return newDoc;
+
+        idField.access.set(cast newDoc, idKey, true);
+        
+        //newDoc = insertOne( newDoc );
+        //return newDoc;
+        updateIndexes(oldDoc, newDoc);
     }
 
 /* === Computed Instance Fields === */
@@ -734,6 +868,9 @@ class Store<Item> {
     public var idField(get, never): StructSchemaField;
     private function get_idField() return schema.field( primaryKey );
 
+    public var ioLocked(get, never): Bool;
+    private function get_ioLocked() return ioLock > 0;
+
 /* === Instance Fields === */
 
     // Map of Indexes on [this] Store
@@ -744,6 +881,9 @@ class Store<Item> {
 
     // object used to persist [this] Store
     public var persistence(default, null): Persistence<Item>;
+
+    // object used to schedule async tasks
+    public var executor(default, null): Executor;
 
     //public var inMemoryOnly(default, null): Bool;
     //public var filename(default, null): String;
@@ -757,7 +897,9 @@ class Store<Item> {
     // interface for 'next-generation' queries
     public var q: StoreQueryInterface<Item>;
 
-    public var ioLocked(default, null): Bool = false;
+    // numeric counter for io locks
+    @:noCompletion
+    public var ioLock(default, null): Int = 0;
 }
 
 typedef StoreOptions = {
@@ -767,6 +909,7 @@ typedef StoreOptions = {
     ?inMemoryOnly: Bool,
     ?filename: String,
     ?persistence: Persistence<Any>,
+    ?executor: Executor,
     ?storage: Storage
 };
 

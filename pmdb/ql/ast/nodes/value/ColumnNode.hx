@@ -71,7 +71,24 @@ class ColumnNode extends ValueNode {
             dotPath.set(cast d, val);
         }
         else {
+            //TODO "if (typeCheckEnabled && documentIsClassInstance) {...
+            #if (row_type_coerce || (python && py_optimizations))
+                try {
+            #end
+
             d.set(fieldName, val);
+
+            #if (row_type_coerce || (python && py_optimizations))
+                }
+                #if python
+                catch (err: python.Exceptions.AttributeError) {
+                    python.Syntax.arraySet(d.__dict__, fieldName, val);
+                }
+                #end
+                catch (err: Dynamic) {
+                    throw err;
+                }
+            #end
         }
     }
 

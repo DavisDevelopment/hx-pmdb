@@ -11,7 +11,7 @@ import sys.io.File;
 
 import pmdb.storage.IStorage;
 
-class FileSystemStorage implements IStorage {
+class FileSystemStorage implements IStorageSync {
     /* Constructor Function */
     public function new() {
         //

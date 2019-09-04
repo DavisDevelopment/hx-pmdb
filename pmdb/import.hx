@@ -1,17 +1,16 @@
 
+import pm.Error;
+//import pmdb.ql.ts.TypeSystemError;
 import pmdb.core.Arch;
-import pmdb.core.Error;
-import pmdb.core.Object;
-import pmdb.ql.ts.TypeSystemError;
-//import pmdb.core.ValType;
-//import pmdb.ql.ts.DataType;
-import pmdb.core.Assert.assert;
+import pm.Assert.assert;
 
 import pmdb.Globals.*;
+
+#if !macro
 import pmdb.Macros.*;
+#end
 
 using StringTools;
-using Slambda;
-using tannus.FunctionTools;
+using Lambda;
 using pmdb.utils.Tools;
 

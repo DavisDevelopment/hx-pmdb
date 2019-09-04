@@ -117,7 +117,7 @@ class TestSuite {
 
     private static inline function tcwrap(f:Void -> Void):Void->TestCaseResult {
         return function():TestCaseResult {
-            return new TestCaseResult(clock(f()), null);
+            return new TestCaseResult(measure( f ), null);
         }
     }
 

@@ -12,6 +12,8 @@ import haxe.macro.Expr.ComplexType;
 using pmdb.ql.ts.DataTypes;
 using tannus.async.OptionTools;
 
+using haxe.macro.ComplexTypeTools;
+
 @:forward
 abstract ValType (DataType) from DataType  to DataType {
     @:from
@@ -75,7 +77,8 @@ abstract ValType (DataType) from DataType  to DataType {
             case ComplexType.TOptional(ctype): DataType.TNull(ofComplexType(ctype));
             case ComplexType.TPath(path): ofTypePath( path );
 
-            default: throw 'Unsupported';
+            case other:
+                throw 'Unhandled ${ctype.toString()}';
         }
     }
 
@@ -85,8 +88,17 @@ abstract ValType (DataType) from DataType  to DataType {
             case {name: 'Float'}|{name: 'StdTypes', sub:'Float'}: DataType.TScalar( TDouble  );
             case {name: 'Int'  }|{name: 'StdTypes', sub:'Int'  }: DataType.TScalar( TInteger );
             case {name: 'Date' }|{name: 'StdTypes', sub:'Date' }: DataType.TScalar( TDate    );
+            case {name: 'String' }|{name: 'StdTypes', sub:'String' }: DataType.TScalar( TString );
+            case {name: 'Bytes' }: DataType.TScalar( TBytes );
 
-            default: throw '[TODO]';
+            case {name: "Array"|"List", params: [TPType(ct)]}:
+                DataType.TArray(ofComplexType(ct));
+            case {name:"Null", params:[TPType(ct)]}:
+                DataType.TNull(ofComplexType(ct));
+            case {name: "Any", params:null|[]}: DataType.TAny;
+
+            case other:
+                throw new pm.Error('unhandled ${other}');
         }
     }
 

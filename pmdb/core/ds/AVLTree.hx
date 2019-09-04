@@ -1,22 +1,22 @@
 package pmdb.core.ds;
 
-import tannus.ds.Pair;
+import pm.Pair;
+
 import haxe.ds.Option;
 
 import pmdb.ql.ast.BoundingValue;
 
-import tannus.math.TMath as Math;
-import Slambda.fn;
+//import tannus Ints. Ints as Ints;
+//import Slambda.fn;
+import pm.Numbers;
+import pm.Functions.fn;
 
-using Slambda;
-using tannus.ds.ArrayTools;
-using tannus.ds.IteratorTools;
-using tannus.FunctionTools;
-using tannus.async.OptionTools;
+using Lambda;
+using pm.Arrays;
+using pm.Iterators;
+using pm.Functions;
+using pm.Options;
 
-/**
-  
- **/
 class AVLTree<Key, Value> {
     /* Constructor Function */
     public function new(?options: AVLTreeOptions<Key, Value>):Void {
@@ -63,13 +63,6 @@ class AVLTree<Key, Value> {
       the values between two boundaries
      **/
     public function betweenBounds(?min:BoundingValue<Key>, ?max:BoundingValue<Key>):Array<Value> {
-        //if (root == null)
-            //return [];
-
-        //return _betweenBounds({
-            //lower: n2o( min ),
-            //upper: n2o( max )
-        //}, root);
         return _betweenBounds_({
             lower: min, // must be greater than...
             upper: max  // must be less than...
@@ -189,7 +182,7 @@ class AVLTree<Key, Value> {
         }
 
         // update height and rebalance tree
-        root.height = Math.max(root.leftHeight(), root.rightHeight()) + 1;
+        root.height = Ints.max(root.leftHeight(), root.rightHeight()) + 1;
         var balanceState:BalanceState = root.getBalanceState();
         
         if (balanceState.equals(UnbalancedLeft)) {
@@ -281,7 +274,7 @@ class AVLTree<Key, Value> {
         }
 
         // update height and rebalance tree
-        root.height = Math.max(root.leftHeight(), root.rightHeight()) + 1;
+        root.height = Ints.max(root.leftHeight(), root.rightHeight()) + 1;
         var balanceState = root.getBalanceState();
 
         if (balanceState.equals(UnbalancedLeft)) {
@@ -593,8 +586,8 @@ class AVLTreeNode<Key, T> {
         var other = left;
         left = other.right;
         other.right = this;
-        height = Math.max(leftHeight(), rightHeight()) + 1;
-        other.height = Math.max(leftHeight(), height) + 1;
+        height = Ints.max(leftHeight(), rightHeight()) + 1;
+        other.height = Ints.max(leftHeight(), height) + 1;
         return other;
     }
 
@@ -602,8 +595,8 @@ class AVLTreeNode<Key, T> {
         var other = right;
         right = other.left;
         other.left = this;
-        height = Math.max(leftHeight(), rightHeight()) + 1;
-        other.height = Math.max(leftHeight(), height) + 1;
+        height = Ints.max(leftHeight(), rightHeight()) + 1;
+        other.height = Ints.max(leftHeight(), height) + 1;
         return other;
     }
 

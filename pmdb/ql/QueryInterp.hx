@@ -8,7 +8,6 @@ import pmdb.ql.ts.DataType;
 import pmdb.core.ValType;
 import pmdb.core.StructSchema;
 import pmdb.ql.ast.BuiltinFunction;
-import pmdb.ql.ast.BuiltinModule;
 import pmdb.ql.ast.nodes.*;
 import pmdb.ql.ast.nodes.QueryNode;
 import pmdb.ql.ast.builtins.*;
@@ -16,13 +15,14 @@ import pmdb.ql.ast.QueryCompiler;
 import pmdb.ql.hsn.QlParser;
 import pmdb.core.ds.*;
 import pmdb.ql.ts.*;
-import pmdb.core.Assert.assert;
+import pm.Assert.assert;
 import pmdb.core.Store;
 import pmdb.core.Error;
 import pmdb.core.Object;
 import pmdb.core.Equator;
 import pmdb.core.Comparator;
 import pmdb.core.Arch;
+import pmdb.runtime.Operator;
 
 import haxe.ds.Option;
 import haxe.PosInfos;
@@ -161,11 +161,7 @@ class QueryInterp {
         //inline function imprt(m: BuiltinModule)
             //m.importInto( this );
 
-        init(new Add());
-        init(new Sub());
-        init(new Mul());
-        init(new Div());
-        init(new Neg());
+        init(new Substr());
 
         //imprt(new MathModule());
         //imprt(new TypeCastModule());
@@ -173,18 +169,23 @@ class QueryInterp {
 
     /**
       initialize binary operators
+      TODO: store operators as a Tuple<function(any, any):any, Map<Signature, {typesafe function}>>
      **/
-    inline function initOperators() {
-        binops = [
-            '+' => '__add__',
-            '-' => '__sub__',
-            '*' => '__mul__',
-            '/' => '__div__'
-        ];
+    function initOperators() {
+        binops = new Map();
+        inline function op(n:String, f:Dynamic->Dynamic->Dynamic) {
+            binops[n] = new BinaryOperator(n, f);
+        }
 
-        unops = [
-            '-' => '__neg__'
-        ];
+        op('+', Operators.__add__);
+        op('-', Operators.__sub__);
+        op('/', Operators.__div__);
+        op('*', Operators.__mult__);
+
+        unops = new Map();
+        inline function op(n:String, f:Dynamic->Dynamic, pre=false) {
+            return unops[n] = new UnaryOperator(n, f, pre);
+        }
     }
 
 /* === Properties === */
@@ -209,8 +210,8 @@ class QueryInterp {
     public var modeStack(default, null): Stack<InterpMode>;
 
     public var builtins(default, null): Map<String, BuiltinFunction>;
-    public var binops(default, null): Map<String, String>;
-    public var unops(default, null): Map<String, String>;
+    public var binops(default, null): Map<String, BinaryOperator<Dynamic, Dynamic, Dynamic>>;
+    public var unops(default, null): Map<String, UnaryOperator<Dynamic, Dynamic>>;
 
     // the root-node for the Query-tree
     public var tree(default, null): Null<QueryNode>;

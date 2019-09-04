@@ -1,9 +1,8 @@
 package pmdb.core;
 
-import tannus.ds.Anon;
-import tannus.ds.Lazy;
-import tannus.ds.Ref;
-import tannus.math.TMath as M;
+import pm.Lazy;
+import pm.Ref;
+//import tannus.math.TMath as M;
 
 import pmdb.ql.types.*;
 import pmdb.ql.types.DotPath;
@@ -18,13 +17,16 @@ import haxe.ds.Option;
 import hscript.Expr.Const;
 
 using StringTools;
-using tannus.ds.StringUtils;
-using Slambda;
+//using tannus.ds.StringUtils;
+//using Slambda;
 //using tannus.ds.ArrayTools;
-using tannus.ds.DictTools;
-using tannus.ds.MapTools;
-using tannus.async.OptionTools;
-using tannus.FunctionTools;
+//using tannus.ds.DictTools;
+using pm.Strings;
+using Lambda;
+using pm.Arrays;
+using pm.Maps;
+using pm.Options;
+using pm.Functions;
 using pmdb.ql.ts.DataTypes;
 
 @:access(pmdb.core.ds.AVLTree)
@@ -72,7 +74,6 @@ class Index<Key, Item> {
         } 
 
         tree.delete(key, doc);
-        //trace(tree.get(key));
     }
 
     /**
@@ -200,9 +201,28 @@ class Index<Key, Item> {
 
     /**
       get the values at the keys between [min] and [max]
+      TODO:refactor implementation of AVLTree.betweenBounds
      **/
+    @:deprecated('refactor implementation of AVLTree.betweenBounds')
     public function getBetweenBounds(?min:BoundingValue<Key>, ?max:BoundingValue<Key>):Array<Item> {
+        //return (#if js cast inline #end tree.betweenBounds(#if js cast #end min, #if js cast #end max) : Array<Item>);
         return tree.betweenBounds(min, max);
+    }
+
+    public function getLt(v: Key):Array<Item> {
+        return inline getBetweenBounds(null, Edge(v));
+    }
+
+    public function getLte(v: Key):Array<Item> {
+        return inline getBetweenBounds(null, Inclusive(v));
+    }
+
+    public function getGt(v: Key):Array<Item> {
+        return inline getBetweenBounds(Edge(v), null);
+    }
+
+    public function getGte(v: Key):Array<Item> {
+        return inline getBetweenBounds(Inclusive(v), null);
     }
 
     /**

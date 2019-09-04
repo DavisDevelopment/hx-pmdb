@@ -11,7 +11,7 @@ import pmdb.storage.IStorage;
 @:forward
 abstract Storage (IStorage) from IStorage to IStorage {
     public static inline function fs():Storage {
-        return inline FileSystemStorage.make();
+        return inline AsyncStorageAdapter.make(FileSystemStorage.make());
     }
 
     public static inline function targetDefault():Storage {

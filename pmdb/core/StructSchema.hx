@@ -2,26 +2,42 @@ package pmdb.core;
 
 import pmdb.ql.ts.DataType;
 import pmdb.ql.ast.Value;
+import pmdb.ql.ts.TypeSystemError;
 
 import pmdb.core.ds.*;
 import pmdb.core.ds.map.*;
 import pmdb.core.Object;
 
+import haxe.rtti.*;
+import haxe.rtti.CType;
 import haxe.extern.EitherType;
 
 import haxe.EnumFlags;
 import haxe.Serializer;
 import haxe.Unserializer;
+import haxe.macro.Expr;
 
-//using pmdb.ql.ts.DataTypes;
+using pmdb.ql.ts.DataTypes;
 using StringTools;
-using tannus.ds.StringUtils;
+//using tannus.ds.StringUtils;
+using pm.Strings;
+using pm.Arrays;
+using pm.Iterators;
+using pm.Functions;
 
 class StructSchema {
     /* Constructor Function */
-    public function new() {
+    public function new(?typeClass: Class<Dynamic>) {
         fields = new Dictionary();
         indexes = new Dictionary();
+
+        this.type = if (typeClass != null) ({ proto: typeClass }) else null;
+        if (type != null) {
+            if (Rtti.hasRtti( typeClass )) {
+                var rt = Rtti.getRtti( typeClass );
+                type.info = rt;
+            }
+        }
 
         _init();
     }
@@ -30,6 +46,19 @@ class StructSchema {
 
     function _init() {
         inline _refresh();
+
+        _type_init_();
+    }
+
+    function _type_init_() {
+        if (type != null) {
+            if (type.info != null) {
+                //TODO
+                //for (field in type.info.fields) {
+                    
+                //}
+            }
+        }
     }
 
     function _refresh() {
@@ -46,10 +75,38 @@ class StructSchema {
                 break;
             }
         }
+
         if (_pk == null) {
             addField(_pk = '_id', String, [Primary, Unique]);
         }
+
         return _pk;
+    }
+
+    public function freeze():FrozenStructSchema {
+        return new FrozenStructSchema(
+            this.fields.keys().array().map(function(k) {
+                return {
+                    name: k,
+                    type: fields[k].type,
+                    flags: {
+                        optional: fields[k].optional,
+                        unique: fields[k].unique,
+                        primary: fields[k].primary,
+                        autoIncrement: fields[k].autoIncrement
+                    }
+                };
+            }),
+            //[],
+            this.indexes.iterator().map(function(i) {
+                return {
+                    name: i.name,
+                    type: i.type,
+                    algorithm: i.algorithm,
+                    kind: i.kind
+                };
+            }).array()
+        );
     }
 
     public function createField(name, type:ValType, ?flags) {
@@ -102,13 +159,13 @@ class StructSchema {
         for (field in fields) {
             if (!o.exists(field.name) || o[field.name] == null) {
                 if (!field.isOmittable()) {
-                    throw new Error('missing field "${field.name}"');
+                    throw new pmdb.core.Error('missing field "${field.name}"');
                     return false;
                 }
             }
 
             if (!field.checkValueType(o[field.name])) {
-                throw new Error('${o[field.name]} should be ${field.type}');
+                throw new pmdb.core.Error('${o[field.name]} should be ${field.type}');
                 return false;
             }
         }
@@ -116,8 +173,25 @@ class StructSchema {
         return true;
     }
 
+    /**
+      perform initialization on [o] to prepare it for insertion into the data store
+     **/
     public function prepareStruct(o: Object<Dynamic>):Object<Dynamic> {
-        var doc:Object<Dynamic> = Arch.clone(o, ShallowRecurse);
+        var doc:Object<Dynamic>;
+        #if (row_type_coerce)
+        if (type != null && !Std.is(o, type.proto)) {
+            doc = Arch.buildClassInstance(type.proto, Arch.clone(o, ShallowRecurse));
+        }
+        else if (type == null && Type.getClass(o) != null) {
+            doc = Arch.anon_copy(o, null, v -> Arch.clone(v, ShallowRecurse));
+        }
+        else {
+            doc = Arch.clone(o, ShallowRecurse);
+        }
+        #else
+        doc = Arch.clone(o, ShallowRecurse);
+        #end
+        var doc:Object<Dynamic> = Arch.clone(Arch.ensure_anon(o), ShallowRecurse);
 
         if (!doc.exists(primaryKey) || doc[primaryKey] == null) {
             switch (field( primaryKey )) {
@@ -128,7 +202,7 @@ class StructSchema {
                     doc[primaryKey] = f.incr();
 
                 case _:
-                    throw new Error('Cannot auto-generate doc\'s primary-key, as the assigned column ("$primaryKey") is declared as a ${fieldType(primaryKey)} value');
+                    throw new pmdb.core.Error('Cannot auto-generate doc\'s primary-key, as the assigned column ("$primaryKey") is declared as a ${fieldType(primaryKey)} value');
             }
         }
 
@@ -154,7 +228,7 @@ class StructSchema {
     public function addIndex(desc: IndexInit):IndexDefinition {
         return switch desc {
             case {name:null, kind:null}:
-                throw new Error('Either "name" or "kind" fields MUST be provided');
+                throw new pmdb.core.Error('Either "name" or "kind" fields MUST be provided');
 
             case {name:_, kind:null}: putIndex(
                     Simple(DotPath.fromPathName(desc.name)),
@@ -171,7 +245,7 @@ class StructSchema {
                 );
 
             case other:
-                throw new Error('Invalid IndexInit object $other');
+                throw new pmdb.core.Error('Invalid IndexInit object $other');
         }
     }
 
@@ -226,6 +300,7 @@ class StructSchema {
         }
     }
 
+    /*
     @:keep
     public function hxSerialize(s: Serializer) {
         s.serialize( fields.length );
@@ -253,6 +328,7 @@ class StructSchema {
             insertIndex( idx );
         }
     }
+    */
 
     static function lookupLoopType<Prop:TypedAttr>(prop:Prop, path:Array<String>):Null<DataType> {
         switch ( prop.type ) {
@@ -275,6 +351,57 @@ class StructSchema {
         }
     }
 
+    public static function ofComplexType(type: haxe.macro.ComplexType):StructSchema {
+        return switch type {
+            case haxe.macro.ComplexType.TAnonymous(fields):
+                var res = new StructSchema();
+                for (f in fields) {
+                    betty(res, f);
+                }
+                return res;
+
+            default:
+                throw 'ass';
+        }
+    }
+
+    private static function betty(schema:StructSchema, f:haxe.macro.Expr.Field) {
+        var flags:Array<FieldFlag> = new Array();
+        var type:ValType = DataType.TAny;
+
+        if (f.meta != null) {
+            for (m in f.meta) {
+                switch m.name {
+                    case ':optional', 'optional':
+                        flags.push(FieldFlag.Optional);
+
+                    case ':primary', 'primary':
+                        flags.push(FieldFlag.Primary);
+
+                    case ':unique', 'unique':
+                        flags.push(FieldFlag.Unique);
+
+                    case ':autoincrement', 'autoincrement':
+                        flags.push(FieldFlag.AutoIncrement);
+                }
+            }
+        }
+
+        switch f.kind {
+            case FieldType.FVar(null, _):
+                type = DataType.TAny;
+
+            case FieldType.FVar(t, _):
+                type = ValType.ofComplexType( t );
+
+            default:
+                throw 'ass';
+        }
+
+        schema.addField(f.name, type, flags);
+        schema.putIndex(Simple( f.name ));
+    }
+
 /* === Properties === */
 
     public var primaryKey(get, never): String;
@@ -284,6 +411,7 @@ class StructSchema {
 
     public var fields(default, null): Dictionary<StructSchemaField>;
     public var indexes(default, null): Dictionary<IndexDefinition>;
+    public var type(default, null): Null<StructClassInfo> = null;
 
     private var _pk(default, null): Null<String> = null;
 }
@@ -449,6 +577,9 @@ enum FieldFlag {
     AutoIncrement;
 }
 
+/**
+    class which encapsulates and provides convenient methods for accessing fields of stored documents
+**/
 class FieldAccessHelper {
     private var field: StructSchemaField;
     public function new(field) {
@@ -482,6 +613,9 @@ class FieldAccessHelper {
     }
 }
 
+/**
+    IndexDefinition - object which represents a Store index
+**/
 class IndexDefinition {
     public function new(schema, kind, ?name, ?algo, ?type) {
         this.owner = schema;
@@ -492,7 +626,7 @@ class IndexDefinition {
     }
 
 /* === Methods === */
-
+    /*
     @:keep
     public function hxSerialize(s: Serializer) {
         s.serialize( name );
@@ -507,6 +641,7 @@ class IndexDefinition {
         algorithm = u.unserialize();
         type = u.unserialize();
     }
+    */
 
     static function kindName(k: IndexType):String {
         return switch k {
@@ -528,6 +663,8 @@ class IndexDefinition {
             case Compound(arr): TTuple(arr.map(x -> kindType(schema, x)));
         }
     }
+
+
 
 /* === Fields === */
 
@@ -564,3 +701,8 @@ typedef IndexInit = {
     ?kind: IndexType,
     ?algorithm: IndexAlgo
 };
+
+typedef StructClassInfo = {
+    proto : Class<Dynamic>,
+    ?info  : Null<Classdef>
+}

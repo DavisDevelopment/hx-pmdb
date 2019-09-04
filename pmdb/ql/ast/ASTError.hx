@@ -1,7 +1,7 @@
 package pmdb.ql.ast;
 
-import tannus.ds.Lazy;
-import tannus.ds.Ref;
+import pm.Lazy;
+import pm.Ref;
 
 import pmdb.ql.ts.DataType;
 import pmdb.ql.ts.TypeSystemError;
@@ -9,7 +9,7 @@ import pmdb.ql.ast.nodes.QueryNode;
 import pmdb.core.Error;
 import pmdb.core.Object;
 
-import pmdb.core.Assert.*;
+import pm.Assert.*;
 import pmdb.Macros.*;
 
 import haxe.ds.Either;
@@ -18,10 +18,10 @@ import haxe.PosInfos;
 import haxe.extern.EitherType;
 
 using StringTools;
-using tannus.ds.StringUtils;
+using pm.Strings;
 using Slambda;
-using tannus.ds.ArrayTools;
-using tannus.FunctionTools;
+using pm.Arrays;
+using pm.Functions;
 using pmdb.ql.ts.DataTypes;
 
 class ASTError<Node> extends Error {

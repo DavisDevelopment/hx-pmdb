@@ -3,19 +3,11 @@ package pmdb.ql.ts;
 
 import pmdb.ql.ts.DataType;
 import pmdb.core.TypedValue;
-import pmdb.core.Comparator;
-import pmdb.core.Equator;
-import pmdb.core.Error;
 
-import haxe.ds.Either;
 import haxe.ds.Option;
-import haxe.CallStack;
-import haxe.PosInfos;
 
 import haxe.macro.Expr;
 import haxe.macro.Context;
-
-import tannus.math.TMath as M;
 
 using StringTools;
 using tannus.ds.StringUtils;
@@ -37,5 +29,13 @@ using tannus.macro.MacroTools;
   not really "casts", per se; more like coercions
  **/
 class TypeCasts {
-
+    public static function asBool(x: Dynamic):Bool {
+        return cast(x, Bool);
+    }
+    public static function asFloat(x: Dynamic):Float {
+        return cast(x, Float);
+    }
+    public static function asArray(x: Dynamic):Array<Dynamic> {
+        return cast (x : Array<Dynamic>);
+    }
 }

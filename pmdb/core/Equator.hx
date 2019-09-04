@@ -1,15 +1,16 @@
 package pmdb.core;
 
 import tannus.ds.Comparable;
-import tannus.math.TMath as Math;
+//import tannus.math.TMath as Math;
 
 import pmdb.core.Object;
 import pmdb.core.Comparator;
 
 import haxe.io.Bytes;
+import haxe.io.*;
 
-using tannus.ds.SortingTools;
-using tannus.FunctionTools;
+using pm.Arrays;
+using pm.Functions;
 
 @:forward
 abstract Equator<T> (BaseEquator<T>) from BaseEquator<T> {

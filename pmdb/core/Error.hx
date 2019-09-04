@@ -1,22 +1,20 @@
 package pmdb.core;
 
-import pmdb.core.ds.Lazy;
+import pm.Lazy;
+import pm.Error as PmError;
+
 import haxe.ds.Option;
 
 import haxe.CallStack;
 import haxe.CallStack.StackItem;
 import haxe.PosInfos;
 
-using tannus.async.OptionTools;
+using pm.Options;
 
-class Error {
+class Error extends PmError {
     /* Constructor Function */
     public function new(?msg:Lazy<String>, ?position:PosInfos) {
-        name = 'Error';
-        this.position = position;
-        this._msg = (msg != null ? msg : Lazy.ofFn(() -> defaultMessage()));
-        //_cstack = None;
-        //_estack = None;
+        super((msg != null ? msg.get() : Lazy.ofFn(() -> defaultMessage())), position);
         captureStacks();
     }
 
@@ -32,29 +30,13 @@ class Error {
         return CallStack.toString( exceptionStack );
     }
 
-    @:keep
-    public function toString():String {
-        return '$name: $message';
-    }
-
     @:noCompletion
     public inline function captureStacks() {
         _cstack = Some(CallStack.callStack());
         _estack = Some(CallStack.exceptionStack());
     }
 
-    static function __init__() {
-        //#if js
-        //js.Object.defineProperty(untyped Error.prototype, 'message', {
-            //get: untyped Error.prototype.get_message
-        //});
-        //#end
-    }
-
 /* === Calculated Instance Fields === */
-
-    public var message(get, never): String;
-    @:keep function get_message():String return _msg.get();
 
     public var callStack(get, never): Null<Array<StackItem>>;
     inline function get_callStack():Null<Array<StackItem>> return _cstack.getValue();
@@ -64,8 +46,8 @@ class Error {
 
 /* === Instance Fields === */
 
-    public var position(default, null): PosInfos;
-    public var name(default, null): String;
+    //public var position(default, null): PosInfo,ci;
+    //public var name(default, null): String;
 
     private var _msg(default, null): Lazy<String>;
 
@@ -91,3 +73,4 @@ class ValueError<T> extends Error {
 }
 
 class NotImplementedError extends Error {}
+class WTFError extends Error {}

@@ -560,12 +560,16 @@ class Arch {
         return x.is_number();
     }
 
+    public static inline function isInt(x: Dynamic):Bool {
+        return x.is_integer();
+    }
+
     public static inline function isString(x: Dynamic):Bool {
         return x.is_string();
     }
 
     public static inline function isBinary(x: Dynamic):Bool {
-        return x.is_direct_instance( x );
+        return (x is Bytes);
     }
 
     /**
@@ -638,6 +642,9 @@ class Arch {
         throw 'Use .clone() instead';
     }
 
+    /**
+      create and return an 'empty' instance of the same type as [value]
+     **/
     public static function emptyCopy<T>(value: T):T {
         return emptyUntypedCopy( value );
     }
@@ -671,13 +678,23 @@ class Arch {
             return Date.fromTime(date.getTime());
         }
 
-        if (isArray( value ))
+        if (isArray( value )) {
             return clone_uarray(cast(value, Array<Dynamic>), method);
+        }
 
-        if (isObject( value ))
+        if (isBinary( value )) {
+            return clone_binary(cast(value, Bytes));
+        }
+
+        if (isObject( value )) {
             return clone_object(value, method);
+        }
 
         return value;
+    }
+
+    public static function clone_binary(b:Bytes):Bytes {
+        return b.sub(0, b.length);
     }
 
     public static function clone_object<T>(o:T, ?method:CloneMethod, allObjects:Bool=false):T {
@@ -688,13 +705,22 @@ class Arch {
         switch ( method ) {
             case Shallow:
                 if (oClass == null) {
+                    #if (js && js_optimizations)
+                        cloned = untyped {js.Object.assign(({}:Dynamic), (o : Dynamic));};
+                    #else
                     cloned = Reflect.copy( o );
+                    #end
                 }
                 else {
                     cloned = Type.createEmptyInstance(oClass);
+                    #if (js && js_optimizations)
+                        untyped js.Object.assign((cloned : Dynamic), (o : Dynamic));
+                    #else
+                    //
                     for (k in Reflect.fields(o)) {
                         Reflect.setField(cloned, k, Reflect.field(o, k));
                     }
+                    #end
                 }
 
             case ShallowRecurse:
@@ -723,15 +749,82 @@ class Arch {
         return cloned;
     }
 
-    public static function clone_object_onto(src:Object<Dynamic>, dest:Object<Dynamic>, ?fields:Array<String>):Void {
+    /**
+      copy all data from [src] onto [dest]
+     **/
+    public static function clone_object_onto(src:Object<Dynamic>, dest:Object<Dynamic>, ?fields:Array<String>, ?copy_value:Dynamic->Dynamic):Void {
         if (fields == null)
             fields = src.keys();
 
+        if (copy_value == null)
+            copy_value = FunctionTools.identity;
+
         for (k in fields) {
-            dest[k] = src[k];
+            dest[k] = copy_value(src[k]);
         }
     }
 
+    public static function anon_copy(o:Dynamic, ?dest:Object<Dynamic>, ?copy_value:Dynamic->Dynamic):Dynamic {
+        var o = o.asObject();
+        //
+        if (o.exists('hxGetState')) {
+            try {
+                return Reflect.callMethod(o, o.hxGetState, []);
+            }
+            catch (e: Dynamic) {}
+        }
+
+        if (dest == null)
+            dest = new Object();
+        clone_object_onto(o.asObject(), dest, copy_value);
+        return dest;
+    }
+
+    /**
+      given an object [o], ensures that the returned object is not a class instance, but has the same attributes as [o]
+     **/
+    public static function ensure_anon(o:Object<Dynamic>, copy=false):Object<Dynamic> {
+        var value;
+        if ( !copy ) value = FunctionTools.identity;
+        else value = (x: Dynamic) -> dclone(x, ShallowRecurse);
+        return (Type.getClass( o ) != null) ? anon_copy(o, value) : value( o );
+    }
+
+    public static function buildClassInstance<T>(type:Class<T>, state:Object<Dynamic>):T {
+        var inst = Type.createEmptyInstance( type );
+        if (Reflect.hasField(inst, 'hxSetState')) {
+            Reflect.callMethod(inst, Reflect.field(inst, 'hxSetState'), [state]);
+        }
+        else {
+            clone_object_onto(state, inst.asObject());
+        }
+        return inst;
+    }
+
+    public static function allInstanceFields(type: Class<Dynamic>):Array<String> {
+        var fields = [];
+        var set:Map<String, Bool> = new Map();
+        inline function add(s: String) {
+            if (!set.exists(s)) {
+                set[s] = true;
+                fields.push( s );
+            }
+        }
+
+        var t = type;
+        while (t != null) {
+            for (field in Type.getInstanceFields(t)) {
+                add( field  );
+            }
+            t = Type.getSuperClass( t  );
+        }
+
+        return fields;
+    }
+
+    /**
+      create and return a 'clone' of the given [array]
+     **/
     public static function clone_uarray(array:Array<Dynamic>, ?method:CloneMethod):Array<Dynamic> {
         if (method == null)
             method = ShallowRecurse;
@@ -823,9 +916,23 @@ class Arch {
     }
     #end
 
+    public static function getComparator(t: DataType):Comparator<Dynamic> {
+        var tk = t.print();
+        if (!typedComparatorCache.exists( tk )) {
+            t = t.simplify();
+            tk = t.print();
+        }
+        if (!typedComparatorCache.exists( tk )) {
+            typedComparatorCache[tk] = t.getTypedComparator();
+        }
+        return typedComparatorCache[tk];
+    } 
+
 /* === Variables === */
 
     private static var dotPathCache:Map<String, DotPath> = new Map();
+    private static var typedComparatorCache : Map<String, Comparator<Dynamic>> = new Map();
+
 }
 
 /**

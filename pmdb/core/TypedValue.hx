@@ -1,6 +1,8 @@
 package pmdb.core;
 
 import pmdb.ql.ts.DataType;
+import pmdb.ql.ts.TypeSystemError;
+import pmdb.core.ValType;
 
 import haxe.PosInfos;
 
@@ -20,23 +22,28 @@ abstract TypedValue (TypedValueImpl) from TypedValueImpl to TypedValueImpl {
 }
 
 class TypedValueImpl {
-    public final type : DataType;
-    public final value : Dynamic;
-
-    private var createdAt(default, null):Null<PosInfos> = null;
-
     public function new(value:Dynamic, type:DataType, safe=true, ?pos:PosInfos):Void {
         this.type = type;
         this.value = value;
 
         #if debug
-        this.createdAt = pos;
+            this.createdAt = pos;
         #end
 
         if ( safe ) {
-            assert(type.checkValue(value), new TypeError(value, type, null, pos));
+            assert(
+                type.checkValue(value),
+                new TypeError(value, type, null, pos)
+            );
         }
     }
+
+/* === Fields === */
+
+    public final type : DataType;
+    public final value : Dynamic;
+
+    private var createdAt(default, null):Null<PosInfos> = null;
 
 /* === Methods === */
 

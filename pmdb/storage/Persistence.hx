@@ -8,12 +8,7 @@ import pmdb.ql.ts.DataType;
 import haxe.io.Bytes;
 
 import pmdb.storage.IPersistence;
-
-using Lambda;
-using tannus.ds.ArrayTools;
-using StringTools;
-using tannus.ds.StringUtils;
-using tannus.FunctionTools;
+import pm.async.*;
 
 class Persistence<Item> {
     /* Constructor Function */
@@ -21,20 +16,20 @@ class Persistence<Item> {
         this.options = options;
         this.filename = options.filename;
         this.storage = (options.storage != null ? options.storage : Storage.targetDefault());
+        this.format = (options.format != null ? options.format : Format.json());
     }
 
 /* === Methods === */
 
-    public function ensureDirectoryExists(path: String):Outcome<String, Dynamic> {
-        try {
-            storage.mkdirp( path );
-            return Success( path );
-        }
-        catch (error: Dynamic) {
-            return Failure( error );
-        }
+    public function ensureDirectoryExists(path: String):Promise<String> {
+        return storage.mkdirp( path ).map(function(status) {
+            return path;
+        });
     }
 
+    /**
+      encode the DataStore
+     **/
     public function encodeDataStore(store: Store<Item>):Bytes {
         var b = new StringBuf();
 
@@ -59,9 +54,6 @@ class Persistence<Item> {
     }
 
     public function decodeRawStoreData(data: Bytes):RawStoreData<Item> {
-        //#if neko
-        //trace(data.toString());
-        //#end
         var data:Array<String> = data.toString().split('\n');
         #if neko
         trace(data[0]);
@@ -125,27 +117,51 @@ class Persistence<Item> {
     /**
       load and parse the raw store-data from the datafile
      **/
-    public function loadRawStoreData():Outcome<Null<RawStoreData<Item>>, Dynamic> {
+    public function loadRawStoreData():Promise<Null<RawStoreData<Item>>> {
         try {
-            if (dataFileExists()) {
-                var data = storage.readFileBinary( filename );
-                return Success(decodeRawStoreData( data ));
-            }
-            else {
-                return Success(null);
-            }
+            return dataFileExists().flatMap(function(status: Bool):Promise<Null<RawStoreData<Item>>> {
+                if ( status ) {
+                    return storage.readFileBinary( filename ).map( decodeRawStoreData );
+                }
+                else {
+                    return Promise.resolve( null );
+                }
+            });
         }
         catch (error: Dynamic) {
-            return Failure( error );
+            return Promise.reject( error );
         }
     }
 
     /**
       load the datafile onto the given Store instance
      **/
-    public function loadDataStore(store: Store<Item>):Void {
-        store.reset();
+    public function loadDataStore(store: Store<Item>):Promise<Store<Item>> {
+        //store.reset();
+        return loadRawStoreData().map(function(raw: Null<RawStoreData<Item>>) {
+            if (raw == null) {
+                return store;
+            }
+            else {
+                //TODO add internal methods for stash/pop management of store state
+                if (!(raw.docs.empty() || raw.indexes.empty())) {
+                    store.reset();
+                    for (index in raw.indexes) {
+                        store.ensureIndex({
+                            name: index.fieldName,
+                            type: index.fieldType,
+                            unique: index.unique,
+                            sparse: index.sparse
+                        });
+                    }
 
+                    store.insertMany( raw.docs );
+                }
+                return store;
+            }
+        });
+
+        /*
         switch (loadRawStoreData()) {
             case Success(null):
                 return ;
@@ -164,42 +180,54 @@ class Persistence<Item> {
             case Failure( error ):
                 throw error;
         }
+        */
     }
 
     /**
       persist the given Store instance to the datafile
      **/
-    public function persistCachedDataStore(store: Store<Item>):Outcome<Bytes, Dynamic> {
+    public function persistCachedDataStore(store: Store<Item>):Promise<Store<Item>> {
         try {
             final data = encodeDataStore( store );
-            storage.crashSafeWriteFile(filename, data);
-            return Success( data );
+            return storage.crashSafeWriteFile(filename, data).map(x -> store);
         }
         catch (error: Dynamic) {
-            return Failure( error );
+            return Promise.reject( error );
         }
     }
 
-    public function persistNewState(docs: Array<Object<Dynamic>>):Void {
+    /**
+      add new states
+     **/
+    public function persistNewState(docs: Array<Object<Dynamic>>):Promise<Bool> {
         var b = new StringBuf();
         docs.iter(function(item) {
             b.add(serialize( item ));
             b.addChar('\n'.code);
         });
         var data = Bytes.ofString(b.toString());
-        storage.appendFileBinary(filename, data);
+
+        return storage.appendFileBinary(filename, data);
     }
 
-    public inline function dataFileExists():Bool {
-        return inline storage.exists( filename );
+    /**
+      check whether the data-file exists
+     **/
+    public inline function dataFileExists():Promise<Bool> {
+        return storage.exists( filename );
     }
 
     private function serialize(item: Dynamic):String {
-        return haxe.Json.stringify( item );
+        var enc = format.encode( item );
+        if (options.afterSerialization != null)
+            enc = options.afterSerialization( enc );
+        return enc;
     }
 
     private function deserialize(data: String):Dynamic {
-        var parsed = haxe.Json.parse( data );
+        if (options.beforeDeserialization != null)
+            data = options.beforeDeserialization( data );
+        var parsed = format.decode( data );
         return parsed;
     }
 
@@ -209,6 +237,7 @@ class Persistence<Item> {
 
     public var filename(default, null): String;
     public var storage(default, null): Storage;
+    public var format(default, null): Format<Dynamic, String>;
 
     public var corruptAlertThreshold : Float = 0.1;
 }

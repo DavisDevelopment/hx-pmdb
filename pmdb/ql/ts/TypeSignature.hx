@@ -32,6 +32,9 @@ using tannus.ds.MapTools;
 using tannus.ds.DictTools;
 using tannus.FunctionTools;
 
+/**
+
+**/
 class TypeSignature implements IComparable<TypeSignature> {
     /* Constructor Function */
     public function new(accepts:Array<TypeDesc>, returns:TypeDesc):Void {

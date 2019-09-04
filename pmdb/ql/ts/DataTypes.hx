@@ -1,13 +1,9 @@
 package pmdb.ql.ts;
 
-import tannus.ds.Anon;
-import tannus.ds.Dict;
-import tannus.ds.Pair;
-import tannus.ds.Set;
-
 import haxe.rtti.Rtti;
 import haxe.rtti.CType;
 import haxe.io.Bytes;
+import haxe.io.*;
 
 import pmdb.core.TypedValue;
 import pmdb.core.Check;
@@ -22,12 +18,10 @@ import Std.is as stdIs;
 import Type;
 
 using StringTools;
-using tannus.ds.StringUtils;
-using Slambda;
-using tannus.ds.ArrayTools;
-using tannus.ds.MapTools;
+using pm.Strings;
+using pm.Arrays;
 using tannus.ds.DictTools;
-using tannus.FunctionTools;
+using pm.Functions;
 using pmdb.ql.ts.TypeChecks;
 
 using haxe.rtti.CType.TypeApi;
@@ -141,8 +135,8 @@ class DataTypes {
      **/
     public static function checkValue(type:DataType, value:Dynamic):Bool {
         return switch type {
-            case TVoid|TUndefined: value == null;
-            case TAny|TMono(null)|TUnknown: true;
+            case TVoid: value == null;
+            case TAny|TMono(null)|TUnknown|TUndefined: true;
             case TMono(type): checkValue(type, value);
             case TNull(type): (checkValue(type, value) || value == null);
             case TArray(type): value.is_array(x -> checkValue(type, x));
@@ -177,7 +171,7 @@ class DataTypes {
     /**
       validate a given Object against the given Object-type pattern
      **/
-    public static function checkObjectType(type:CObjectType, value:Anon<Dynamic>):Bool {
+    public static function checkObjectType(type:CObjectType, value:Object<Dynamic>):Bool {
         for (prop in type.fields) {
             if (!checkObjectProperty(prop, value)) {
                 return false;
@@ -189,7 +183,7 @@ class DataTypes {
     /**
       check a given property of an object
      **/
-    public static function checkObjectProperty(property:Property, value:Anon<Dynamic>):Bool {
+    public static function checkObjectProperty(property:Property, value:Object<Dynamic>):Bool {
         if (!value.exists(property.name))
             return false;
         return checkValue(property.type, value.get(property.name));
@@ -261,8 +255,22 @@ class DataTypes {
             case TArray(type): 'Array<${print(type)}>';
             case TUnion(a, b): 'Either<${print(a)}, ${print(b)}>';
             case TTuple(types): 'Tuple<' + types.map(t -> print(t)).join(', ') + '>';
+            case TAnon(null): '{}';
+            case TAnon(anon): printAnon(anon);
             case other: throw new Error('print($type) not implemented');
         }
+    }
+    static function printAnon(o:CObjectType, pretty=false):String {
+        var res = '{';
+        for (field in o.fields) {
+            res += field.name;
+            res += pretty ? ' : ' : ':';
+            res += print(field.type);
+            res += ',';
+        }
+        res = res.beforeLast(',');
+        res += '}';
+        return res;
     }
 
     /**
@@ -300,8 +308,6 @@ class DataTypes {
 }
 
 class ValueTypes {
-    static var v2dCache:Dict<ValueType, DataType> = new Dict();
-
     /**
       convert the given ValueType into a DataType value
      **/
@@ -381,4 +387,8 @@ class Anons {
     public static function dataTypeOf(value: Dynamic):DataType {
         return ValueTypes.toDataType(Type.typeof( value ));
     }
+}
+
+class ComplexTypes {
+
 }

@@ -85,11 +85,14 @@ class QueryCompiler {
             case UpdateExpr.UNoOp:
                 return new NoUpdate(e);
 
+            case UpdateExpr.UStruct(fields):
+                throw new Error('Unexpected $e');
+
             case UpdateExpr.UAssign(left, right):
                 return new AssignUpdate(vnode(left), vnode(right), e);
 
-            case UpdateExpr.UStruct(fields):
-                throw new Error('Unexpected $e');
+            case UpdateExpr.UIncr(_, _), UpdateExpr.UDecr(_, _):
+                throw new Error('poop');
 
             case UpdateExpr.UDelete(col):
                 return new DeleteUpdate(vnode(col), e);
@@ -248,18 +251,28 @@ class QueryCompiler {
                     case EvBinop.OpMult: '*';
                     case EvBinop.OpDiv: '/';
                     case _: '?';
-                }
-                new ValueBinaryOperatorNode(vnode(left), vnode(right), oper, e);
+                };
+                if (context == null)
+                    throw new Error('QueryCompiler.context must be provided');
+                if (!context.binops.exists(oper))
+                    throw new Error('Operator($oper) not found');
+                new ValueBinaryOperatorNode(vnode(left), vnode(right), context.binops[oper], e);
 
             case Ve.EUnop(EvUnop.UNeg, value):
-                new ValueUnaryOperatorNode(vnode(value), '-', e);
+                new ValueUnaryOperatorNode(vnode(value), context.unops['-'], e);
 
             case Ve.EArrayAccess(value, index):
                 new ArrayAccessNode(vnode(value), vnode(index), e);
 
             //TODO implement EObject(...)
-            case Ve.EObject(_):
-                throw new NotImplementedError();
+            case Ve.EObject(fields):
+                new ObjectNode(fields.map(function(f) {
+                    return {
+                        field: f.k,
+                        value: vnode(f.v)
+                    };
+                }), e);
+                //throw new NotImplementedError();
 
             case Ve.ERange(_, _):
                 throw new NotImplementedError();
