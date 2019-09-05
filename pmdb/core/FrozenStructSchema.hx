@@ -181,8 +181,8 @@ class FrozenStructSchema {
         }
     }
 
-    public function thaw():StructSchema {
-        var res = new StructSchema();
+    public function thaw(?rowClass: Dynamic):StructSchema {
+        var res = new StructSchema(rowClass);
         for (f in fields) {
             var flags = [];
             if (f.state.flags.optional) flags.push(FieldFlag.Optional);

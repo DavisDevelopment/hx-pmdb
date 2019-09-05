@@ -31,7 +31,13 @@ class StructSchema {
         fields = new Dictionary();
         indexes = new Dictionary();
 
-        this.type = if (typeClass != null) ({ proto: typeClass }) else null;
+        this.type = null;
+        if (typeClass != null) {
+            this.type = {
+                proto: typeClass
+            };
+        }
+
         if (type != null) {
             if (Rtti.hasRtti( typeClass )) {
                 var rt = Rtti.getRtti( typeClass );
@@ -209,6 +215,23 @@ class StructSchema {
         return doc;
     }
 
+    /**
+      convert the given Doc to an object of the type that will be expected by functions handling Store outputs
+     **/
+    public function export(doc: Doc):Dynamic {
+        if (type != null && !Std.is(doc, type.proto)) {
+            var proto:Dynamic = type.proto;
+            if (Reflect.hasField(proto, 'hxFromRow')) {
+                doc = proto.hxFromRow(doc);
+            }
+            else {
+                doc = Arch.buildClassInstance(type.proto, Arch.clone(doc, ShallowRecurse));
+            }
+        }
+
+        return doc;
+    }
+
     public inline function createIndex(kind, ?name, ?algo, ?type) {
         return new IndexDefinition(this, kind, name, algo, type);
     }
@@ -300,36 +323,6 @@ class StructSchema {
         }
     }
 
-    /*
-    @:keep
-    public function hxSerialize(s: Serializer) {
-        s.serialize( fields.length );
-        for (field in fields) {
-            field.hxSerialize( s );
-        }
-        s.serialize( indexes.length );
-        for (idx in indexes) {
-            idx.hxSerialize( s );
-        }
-    }
-
-    @:keep
-    public function hxUnserialize(u: Unserializer) {
-        fields = new Dictionary();
-        indexes = new Dictionary();
-        for (i in 0...cast(u.unserialize(), Int)) {
-            var field = Type.createEmptyInstance(StructSchemaField);
-            field.hxUnserialize( u );
-            insertField( field );
-        }
-        for (i in 0...cast(u.unserialize(), Int)) {
-            var idx = Type.createEmptyInstance(IndexDefinition);
-            idx.hxUnserialize( u );
-            insertIndex( idx );
-        }
-    }
-    */
-
     static function lookupLoopType<Prop:TypedAttr>(prop:Prop, path:Array<String>):Null<DataType> {
         switch ( prop.type ) {
             case TAnon(anon), TNull(TAnon(anon)):
@@ -416,6 +409,9 @@ class StructSchema {
     private var _pk(default, null): Null<String> = null;
 }
 
+/**
+  class which represents a field of the schema
+ **/
 class StructSchemaField {
     public function new(name, type, ?flags) {
         this.name = name;
