@@ -637,6 +637,32 @@ class Store<Item> {
         return true;
     }
 
+    public function exists(a:Dynamic, ?b:Dynamic):Bool {
+        if (b == null) {
+            b = a;
+            a = primaryKey;
+        }
+        return _exists(a, b);
+    }
+
+    function _exists(path:String, value:Dynamic):Bool {
+        if (indexes.exists( path )) {
+            var idx = index(path);
+            var node = idx.getByKey(value);
+            return !node.empty();
+        }
+        else {
+            return !pid.getAll().filter(function(item: Item) {
+                return Arch.getDotValue(item.asObject(), path).isEqualTo(value);
+            }).empty();
+        }
+
+        return false;
+    }
+
+    /**
+      fast single-field match lookup
+     **/
     public function get(a:Dynamic, ?b:Dynamic):Null<Item> {
         if (b == null) {
             b = a;
