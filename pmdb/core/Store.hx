@@ -914,6 +914,10 @@ class Store<Item> {
     // numeric counter for io locks
     @:noCompletion
     public var ioLock(default, null): Int = 0;
+    @:noCompletion
+    public var isLoaded(default, null):Bool = false;
+    @:noCompletion
+    public var _loadInProgress(default, null):Null<Promise<Store<Item>>> = null;
 }
 
 typedef StoreOptions = {
