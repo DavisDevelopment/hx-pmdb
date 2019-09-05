@@ -1,8 +1,7 @@
 package pmdb.ql;
 
-import tannus.ds.Lazy;
-import tannus.ds.Pair;
-import tannus.ds.Set;
+import pm.Lazy;
+import pm.Pair;
 
 import pmdb.ql.ts.DataType;
 import pmdb.core.ValType;
@@ -32,10 +31,9 @@ import haxe.Constraints.Function;
 import pmdb.core.ds.*;
 
 using StringTools;
-using tannus.ds.StringUtils;
-using Slambda;
-using tannus.ds.ArrayTools;
-using tannus.FunctionTools;
+using pm.Strings;
+using pm.Arrays;
+using pm.Functions;
 using pmdb.ql.ts.DataTypes;
 using pmdb.ql.ast.Predicates;
 

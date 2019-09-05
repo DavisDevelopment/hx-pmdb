@@ -8,12 +8,10 @@ import haxe.PosInfos;
 import haxe.ds.Option;
 
 using StringTools;
-using tannus.ds.StringUtils;
-using Slambda;
-using tannus.ds.ArrayTools;
-using tannus.async.OptionTools;
-using tannus.ds.IteratorTools;
-using tannus.FunctionTools;
+using pm.Arrays;
+using pm.Options;
+using pm.Iterators;
+using pm.Functions;
 using pmdb.ql.hsn.Tools;
 
 @:forward

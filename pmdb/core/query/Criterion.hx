@@ -6,7 +6,7 @@ import pmdb.ql.ts.DataType;
 import pmdb.ql.ast.BoundingValue;
 import pmdb.core.ds.*;
 import pmdb.core.*;
-import pmdb.core.query.IndexCaret;
+// import pmdb.core.query.IndexCaret;
 import pmdb.core.Store;
 
 import pmdb.ql.*;
@@ -25,18 +25,17 @@ import haxe.macro.Context;
 
 import pmdb.core.Assert.assert;
 import pmdb.core.Error;
-import Slambda.fn;
+import pm.Functions.fn;
 import Std.is as isType;
 import pmdb.Macros.*;
 import pmdb.Globals.*;
 
 using StringTools;
-using tannus.ds.StringUtils;
-using Slambda;
-using tannus.ds.ArrayTools;
-using tannus.async.OptionTools;
-using tannus.ds.IteratorTools;
-using tannus.FunctionTools;
+using pm.Strings;
+using pm.Arrays;
+using pm.Options;
+using pm.Iterators;
+using pm.Functions;
 using pmdb.ql.ast.Predicates;
 using pmdb.ql.hsn.Tools;
 

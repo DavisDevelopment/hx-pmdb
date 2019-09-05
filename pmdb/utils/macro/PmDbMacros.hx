@@ -28,6 +28,7 @@ using pm.Functions;
 
 class PmDbMacros {
     public static function init() {
+        if (Context.defined('no-pmdb-sugar')) return ;
         var args = Sys.args();
         MAIN = 
             switch [args.indexOf('-main'), args.indexOf('-x')] {
@@ -50,6 +51,8 @@ class PmDbMacros {
             Compiler.addGlobalMetadata(pack, '@:build(pmdb.utils.macro.PmDbMacros.build())', true, true, false);
         */
         Compiler.addGlobalMetadata('', '@:build(pmdb.utils.macro.PmDbMacros.build())', true, true, false);
+        // Compiler.addG
+        // Context.on
         PmDbMacros.exprLevel.inward.push(new FunctionalExprLevelSyntax(_shouldEnhance, _enhance));
     }
 
@@ -223,6 +226,10 @@ class PmDbMacros {
             case TInst(_.get() => c, _):
                 // skip over modules in the pmdb.utils.macro.* package
                 switch (c.pack) {
+                    // skip tink stuff
+                    case (_[0] => 'tink'):
+                        return null;
+
                     case (_.slice(0, 3) => abc) if (c.pack.length > 3): switch abc {
                         case ['pmdb', 'utils', 'macro']:
                             return null;

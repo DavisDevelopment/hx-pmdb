@@ -35,12 +35,6 @@ import pmdb.Macros.*;
 import pmdb.Globals.*;
 
 using StringTools;
-using tannus.ds.StringUtils;
-using Slambda;
-using tannus.ds.ArrayTools;
-using tannus.async.OptionTools;
-using tannus.ds.IteratorTools;
-using tannus.FunctionTools;
 using pmdb.ql.ast.Predicates;
 
 @:access(pmdb.core.query.StoreQueryInterface)

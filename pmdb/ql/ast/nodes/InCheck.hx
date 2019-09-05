@@ -16,10 +16,9 @@ import haxe.PosInfos;
 import haxe.extern.EitherType;
 
 using StringTools;
-using tannus.ds.StringUtils;
-using Slambda;
-using tannus.ds.ArrayTools;
-using tannus.FunctionTools;
+using pm.Strings;
+using pm.Arrays;
+using pm.Functions;
 using pmdb.ql.ts.DataTypes;
 using pmdb.ql.ast.Predicates;
 
@@ -48,7 +47,7 @@ class InCheck extends BinaryCheck {
         computeValueState();
     }
 
-    inline function computeValueState() {
+    function computeValueState() {
         if ((left is ConstNode)) {
             var cr = cast(left, ConstNode);
             valueConst = cr.value;
@@ -275,10 +274,10 @@ class InCheck extends BinaryCheck {
 
 /* === Variables === */
 
-    public var equator(default, null): Null<Equator<Dynamic>>;
+    public var equator(default, null): Null<Equator<Dynamic>> = null;
 
-    public var containerConst(default, null): Null<Dynamic>;
-    public var containerType(default, null): Null<DataType>;
-    public var valueConst(default, null): Null<Dynamic>;
-    public var valueType(default, null): Null<DataType>;
+    public var containerConst(default, null): Null<Dynamic> = null;
+    public var containerType(default, null): Null<DataType> = null;
+    public var valueConst(default, null): Null<Dynamic> = null;
+    public var valueType(default, null): Null<DataType> = null;
 }

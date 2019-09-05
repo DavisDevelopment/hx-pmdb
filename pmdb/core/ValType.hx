@@ -10,7 +10,7 @@ import haxe.extern.EitherType;
 import haxe.macro.Expr.ComplexType;
 
 using pmdb.ql.ts.DataTypes;
-using tannus.async.OptionTools;
+using pm.Options;
 
 using haxe.macro.ComplexTypeTools;
 

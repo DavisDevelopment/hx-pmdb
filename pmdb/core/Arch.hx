@@ -1,13 +1,10 @@
 package pmdb.core;
 
-import tannus.ds.*;
-import tannus.io.*;
-import tannus.math.TMath as M;
+import pm.utils.Uuid;
 
 import pmdb.core.Error;
 import pmdb.core.Comparator;
 import pmdb.core.Equator;
-import pmdb.core.Check;
 import pmdb.ql.ts.DataType;
 import pmdb.core.TypedValue;
 import pmdb.ql.ts.TypeCasts;
@@ -28,22 +25,18 @@ import haxe.macro.Context;
 import Type.ValueType;
 import pmdb.ql.ts.DataTypes.typed;
 
-import Slambda.fn;
+import pm.Functions.fn;
 import Std.is as isType;
 import Reflect.*;
-import tannus.math.TMath.min;
-import tannus.math.TMath.max;
 
 using StringTools;
-using tannus.ds.StringUtils;
-using Slambda;
-using tannus.ds.ArrayTools;
-using tannus.ds.DictTools;
-using tannus.ds.MapTools;
-using tannus.async.OptionTools;
-using tannus.FunctionTools;
 using pmdb.ql.ts.TypeChecks;
-using tannus.math.TMath;
+using pm.Strings;
+using pm.Arrays;
+using pm.Maps;
+using pm.Options;
+using pm.Functions;
+using pm.Numbers;
 
 /**
   collection of methods that lay out the foundation for the overall architecture of the rest of the system
@@ -72,8 +65,6 @@ class Arch {
       resolve the given dot-path
      **/
     public static function getDotValue(o:DynamicAccess<Dynamic>, field:String):Dynamic {
-        // not yet its own implementation
-        //return pmdb.nedb.NModel.getDotValue(o, field);
         if (field.has('.'))
             return getDotPath(field).get(o, null);
         return o[field];
@@ -159,8 +150,8 @@ class Arch {
         if (a.length != b.length) {
             return false;
         }
-
-        for (i in 0...max(a.length, b.length)) {
+        
+        for (i in 0...Ints.max(a.length, b.length)) {
             if (!areThingsEqual(a[i], b[i])) {
                 return false;
             }
@@ -168,139 +159,6 @@ class Arch {
 
         return true;
     }
-
-    /*[>**/
-      //(TODO) split the logic used in this method into the Equality module
-     //**/
-    //public static function areTypedThingsEqual(left:TypedData, right:TypedData, strictMode:Bool=false):Bool {
-        //[> begin with the check that should catch the majority of calls <]
-        //if (left == right || left.equals(right)) {
-            //return true;
-        //}
-
-        //[> for simple data, values known to have the type-code that reach this check can be known to be unequal <]
-        //else if (_isSimple( left ) && right.getIndex() == left.getIndex()) {
-            ////trace('Warning: Inequality determined for ($left, $right)');
-            //return false;
-        //} 
-
-        //// time to handle the patterns that make it this far
-        //switch [left, right] {
-            //// of course Null == Null
-            //case [DNull, DNull]:
-                //return true;
-
-            //// Null only equals Null, and that case is handled above
-            //case [DNull, _]:
-                //return false;
-
-            //case [_, DNull]: return switch left {
-                //[>*
-                  //Measurable<?>'s with a length of 0 (empty) will report equality with NULL
-                 //**/
-                //case DArray(_, _.length => 0)
-                    //|DClass(String, (_:String) => _.length => 0)
-                    //|DClass(Bytes, (_ : Bytes) => _.length => 0): true;
-                //default: false;
-            //}
-
-            //[>
-               //Float == Int | Int == Float 
-               //should just work
-             //*/
-            //case [DInt(i), DFloat(n)], [DFloat(n), DInt(i)]:
-                //return (0.0 + i) == n;
-
-            //[>*
-              //[=NOTE=]
-              //this class-instance check may need to account for inheritence in the future(?)
-             //**/
-            //case [DClass(leftType, left), DClass(rightType, right)]:
-                //if (leftType == rightType) {
-                    //if (left == right)
-                        //return true;
-
-                    //switch (leftType) {
-                        //case Bytes:
-                            //throw new NotImplementedError('Arch.areTypedThingsEqual(haxe.io.Bytes, haxe.io.Bytes)');
-
-                        //case Date:
-                            //return cast(left, Date).getTime() == cast(right, Date).getTime();
-
-                        //// I'm reasonably sure this case is never reached, but fuck it
-                        //case String:
-                            //return left == right;
-
-                        //case _:
-                            //var className = Type.getClassName(leftType);
-                            ////trace('Warning: Inequality determined for ($className, $className)');
-                            //return false;
-                    //}
-                //}
-                //[>
-                //else if ({check whether leftType is an ancestor to rightType}) {
-                    ////... check equality treating [right] as instance of [leftType]
-                //}
-                //*/
-                //else {
-                    //return false;
-                //}
-
-            //[> TypedData of a TypedData (recursive) <]
-            //case [DEnum(TypedData, (_:TypedData)=>left), DEnum(TypedData, (_:TypedData)=>right)]:
-                //return areTypedThingsEqual(left, right);
-
-            //[> EnumValues <]
-            //case [DEnum(le, (_:EnumValue)=>lev), DEnum(re, (_:EnumValue)=>rev)]:
-                //return (
-                    //le == re &&
-                    //lev.getIndex() == rev.getIndex() &&
-                    //areTypedThingsEqual(DArray(TAny, lev.getParameters()), DArray(TAny, rev.getParameters()))
-                //);
-
-            //[>*
-              //Equatable<?> objects can test for equality with another object
-             //**/
-            //case [DClass(_, (_:Dynamic)=>o)|DObject(_, (_:Dynamic)=>o), other], [other, DClass(_, (_:Dynamic)=>o)|DObject(_, (_:Dynamic)=>o)] if (o.has_method('equals')):
-                //[>*
-                  //this <code>try...catch</code> here ESPECIALLY needs to be moved away into a (non-inline) module function, as it will
-                  //inhibit optimization of <code>areTypedThingsEqual</code> in V8
-                  //see: https://floitsch.blogspot.com/search/label/V8-optimizations?m=1
-                 //**/
-                //return try o.equals(getUnderlyingValue(other)) != false catch(e: Dynamic) false;
-
-            //[>*
-              //Objects not implementing the Equatable interface are compared, per-attribute, right to left
-             //**/
-            ////case [DClass(_, (_ : Dynamic) => left)|DObject(_, (_ : Dynamic) => left), DClass(_, (_ : Dynamic) => right)|DObject(_, (_ : Dynamic) => right)]:
-            //case [DObject(_, (_:Dynamic)=>left), DObject(_, (_:Dynamic)=>right)|DClass(_, (_:Dynamic)=>right)],
-                 //[DClass(_, (_:Dynamic)=>left), DClass(_, (_:Dynamic)=>right)|DObject(_, (_:Dynamic)=>right)]:
-                ////
-                //var attrs = fields( right );
-                //for (attr in attrs) {
-                    //if (!areThingsEqual(field(right, attr), field(left, attr))) {
-                        //return false;
-                    //}
-                //}
-                //return true;
-
-            //[> Arrays <]
-            //case [DArray(_, left), DArray(_, right)], [DTuple(_, left), DTuple(_, right)]:
-                //if (left.length != right.length) 
-                    //return false;
-                //for (i in 0...left.length) {
-                    //if (!areThingsEqual(left[i], right[i])) {
-                        //return false;
-                    //}
-                //}
-                //return true;
-
-            //case [_, _]:
-                ////
-        //}
-
-        //return false;
-    /*}*/
 
     public static inline function boolEquality(a:Bool, b:Bool):Bool {
         return a ? b : !b;
@@ -374,7 +232,7 @@ class Arch {
         aKeys.sort( strCmp );
         bKeys.sort( strCmp );
 
-        for (i in 0...min(aKeys.length, bKeys.length)) {
+        for (i in 0...Ints.min(aKeys.length, bKeys.length)) {
             if (!(stringEquality(aKeys[i], bKeys[i]) && vEq(a[aKeys[i]], b[bKeys[i]]))) {
                 return false;
             }
@@ -413,8 +271,8 @@ class Arch {
         if (b.is_uarray()) return a.is_uarray() ? compareArrays(a, b) :  1;
 
         // objects (with some interfaces)
-        if ((a is IComparable<Dynamic>))
-            return b.sametypeas( a ) ? (cast a : IComparable<Dynamic>).compareTo(cast b) : -1;
+        // if ((a is IComparable<Dynamic>))
+        //     return b.sametypeas( a ) ? (cast a : IComparable<Dynamic>).compareTo(cast b) : -1;
         
         // anonymous objects
         if (a.is_anon()) return b.is_anon() ? compareObjects(a, b) : -1;
@@ -437,7 +295,7 @@ class Arch {
         aKeys.sort( strCmp );
         bKeys.sort( strCmp );
 
-        for (i in 0...min(aKeys.length, bKeys.length)) {
+        for (i in 0...Ints.min(aKeys.length, bKeys.length)) {
             comp = vCmp(field(a, aKeys[i]), field(b, bKeys[i]));
             if (comp != 0) {
                 trace('cmp(${field(a, aKeys[i])}, ${field(b, bKeys[i])}) == $comp');
@@ -450,7 +308,7 @@ class Arch {
 
     public static inline function compareTypedArrays<T>(a:Array<T>, b:Array<T>, fn:(a:T, b:T)->Int):Int {
         var comp: Int = 0;
-        for (i in 0...min(a.length, b.length)) {
+        for (i in 0...Ints.min(a.length, b.length)) {
             comp = fn(a[i], b[i]);
             if (comp != 0)
                 break;
@@ -510,7 +368,7 @@ class Arch {
     public static function compareBytes(a:Bytes, b:Bytes):Int {
         var comp: Int;
 
-        for (i in 0...a.length.min(b.length)) {
+        for (i in 0...Ints.min(a.length, b.length)) {
             comp = compareNumbers(a.get(i), b.get(i));
             if (comp != 0)
                 return comp;
@@ -642,6 +500,57 @@ class Arch {
         throw 'Use .clone() instead';
     }
 
+    static function _dmapTransform(value:Dynamic, replace:(value:Dynamic) -> Dynamic):Dynamic {
+        switch value.typeof() {
+    	    case ValueType.TClass(Array):
+                return cast(value, Array<Dynamic>).map(x -> _dmapTransform(x, replace));
+        
+            case TNull, TBool, TInt, TFloat, TUnknown, TClass(String), TClass(haxe.io.Bytes), TClass(Date):  
+                return replace(value);
+      
+            case TClass(_), TObject:
+                var tmp = value;
+                value = replace(value);
+                if (tmp != value) {
+                    return _dmapTransform(value, replace);
+                }
+                return dmap(cast value, replace);
+        
+            case otherType:
+                throw 'Unhandled $otherType value';
+        }
+        return null;
+    }
+
+    /**
+      based on test-code from [try-haxe](http://try-haxe.mrcdk.com/#cF72f)
+     **/
+    public static function dmap(value:Dynamic, mapper:(value:Dynamic) -> Dynamic):Dynamic {
+        switch Type.typeof(value) {
+            case TNull, TBool, TFloat, TInt, TFunction: _dmapTransform(value, mapper);
+            case TClass(Array): _dmapTransform(value, mapper);
+            case TClass(_)|TObject:
+                var doc:Doc = cast value;
+                return dmapKvi(doc.keyValueIterator(), mapper, (o:Doc, key, value) -> {
+                    o[key] = value;
+                    o;
+                }, emptyUntypedCopy(value));
+
+            case otherType:
+                throw new pm.Error.ValueError(otherType, 'Unhandled type $otherType');
+        }
+        return value;
+    }
+
+    static inline function dmapKvi<Agg>(pairs:KeyValueIterator<String, Dynamic>, mapper:(value:Dynamic) -> Dynamic, reducer:Agg -> String -> Dynamic -> Agg, init:Agg):Agg {
+        var agg:Agg = init;
+        for (key => value in pairs) {
+            var newValue = _dmapTransform(value, mapper);
+            agg = reducer(agg, key, newValue);
+        }
+        return agg;
+    }
+
     /**
       create and return an 'empty' instance of the same type as [value]
      **/
@@ -757,7 +666,7 @@ class Arch {
             fields = src.keys();
 
         if (copy_value == null)
-            copy_value = FunctionTools.identity;
+            copy_value = Functions.identity;
 
         for (k in fields) {
             dest[k] = copy_value(src[k]);
@@ -785,7 +694,7 @@ class Arch {
      **/
     public static function ensure_anon(o:Object<Dynamic>, copy=false):Object<Dynamic> {
         var value;
-        if ( !copy ) value = FunctionTools.identity;
+        if ( !copy ) value = Functions.identity;
         else value = (x: Dynamic) -> dclone(x, ShallowRecurse);
         return (Type.getClass( o ) != null) ? anon_copy(o, value) : value( o );
     }

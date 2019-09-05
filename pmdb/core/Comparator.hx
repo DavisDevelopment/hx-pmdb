@@ -1,6 +1,6 @@
 package pmdb.core;
 
-import tannus.math.TMath as Math;
+// import tannus.math.TMath as Math;
 
 import haxe.io.Bytes;
 
@@ -14,6 +14,7 @@ import pmdb.ql.ts.TypeChecks.*;
 
 using pm.Functions;
 using pmdb.ql.ts.DataTypes;
+using pm.Numbers;
 
 @:forward(compare)
 abstract Comparator<T> (RootComparator<T>) from RootComparator<T> to RootComparator<T> {

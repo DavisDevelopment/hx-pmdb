@@ -11,14 +11,11 @@ import pmdb.core.query.IndexCaret;
 
 import haxe.ds.Option;
 
-import tannus.math.TMath as M;
 import pmdb.Globals.*;
 import pmdb.Macros.*;
 
 using Slambda;
 using StringTools;
-using tannus.ds.StringUtils;
-using tannus.FunctionTools;
 
 class FunctionalIndexCaret<Key, Item> extends IndexCaret<Key, Item> {
     /* Constructor Function */

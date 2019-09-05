@@ -1,11 +1,5 @@
 package pmdb.ql.ast;
 
-import tannus.ds.Anon;
-import tannus.ds.Lazy;
-import tannus.ds.Ref;
-import tannus.ds.Set;
-import tannus.math.TMath as M;
-
 import pmdb.ql.ts.DataType;
 import pmdb.ql.ast.BoundingValue;
 import pmdb.core.Index;
@@ -31,11 +25,8 @@ import pm.Functions.fn;
 import Std.is as isType;
 
 using StringTools;
-using tannus.ds.StringUtils;
-using Slambda;
-using tannus.ds.ArrayTools;
-using tannus.ds.DictTools;
-using tannus.ds.MapTools;
+using pm.Strings;
+using pm.Arrays;
 //using tannus.async.OptionTools;
 //using tannus.FunctionTools;
 using pm.Options;

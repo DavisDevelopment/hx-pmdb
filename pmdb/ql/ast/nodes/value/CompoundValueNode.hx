@@ -1,6 +1,6 @@
 package pmdb.ql.ast.nodes.value;
 
-import tannus.ds.Lazy;
+import pm.Lazy;
 
 import pmdb.core.Error;
 
@@ -10,10 +10,9 @@ import pmdb.ql.ts.DataType;
 import haxe.PosInfos;
 import haxe.ds.Option;
 
-using tannus.FunctionTools;
-using tannus.async.OptionTools;
-using Slambda;
-using tannus.ds.ArrayTools;
+using pm.Functions;
+using pm.Options;
+using pm.Arrays;
 
 class CompoundValueNode extends ValueNode {
     /* Constructor Function */

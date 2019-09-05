@@ -20,10 +20,8 @@ import haxe.extern.EitherType;
 import pmdb.core.Arch.isType;
 
 using StringTools;
-using tannus.ds.StringUtils;
-using Slambda;
-using tannus.ds.ArrayTools;
-using tannus.FunctionTools;
+using pm.Strings;
+using pm.Functions;
 using pmdb.ql.ts.DataTypes;
 using pmdb.ql.ast.Predicates;
 

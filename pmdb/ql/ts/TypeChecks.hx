@@ -1,14 +1,8 @@
 package pmdb.ql.ts;
 
-import tannus.ds.Anon;
-import tannus.ds.Dict;
-import tannus.ds.Pair;
-import tannus.ds.Set;
-
 import haxe.rtti.Rtti;
 import haxe.rtti.CType;
 
-import pmdb.core.Check;
 import pmdb.core.Comparator;
 import pmdb.core.Equator;
 import pmdb.core.Error;
@@ -19,12 +13,6 @@ import Std.is as stdIs;
 import Type;
 
 using StringTools;
-using tannus.ds.StringUtils;
-using Slambda;
-using tannus.ds.ArrayTools;
-using tannus.ds.MapTools;
-using tannus.ds.DictTools;
-using tannus.FunctionTools;
 
 class TypeChecks {
     #if !no_inline_typechecks inline #end

@@ -1,5 +1,6 @@
 package pmdb;
 
+import pm.concurrent.RunLoop;
 import haxe.PosInfos;
 
 //using StringTools;
@@ -32,6 +33,9 @@ class Globals {
 
     public static inline function nor<T>(a:Null<T>, b:Null<T>):Null<T> {
         return a != null ? a : b;
+    }
+    public static inline function defer(f: Void->Void) {
+        RunLoop.current.work(f);
     }
 
     public static var DKEY = '_id';

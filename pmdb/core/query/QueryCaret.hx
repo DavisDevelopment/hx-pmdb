@@ -33,12 +33,10 @@ import pmdb.Macros.*;
 import pmdb.Globals.*;
 
 using StringTools;
-using tannus.ds.StringUtils;
-using Slambda;
-using tannus.ds.ArrayTools;
-using tannus.async.OptionTools;
-using tannus.ds.IteratorTools;
-using tannus.FunctionTools;
+using pm.Strings;
+using pm.Arrays;
+using pm.Options;
+using pm.Functions;
 using pmdb.ql.ast.Predicates;
 
 class QueryCaret<Item> extends StdIndexItemCaret<Item> {

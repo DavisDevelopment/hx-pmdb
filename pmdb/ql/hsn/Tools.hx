@@ -16,8 +16,10 @@ using haxe.macro.ExprTools;
 using haxe.macro.TypeTools;
 
 using Lambda;
-using tannus.ds.ArrayTools;
-using tannus.FunctionTools;
+// using tannus.ds.ArrayTools;
+// using tannus.FunctionTools;
+using pm.Arrays;
+using pm.Functions;
 
 class Tools {
     inline static function ee(a: MacroExpr):Expr return toExpr(a);

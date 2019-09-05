@@ -1,6 +1,5 @@
 package pmdb.core;
 
-import tannus.ds.Comparable;
 //import tannus.math.TMath as Math;
 
 import pmdb.core.Object;

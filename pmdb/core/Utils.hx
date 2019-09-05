@@ -1,13 +1,5 @@
 package pmdb.core;
 
-import tannus.ds.Dict;
-import tannus.ds.dict.DictKey;
-import tannus.ds.Set;
-import tannus.ds.Anon;
-import tannus.ds.Lazy;
-import tannus.ds.Ref;
-import tannus.math.TMath as M;
-
 import pmdb.ql.types.*;
 import pmdb.ql.ts.DataType;
 
@@ -19,18 +11,11 @@ import haxe.Constraints.Function;
 import hscript.Expr.Const;
 
 using StringTools;
-using tannus.ds.StringUtils;
-using Slambda;
-using tannus.ds.ArrayTools;
-using tannus.ds.DictTools;
-using tannus.ds.MapTools;
-using tannus.async.OptionTools;
-using tannus.FunctionTools;
 
 class Utils {}
 
 class Anons {
-    public static inline function dotGet<T>(o:Anon<T>, key:String):T {
+    public static inline function dotGet<T>(o:Object<T>, key:String):T {
         return Arch.getDotValue(cast o, key);
     }
 }

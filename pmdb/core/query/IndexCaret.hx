@@ -11,12 +11,8 @@ import pmdb.core.*;
 
 import haxe.ds.Option;
 
-import tannus.math.TMath as M;
-
 using Slambda;
 using StringTools;
-using tannus.ds.StringUtils;
-using tannus.FunctionTools;
 
 @:access( pmdb.core.Index )
 @:access( pmdb.core.ds.AVLTree )

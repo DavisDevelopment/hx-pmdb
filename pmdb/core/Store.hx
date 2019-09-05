@@ -15,7 +15,7 @@ import pmdb.core.query.StoreQueryInterface;
 import pmdb.core.query.FindCursor;
 import pmdb.core.query.UpdateCursor;
 import pmdb.core.query.UpdateHandle;
-import pmdb.core.Query;
+// import pmdb.core.Query;
 import pmdb.core.StructSchema;
 import pmdb.storage.Persistence;
 import pmdb.storage.Storage;
@@ -206,11 +206,22 @@ class Store<Item> {
      **/
     public function _load():Promise<Store<Item>> {
         var fp = (() -> persistence.loadDataStore( this ));
-        return _updatePromise(new Promise<Store<Item>>(function(accept, reject) {
+        var prom = _updatePromise(new Promise<Store<Item>>(function(accept, reject) {
             executor.exec(_execKey(), fp, function(prom: Promise<Store<Item>>) {
                 prom.then(accept, reject);
             });
         }));
+        prom = prom.derive(function(_, resolve, reject) {
+            _.then(
+                function(result) {
+                    this.isLoaded = true;
+                    resolve(result);
+                },
+                reject
+            );
+        });
+        this._loadInProgress = prom;
+        return prom;
     }
 
     public function schedule<T>(fn:Store<Item>->T):Promise<T> {
@@ -618,6 +629,9 @@ class Store<Item> {
         }
     }
 
+    /**
+      delete an Item from `this` Store
+     **/
     public function del(doc: Item):Bool {
         removeOneFromIndexes( doc );
         return true;
@@ -644,13 +658,13 @@ class Store<Item> {
         }
     }
 
-    public inline function freshQuery() {
-        return Query.make(Store(this));
-    }
+    // public inline function freshQuery() {
+    //     return Query.make(Store(this));
+    // }
 
-    public function makeQuery(fn: Query<Item> -> Query<Item>):Query<Item> {
-        return freshQuery().apply( fn );
-    }
+    // public function makeQuery(fn: Query<Item> -> Query<Item>):Query<Item> {
+    //     return freshQuery().apply( fn );
+    // }
 
     /**
       get a subset of rows chosen based on constraints in [check]

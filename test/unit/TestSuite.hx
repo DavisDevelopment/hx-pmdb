@@ -15,10 +15,9 @@ import pmdb.Macros.*;
 using Slambda;
 using pmdb.core.Error;
 using StringTools;
-using tannus.FunctionTools;
+using pm.Functions;
 
 using haxe.macro.ExprTools;
-using tannus.macro.MacroTools;
 
 /**
   TODO also write some scaffolding for running benchmarks
@@ -70,7 +69,8 @@ class TestSuite {
       I'm doing in <code>assertEq</code> and <code>assertNEq</code>
      **/
     @:keep
-    inline function assertEq<A, B>(a:A, b:B, ?c:Dynamic) {
+    inline function assertEq<A, B>(a:A, b:B, ?c:Dynamic, ?pos:haxe.PosInfos) {
+        // trace('assertEq($a, $b)', pos);
         assert(Arch.areThingsEqual(a, b), c != null ? c : '$a == $b');
     }
 

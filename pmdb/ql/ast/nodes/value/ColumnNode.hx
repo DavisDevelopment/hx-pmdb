@@ -1,6 +1,6 @@
 package pmdb.ql.ast.nodes.value;
 
-import tannus.ds.Lazy;
+import pm.Lazy;
 
 import pmdb.core.Error;
 import pmdb.core.Object;
