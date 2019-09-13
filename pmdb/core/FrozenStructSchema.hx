@@ -229,6 +229,35 @@ class FrozenStructSchema {
         }
     }
 
+    public static function ofClass(classType:Class<Dynamic>) {
+        if (!Rtti.hasRtti(classType)) {
+            throw 'nope';
+        }
+
+        var cdef:Classdef = Rtti.getRtti(classType);
+        for (field in cdef.fields) {
+            trace('${field.type}');
+            switch field.type {
+                case CUnknown:
+                    //
+                case CEnum(name, params):
+                    //
+                case CClass(name, params):
+                    //
+                case CTypedef(name, params):
+                    //
+                case CFunction(args, ret):
+                    //
+                case CAnonymous(fields):
+                    //
+                case CDynamic(t):
+                    //
+                case CAbstract(name, params):
+                    //
+            }
+        }
+    }
+
     private static function buildInit(schema : FrozenStructSchemaInit):FrozenStructSchema {
         return new FrozenStructSchema(schema.fields, schema.indexes, schema.options);
     }
