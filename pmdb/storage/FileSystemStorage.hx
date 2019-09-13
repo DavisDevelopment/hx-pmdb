@@ -23,6 +23,10 @@ class FileSystemStorage implements IStorageSync {
         return inline FileSystem.exists( path );
     }
 
+    public function size(path: String):Int {
+        return FileSystem.stat(path).size;
+    }
+
     public function rename(oname:String, nname:String) {
         return inline FileSystem.rename(oname, nname);
     }

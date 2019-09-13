@@ -9,6 +9,8 @@ import haxe.PosInfos;
 
 interface IStorage {
     public function exists(path: String):Promise<Bool>;
+    public function size(path: String):Promise<Int>;
+    
     public function rename(oldPath:String, newPath:String):Promise<Bool>;
     public function writeFileBinary(path:String, data:Bytes):Promise<Bool>;
     public function readFileBinary(path: String):Promise<Bytes>;
@@ -26,6 +28,7 @@ interface IStorage {
 
 interface IStorageSync {
     public function exists(path: String):Bool;
+    public function size(path: String):Int;
     public function rename(oldPath:String, newPath:String):Void;
     public function writeFileBinary(path:String, data:Bytes):Void;
     public function readFileBinary(path: String):Bytes;

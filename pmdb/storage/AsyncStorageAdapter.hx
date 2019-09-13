@@ -21,6 +21,9 @@ class AsyncStorageAdapter implements IStorage {
     public function exists(path: String):Promise<Bool> {
         return Promise.resolve(storage.exists( path ));
     }
+    public function size(path:String):Promise<Int> {
+        return Promise.resolve(storage.size(path));
+    }
 
     public function rename(n1:String, n2:String):Promise<Bool> {
         return doo(function() {
