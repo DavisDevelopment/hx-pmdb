@@ -280,6 +280,15 @@ class StructSchema {
         return indexes.remove( name );
     }
 
+    public function toJson():JsonSchemaData {
+        return {
+            rowClass: (nn(type) && nn(type.proto) && (type.proto is Class<Dynamic>)) ? Type.getClassName(type.proto) : null,
+            version: 1,
+            fields: fields.array().map(field -> field.toJson()),
+            indexes: indexes.array().map(idx -> idx.toJson())
+        };
+    }
+
     public function toDataType():DataType {
         return DataType.TAnon(toObjectType());
     }
@@ -509,6 +518,24 @@ class StructSchemaField {
         }
     }
 
+    public function toJson():JsonSchemaField {
+         return {
+            name: this.name,
+            type: this.type.print(),
+            optional: this.optional,
+            unique: this.unique,
+            primary: this.primary,
+            autoIncrement: this.autoIncrement,
+            incrementer: {
+                if (autoIncrement && incrementer != null)
+                    {
+                        state: incrementer.current()
+                    };
+                else null;
+            }
+        };
+    }
+
     public function extract(o: Dynamic):Null<Dynamic> {
         return Reflect.field(o, name);
     }
@@ -660,7 +687,14 @@ class IndexDefinition {
         }
     }
 
-
+    public function toJson():JsonSchemaIndex {
+        return switch kind {
+            case Simple(path):
+                {fieldName: path.pathName};
+            case other:
+                throw new pm.Error('Unhandled $other');
+        }
+    }
 
 /* === Fields === */
 
@@ -701,4 +735,33 @@ typedef IndexInit = {
 typedef StructClassInfo = {
     proto : Class<Dynamic>,
     ?info  : Null<Classdef>
+}
+
+/* === Json-State Typedefs === */
+
+typedef JsonSchemaField = {
+    var name : String;
+    var type : String;
+
+    var optional : Bool;
+    var unique : Bool;
+    var primary : Bool;
+    var autoIncrement : Bool;
+    
+    @:optional
+    var incrementer: Null<{
+        state: Dynamic
+    }>;
+};
+/**
+  [TODO] represent the entire index-spec here
+ **/
+typedef JsonSchemaIndex = {
+    var fieldName: String;
+};
+typedef JsonSchemaData = {
+    ?rowClass: String,
+    version: Int,
+    fields: Array<JsonSchemaField>,
+    indexes: Array<JsonSchemaIndex>
 }
