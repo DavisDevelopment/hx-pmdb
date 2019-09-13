@@ -132,26 +132,12 @@ class Persistent<T> {
     }
 
     public function commit() {
-        Sys.println('CALL commit');
-        /**
-          just feel I should let future-me know when I've written code that'll overload the write-queue
-         **/
-        // if (_dirty.has(this)) {
-        //     if (!__touched) {
-        //         throw new pm.Error.WTFError('$this was still in the commit-queue, but not marked as "dirty"');
-        //     }
-        //     else {
-        //         throw new pm.Error('$this was added to the commit-queue after SCHEDULE_PUSHES');
-        //     }
-        // }
-
-        // 
-        // var fork = pm.Arch.clone(__value, ShallowRecurse);
         if (!__pushing && storage != null) {
-            //
+            // we have a storage object, and no push-procedure is in-progress
             function push(d: String) {
                 __pushing = true;
                 __lastRaw = d;
+
                 storage.writeFile(__name, d)
                     .then(x -> {
                         __pushing = false;
@@ -163,7 +149,8 @@ class Persistent<T> {
                         throw e;
                     });
             }
-            //
+
+            // 
             deferCall(
                 push,
                 null,
@@ -195,6 +182,12 @@ class Persistent<T> {
             trace('pull fired');
             storage.readFile(__name).then(
                 function(inflated: String) {
+                    if (inflated.empty()) {
+                        trace('remote was empty, no state-change performed');
+                        defer(__synced.broadcast.bind(__value));
+                        return ;
+                    }
+
                     trace('remote received');
                     __lastRaw = inflated;
                     // try {
@@ -210,10 +203,12 @@ class Persistent<T> {
         }
 
         function exist(b: Bool)
-            if (b)
+            if ( b ) {
                 pull();
-            else
+            }
+            else {
                 trace('first persistent persisted to "$__name"');
+            }
 
         storage.exists(__name).then(exist, Suicide);
     }
