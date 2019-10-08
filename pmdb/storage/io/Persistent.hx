@@ -1,7 +1,8 @@
 package pmdb.storage.io;
 
+import pm.Object.Doc;
+import pmdb.storage.IStorage.IStorageSync;
 import pm.concurrent.rl.QueueWorker;
-import haxe.Unserializer;
 import pm.concurrent.rl.Task;
 import pmdb.storage.Storage;
 import pmdb.storage.Format;
@@ -12,9 +13,10 @@ import pm.async.Signal;
 import pm.async.Callback;
 import pm.concurrent.RunLoop;
 
+import haxe.Unserializer;
 import haxe.ds.Option;
 
-#if !(js && hxnodejs)
+#if (js && hxnodejs)
 import js.node.Fs;
 #end
 
@@ -25,265 +27,267 @@ using pm.Options;
 using pm.async.Async;
 
 class Persistent<T> {
-    private final __id:Int = pm.HashKey.next();
+    public final __id:Int = pm.HashKey.next();
+    @:noCompletion
+    public var __value(default, set):T = null;
+    private var __encodedValue(default, null):String = '';
 
-    private var __value:T = null;
+    public var currentState(get, never):T;
     private var __lastRaw:Maybe<String> = None;
-    private var __name: String;
+    private var __name:String;
     private var format: Format<T, String> = cast Format.hx();
-    private var storage: IStorage = null;
+    private var storage: IStorageSync = null;
     private var __connected:Bool = false;
-    private var __touched:Bool = false;
-    private var __pushing:Bool = false;
+    private var __dirty:Bool = false;
+    private var __uRet:Maybe<T> = None;
 
-    private var __synced:Signal<T> = new Signal();
-
-    public function new(?initialState: T) {
-        __value = initialState;
-        __name = 'persist-${__id}';
-
-        __synced.once(t -> {
-            onOpened( t );
-        });
-
-        // ... yep
-        if (Persistent._butler == null) {
-            Persistent._butler = new PersistenceWorker();
-            RunLoop.current.work(_butler);
+    public var options:{
+        allowDirectModification: Bool,
+        overrides: {
+            ?open: PUpdate<T>,
+            ?pull: PUpdate<T>,
+            ?push: PUpdate<T>
         }
+    };
 
-        _all.push(this);
+    public function new(?initialValue: T) {
+        this.__value = initialValue;
+        this.__name = 'persistent-${__id}';
+        this.options = {
+            allowDirectModification: true,
+            overrides: {}
+        };
+
+        #if (sys || hxnodejs)
+        this.storage = new FileSystemStorage();
+        #else
+            #error
+        #end
     }
 
-    public function configure(cfg: {?name:String, ?format:Format<T, String>}) {
-        inline function h<T2>(ref:Null<T2>, fn:Callback<T2>) {
-            if (ref != null) {
-                fn.invoke(ref);
-            }
+    private inline function set___value(new_state: T):T {
+        this.__value = new_state;
+        this.__encodedValue = format.encode(__value);
+        return this.__value;
+    }
+
+    /**
+      initiates syncronicity between the instance and its destination file
+     **/
+    public function open() {
+        if (nn(options.overrides.open))
+            return options.overrides.open(this);
+        
+        if (storage.exists(__name)) {
+            pull();
         }
 
-        h(cfg.name, n -> setPath(n));
-        h(cfg.format, fmt -> setFormat(fmt));
+        this.__connected = true;
+    }
 
+    public function clear() {
+        storage.unlink(__name);
+    }
+
+    public function pull(firstPull=true) {
+        switch tryPullData(firstPull) {
+            case Success({encoded:encoded, decoded:decoded}):
+                @:bypassAccessor this.__value = decoded;
+                this.__encodedValue = encoded;
+
+            case Failure(error):
+                throw error;
+        }
+    }
+
+    public inline function assign(newState: T):Bool {
+        /**
+          [TODO] try testing equality by simply comparing serialized data
+         */
+        var areDifferent = !Arch.areThingsEqual(currentState, newState);
+        if (areDifferent) {
+            __value = newState;
+            __dirty = true;
+        }
+        return __dirty;
+    }
+
+    public dynamic function testEquality(a:T, b:T):Bool {
+        return a == b;
+    }
+
+    public inline function isDirty():Bool {
+        return __dirty;
+    }
+
+    public inline function apply(u: PUpdate<T>) {
+        return u(this);
+    }
+
+    public inline function update(u: PUpdate<T>):Bool {
+        var updatedState:T = call_update(this, u);
+        return assign(updatedState);
+    }
+
+    static inline function call_update<T>(self:Persistent<T>, update:PUpdate<T>):T {
+        assert(self.__uRet.isNone());
+        self.apply(update);
+        return switch (self.__uRet : Option<T>) {
+            case Some(v):
+                self.__uRet = None;
+                v;
+            case None:
+                throw new pm.Error('Void pointer error');
+        }
+    }
+
+    static inline function apply_update<T>(self:Persistent<T>, update:PUpdate<T>, framework:PModifier<T>):Bool {
+        return switch framework(self, ()->update(self)) {
+            case Success(result): result;
+            case Failure(error):
+                throw error;
+        }
+    }
+
+    public function commit():Bool {
+        var willPush = __dirty;
+        if (willPush) {
+            push();
+            __dirty = false;
+        }
+        else if (__encodedValue != null) {
+            var currentEncodedValue:String = format.encode(currentState);
+            if (currentEncodedValue != __encodedValue) {
+                push(currentEncodedValue);
+                __dirty = false;
+                willPush = true;
+            }
+        }
+        return willPush;
+    }
+
+    function get_currentState() return __value;
+
+    public function push(?overriddenEncoded: String) {
+        var raw:String = nor(overriddenEncoded, format.encode(__value));
+        if (raw.empty())
+            throw '<Empty>';
+        
+        storage.writeFile(__name, raw);
+        Console.printlnFormatted('<u><invert><#0F0>[INFO]:<//> ${haxe.Json.stringify(raw)}');
+    }
+
+    public function tryPullData(firstPull: Bool) {
+        try {
+            var raw:String = storage.readFile(__name);
+            if (raw.empty())
+                throw '<Empty>';
+            __lastRaw = raw;
+            var dec = format.decode(raw);
+            return Success({encoded:raw, decoded:dec});
+        }
+        catch (errorMsg: String) {
+            switch errorMsg {
+                case '<Empty>':
+                    try {
+                        if (firstPull) {
+                            __dirty = true;
+                        }
+                        return Success({encoded:format.encode(__value), decoded:__value});
+                    }
+                    catch (e: Dynamic) {
+                        return Failure(e);
+                    }
+
+                default:
+                    throw errorMsg;
+            }
+        }
+        catch (e: Dynamic) {
+            return Failure(e);
+        }
+    }
+
+    public function configure(cfg:{?name:String, ?format:Format<T, String>}):Persistent<T> {
+        if (nn(cfg.name)) {
+            this.__name = cfg.name;
+        }
+        if (nn(cfg.format))
+            setFormat(cfg.format);
         return this;
     }
 
-    public function setFormat(fmt: Format<T, String>) {
-        if (this.format != null) {
-            var prev = this.format;
-            try {
-               this.format = fmt;
-               reformat(prev, this.format);
-            }
-            catch (e: Dynamic) {
-                this.format = prev;
-                throw e;
-            }
-        }
+	public function setFormat(fmt:Format<T, String>) {
+		if (this.format != null) {
+			var prev = this.format;
+			try {
+				this.format = fmt;
+				reformat(prev, this.format);
+			} catch (e:Dynamic) {
+				this.format = prev;
+				throw e;
+			}
+		} 
         else {
-            this.format = fmt;
-        }
-    }
+			this.format = fmt;
+		}
+	}
 
-    function reformat(oldFormat:Format<T, String>, newFormat:Format<T, String>) {
-        try {
-            __lastRaw = __lastRaw.map(oldFormat.decode).map(newFormat.encode);
-        }
-        catch (err: Dynamic) {
-            throw new pm.Error.ValueError(err, 'reformat failed');
-        }
-    }
+	function reformat(oldFormat:Format<T, String>, newFormat:Format<T, String>) {
+		try {
+			__lastRaw = __lastRaw.map(oldFormat.decode).map(newFormat.encode);
+		}
+        catch (err:Dynamic) {
+			throw new pm.Error.ValueError(err, 'reformat failed');
+		}
+	}
 
-    public inline function setPath(path: pm.Path):Void {
-        this.__name = '$path';
-    }
-
-    public function release() {
-        _all.remove(this);
-
-    }
-
-    public dynamic function onOpened(state: T) {
-        return ;
-    }
-
-    public inline function peek():T return __value;
-    public inline function write(state: T) {
-        this.__value = state;
-        mark();
-    }
-    public inline function update(f: T -> T, push=false) {
-        write(f(peek()));
-        if (push)
-            commit();
-    }
-
-    public function mark() {
-        Sys.print('CALL ::mark');
-        if (!__touched) {
-            Sys.println(' ==>> TOUCH event');
-            __touched = true;
-            _dirty.push(this);
-        }
-    }
-
-    @:keep function toString() {
-        return 'Persistent(#$__id)';
-    }
-
-    public function commit() {
-        if (!__pushing && storage != null) {
-            // we have a storage object, and no push-procedure is in-progress
-            function push(d: String) {
-                __pushing = true;
-                __lastRaw = d;
-
-                storage.writeFile(__name, d)
-                    .then(x -> {
-                        __pushing = false;
-                        pm.Assert.assert(x);
-                        trace('push successful');
-                    })
-                    .catchException(e -> {
-                        __pushing = false;
-                        throw e;
-                    });
-            }
-
-            // 
-            deferCall(
-                push,
-                null,
-                [format.encode(__value)]
-            );
-
-            return ;
-        }
-
-        trace('commit() called redundantly');
-    }
-
-    public function connect(storage: IStorage) {
-        if (this.storage == null) {
-            this.storage = storage;
-            
-            defer(onConnected);
-        }
-    }
-    
-    private function onConnected() {
-        trace('onConnected fired');
-        __connected = true;
-        function Suicide(e: Dynamic) {
-            throw e;
-        }
-        
-        function pull() {
-            trace('pull fired');
-            storage.readFile(__name).then(
-                function(inflated: String) {
-                    if (inflated.empty()) {
-                        trace('remote was empty, no state-change performed');
-                        defer(__synced.broadcast.bind(__value));
-                        return ;
-                    }
-
-                    trace('remote received');
-                    __lastRaw = inflated;
-                    // try {
-                        var dec = format.decode(inflated);
-                        this.__value = dec;
-                        if (dec != null) {
-                            defer(__synced.broadcast.bind(dec));
-                        }
-                    // }
-                },
-                Suicide
-            );
-        }
-
-        function exist(b: Bool)
-            if ( b ) {
-                pull();
-            }
-            else {
-                trace('first persistent persisted to "$__name"');
-            }
-
-        storage.exists(__name).then(exist, Suicide);
-    }
-
-    private inline function deferCall(f:haxe.Constraints.Function, ?o:Dynamic, args:Array<Dynamic>) {
-        return defer(() -> {
-            Reflect.callMethod(o, f, args);
-        });
-    }
-    private inline function defer(f: Task):CallbackLink {
-        return RunLoop.current.work( f );
-    }
-
-    private static var _butler:Null<PersistenceWorker> = null;
-    @:allow(pmdb.storage.io.Persistent.PersistenceWorker)
-    private static var _dirty:Array<Persistent<Dynamic>> = new Array();
-    private static var _all:Array<Persistent<Dynamic>> = new Array();
-
-    static function _tick() @:privateAccess {
-        if (_all.empty()) {
-            suspend();
-        }
-        if (_butler != null) {
-            if (_butler._quit.get()) {
-                _butler = null;
-            }
-        }
-    }
-
-    public static inline function suspend():Void @:privateAccess {
-        if (_butler != null)
-            _butler._quit.set(true);
+    public dynamic function copyState(?state: T):T {
+        if (state == null) state = currentState;
+        return Arch.clone(state, CloneMethod.ShallowRecurse);
     }
 }
 
-class PersistenceWorker extends RepeatableFunctionTask {
-    private final _quit:Ref<Bool>;
-    public function new() {
-        _quit = pm.Ref.to(false);
-        function _():TaskRepeat {
-            _tick(_quit);
+typedef PCallback<T> = Callback<Persistent<T>>;
+typedef PStateCallback<T> = Callback<T>;
+typedef PModLambda<T> = T -> T;
+typedef PModifier<T> = (state:Persistent<T>, f:Void->Void) -> Outcome<Bool, Dynamic>;
 
-            return
-                if (_quit.get())
-                    TaskRepeat.Done;
-                else
-                    TaskRepeat.Continue;
+@:forward
+@:callable
+@:access(pmdb.storage.io.Persistent)
+abstract PUpdate<T> (PCallback<T>) from PCallback<T> to PCallback<T> {
+	@:access(pmdb.storage.io.Persistent)
+    @:from public static inline function mod<T>(modifier: PModLambda<T>):PUpdate<T> {
+        return function(p: Persistent<T>) {
+            var newState:T = modifier(p.currentState);
+            p.__uRet = Some(newState);
         }
-        super(_);
+    }
+    @:from public static inline function mod2<T>(modifier: (p:Persistent<T>, state:T)->T):PUpdate<T> {
+        return function(p:Persistent<T>) {
+            var newState = modifier(p, p.currentState);
+            p.__uRet = Some(newState);
+        };
+    }
+    @:from
+    public static inline function modCb<T>(modifier: T -> Void):PUpdate<T> {
+        return function(p:Persistent<T>, state: T):T {
+            var tmp:T = p.copyState(state);
+            modifier(tmp);
+            return tmp;
+        }
+    }
+    @:from public static inline function const<T>(state: T):PUpdate<T> {
+        return mod(_ -> state);
     }
 
-    function _tick(stop:pm.Ref<Bool>) @:privateAccess {
-        var tmp = Persistent._dirty;
-        Persistent._dirty = [];
-        
-        for (p in tmp) {
-            if (p.__touched) {
-                p.commit();
-                p.__touched = false;
-            }
+    public static function appender<T:{}>(tail: T):PUpdate<T> {
+        return function(state: T):T {
+            var o:Doc = Doc.unsafe(state);
+            o.pull(tail);
+            return ((o : Dynamic) : T);
         }
-        Persistent._tick();
     }
 }
 
-enum PersistentStatus {
-    Disconnected;
-    Auth;// still validating; not connected to anything yet
-    Receiving;// requested clone; haven't received it yet
-    Synced;// self and `remote` are synchronized with each other; no changes have yet been made to either
-    Staged;// changes have been made to the local state, but not yet committed
-    Committing;// commit has begun, but not finished
-    Ahead;// >0 commits have yet to be pushed onto remote
-    Merging;// 2-way MERGE has been triggered, and is in-progress
-    Pushing;// writing compacted data-state
-    
-    // FastForward;
-}
