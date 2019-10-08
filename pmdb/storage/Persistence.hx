@@ -53,6 +53,9 @@ class Persistence<Item> {
         return Bytes.ofString(b.toString());
     }
 
+    /**
+      parse (and compact) the raw serialized store format into a dynamic representation of the store's contents
+     **/
     public function decodeRawStoreData(data: Bytes):RawStoreData<Item> {
         var data:Array<String> = data.toString().split('\n');
         #if neko
@@ -117,11 +120,13 @@ class Persistence<Item> {
     /**
       load and parse the raw store-data from the datafile
      **/
-    public function loadRawStoreData():Promise<Null<RawStoreData<Item>>> {
+    public function loadRawStoreData(?options: {?filename:String}):Promise<Null<RawStoreData<Item>>> {
+        if (options == null) options = {};
+        var path:String = nor(options.filename, filename);
         try {
-            return dataFileExists().flatMap(function(status: Bool):Promise<Null<RawStoreData<Item>>> {
+            return dataFileExists(path).flatMap(function(status: Bool):Promise<Null<RawStoreData<Item>>> {
                 if ( status ) {
-                    return storage.readFileBinary( filename ).map( decodeRawStoreData );
+                    return storage.readFileBinary( path ).map( decodeRawStoreData );
                 }
                 else {
                     return Promise.resolve( null );
@@ -136,9 +141,12 @@ class Persistence<Item> {
     /**
       load the datafile onto the given Store instance
      **/
-    public function loadDataStore(store: Store<Item>):Promise<Store<Item>> {
+    public function loadDataStore(store:Store<Item>, ?options:{?filename:String}):Promise<Store<Item>> {
         //store.reset();
-        return loadRawStoreData().map(function(raw: Null<RawStoreData<Item>>) {
+        if (options == null) options = {};
+        return loadRawStoreData({
+            filename: options.filename
+        }).map(function(raw: Null<RawStoreData<Item>>) {
             if (raw == null) {
                 return store;
             }
@@ -213,8 +221,9 @@ class Persistence<Item> {
     /**
       check whether the data-file exists
      **/
-    public inline function dataFileExists():Promise<Bool> {
-        return storage.exists( filename );
+    public inline function dataFileExists(?argFilename: String):Promise<Bool> {
+        trace('$filename');
+        return storage.exists(nor(argFilename, filename));
     }
 
     private function serialize(item: Dynamic):String {
