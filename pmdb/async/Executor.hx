@@ -1,5 +1,6 @@
 package pmdb.async;
 
+import pm.async.impl.Defer;
 import pm.async.*;
 import pm.async.Deferred;
 import pm.*;
@@ -38,7 +39,7 @@ class Executor {
             nextTick(() -> _next_( n ));
         }
         
-        return new Promise<Noise>( t.de ).map(function(_) {
+        return Promise.deferred(t.de).map(function(_) {
             return (t.end - t.begin);
         });
     }
@@ -88,14 +89,22 @@ class Executor {
     }
 
     static function nextTick(fn: Void -> Void):Promise<Float> {
-        return new Promise(function(yes, no) {
-            Callback.defer(function() {
+        return Promise.asyncFulfill(function(ret) {
+            Defer.defer(function() {
                 var begin = timestamp();
                 fn();
                 var took = (timestamp() - begin);
-                yes( took );
+                ret(took);
             });
         });
+        // return new Promise(function(yes, no) {
+        //     Callback.defer(function() {
+        //         var begin = timestamp();
+        //         fn();
+        //         var took = (timestamp() - begin);
+        //         yes( took );
+        //     });
+        // });
     }
 }
 
@@ -131,14 +140,15 @@ class Task {
     }
 
     public function await(fn: Void->Void) {
-        Promise.make( de ).then(
-            function(_) {
-                fn();
-            },
-            function(_) {
-                fn();
-            }
-        );
+        Promise.deferred(de).always(fn);
+        // Promise.make( de ).then(
+        //     function(_) {
+        //         fn();
+        //     },
+        //     function(_) {
+        //         fn();
+        //     }
+        // );
     }
 
     public inline function isEnded():Bool {
