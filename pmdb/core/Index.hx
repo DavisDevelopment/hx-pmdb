@@ -51,7 +51,7 @@ class Index<Key, Item> {
         var key:Key = _fn.get(cast doc, null);
 
         if (key == null && !sparse) {
-            throw 'IndexError: Missing "$fieldName" property';
+            throw 'IndexError: $doc is missing "$fieldName" property';
         }
         
         tree.insert(key, doc);
@@ -97,7 +97,7 @@ class Index<Key, Item> {
     /**
       insert an array of items on [this] Index
      **/
-    public function insertMany(docs: Array<Item>):Void {
+    public function insertMany(docs:Array<Item>):Void {
         try {
             for (i in 0...docs.length) {
                 try {

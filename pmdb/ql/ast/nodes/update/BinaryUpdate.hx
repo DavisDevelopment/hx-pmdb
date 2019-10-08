@@ -30,20 +30,22 @@ class BinaryUpdate extends Update {
 
 /* === Methods === */
 
-    #if !macro
+    // #if !(macro || display)
     override function equals(other: QueryNode):Bool {
+        
         return (
             super.equals(other) 
             || 
             (Type.typeof(this).equals(Type.typeof(other))
              && 
-             cast(other, BinaryUpdate).with(
-                 left.equals(_.left) && right.equals(_.right)
-             )
+             {
+                 var bu:BinaryUpdate = cast(other, BinaryUpdate);
+                 left.equals(bu.left) && right.equals(bu.right);
+             }
             )
         );
     }
-    #end
+    // #end
 
     override function getChildNodes():Array<QueryNode> {
         return cast [left, right];
