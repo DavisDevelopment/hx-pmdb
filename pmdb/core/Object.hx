@@ -79,7 +79,7 @@ abstract Object<T> (DynamicAccess<T>) from DynamicAccess<T> to DynamicAccess<T> 
         return Arch.clone_object((this:Dynamic), method);
     }
 
-    public function pull(src: Object<T>) {
+    public inline function pull(src: Object<T>) {
         for (key in src.keys()) {
             this[key] = src[key];
         }
