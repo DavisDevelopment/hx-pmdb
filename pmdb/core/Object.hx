@@ -85,6 +85,16 @@ abstract Object<T> (DynamicAccess<T>) from DynamicAccess<T> to DynamicAccess<T> 
         }
     }
 
+    @:op(A += B)
+    public static inline function extendAByB<T>(a:Object<T>, b:Object<T>):Object<T> {
+        a.append(b);
+        return a;
+    }
+
+    public inline function append(tail: Object<T>) {
+        pull(tail);
+    }
+
     public function push(dest: Object<T>) {
         for (key in this.keys()) {
             dest[key] = this[key];
