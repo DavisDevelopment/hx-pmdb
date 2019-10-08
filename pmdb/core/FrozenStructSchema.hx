@@ -258,6 +258,10 @@ class FrozenStructSchema {
         }
     }
 
+    public static inline function build(schema: FrozenStructSchemaInit):FrozenStructSchema {
+        return new FrozenStructSchema(schema.fields, schema.indexes, schema.options);
+    }
+
     private static function buildInit(schema : FrozenStructSchemaInit):FrozenStructSchema {
         return new FrozenStructSchema(schema.fields, schema.indexes, schema.options);
     }
