@@ -40,6 +40,19 @@ class Globals {
     public static inline function defer(f: Void->Void) {
         RunLoop.current.work(f);
     }
+    
+    public static function log(x: Dynamic):Void {
+        #if js
+            try {
+                untyped console.log(x);
+            }
+            catch (e: Dynamic) {
+                Console.log(x);
+            }
+        #else
+            Console.log(x);
+        #end
+    }
 
     public static var DKEY = '_id';
     public static var METAKEYPRE = "$$";

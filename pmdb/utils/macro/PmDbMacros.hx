@@ -28,7 +28,10 @@ using pm.Functions;
 
 class PmDbMacros {
     public static function init() {
-        if (Context.defined('no-pmdb-sugar')) return ;
+        var applySugar = true;
+        if (Context.defined('no-pmdb-sugar'))
+            applySugar = false;
+        
         var args = Sys.args();
         MAIN = 
             switch [args.indexOf('-main'), args.indexOf('-x')] {
@@ -42,17 +45,8 @@ class PmDbMacros {
             return null;
         });
 
-        /*
-        var subs = [
-            'pmdb.core',
-            'pmdb.ql'
-        ];
-        for (pack in subs)
-            Compiler.addGlobalMetadata(pack, '@:build(pmdb.utils.macro.PmDbMacros.build())', true, true, false);
-        */
         Compiler.addGlobalMetadata('', '@:build(pmdb.utils.macro.PmDbMacros.build())', true, true, false);
-        // Compiler.addG
-        // Context.on
+        Compiler.addGlobalMetadata('pm', '@:expose', true, true, false);
         PmDbMacros.exprLevel.inward.push(new FunctionalExprLevelSyntax(_shouldEnhance, _enhance));
     }
 
@@ -60,12 +54,17 @@ class PmDbMacros {
         return true;
     }
 
+    /**
+      apply expression-level transforms
+     **/
     static function _enhance(e: Expr):Expr {
+        final enhanceSwitchStmts = false;
+
         return switchType( e );
         switch (e) {
             case {expr:expr}:
                 switch (expr) {
-                    case ExprDef.ESwitch(val, cases, edef) if (edef != null):
+                    case ExprDef.ESwitch(val, cases, edef) if (edef != null && enhanceSwitchStmts):
                         var newCases = new Array();
                         var defBlock = new Array();
                         for (c in cases) {

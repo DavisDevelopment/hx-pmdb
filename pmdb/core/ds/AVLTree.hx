@@ -173,7 +173,7 @@ class AVLTree<Key, Value> {
             // decrement [size] to account for it
             _size--;
             if ( unique ) {
-                throw new Error('IndexError: Unique-constraint violated');
+                throw new Error('Unique-constraint violated on $key', 'IndexError');
             }
             else {
                 root.data.push( value );
