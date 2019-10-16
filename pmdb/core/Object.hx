@@ -114,6 +114,7 @@ abstract Object<T> (DynamicAccess<T>) from DynamicAccess<T> to DynamicAccess<T> 
         return sub;
     }
 
+
     @:op(A + B)
     public static function sum<T>(left:Object<T>, right:Object<T>):Object<T> {
         var res:Object<T> = left.copy();
@@ -152,6 +153,11 @@ abstract Object<T> (DynamicAccess<T>) from DynamicAccess<T> to DynamicAccess<T> 
     public static inline function ofStruct<O:{}>(o: O):Object<Dynamic> {
         return of(cast o);
     }
+	
+    // @:from
+	public static inline function unsafe(o:Dynamic):Object<Dynamic> {
+		return of((o : Dynamic<Dynamic>));
+	}
 }
 
 typedef Doc = Object<Dynamic>;

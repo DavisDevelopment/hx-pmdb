@@ -1,5 +1,6 @@
 package pmdb.core;
 
+import pm.Noise;
 import pm.async.Deferred.AsyncDeferred;
 import haxe.ds.StringMap;
 import pmdb.core.ds.*;
@@ -24,16 +25,25 @@ using pm.Iterators;
 using pm.Functions;
 using pm.Options;
 
+typedef DbOptions = {
+	?path:String,
+	?storage:Storage,
+    ?preload: String,
+    ?_init: Database -> Void
+};
+
 /**
   class which represents a collection of tables (`Store` instances) 
  **/
 @:expose
 class Database extends Emitter<String, Dynamic> {
     /* Constructor Function */
-    public function new(options: DbOptions & {?autoOpenTables:String}) {
+    public function new(options: DbOptions) {
+        var FOOT:Array<Callback<Database>> = [];
         super();
         _signals = new StringMap();
         isAsync = true;
+
         stores = new Map();
         declaredTables = new Map();
         path = '<in-memory>';
@@ -53,25 +63,41 @@ class Database extends Emitter<String, Dynamic> {
         loadingStores = new Map();
         connections = new Map();
 
-        addEvent('opened');
-        addEvent('initialized');
         addEvent('ready');
         addEvent('closed');
+        addEvent('error');
 
+        if (nn(options._init))
+            FOOT.push(options._init);
+
+        /**
+          [TODO] try implementing without using `defer`
+         **/
         defer(function() {
-            _openSelf(options.autoOpenTables);
-        });
-
-        once('opened', function(_) {
-            defer(() -> emit('ready', null));
-        });
-        once('initialized', function(_) {
-            emit('ready', null);
+            _openSelf(options.preload);
         });
         once('ready', function(_) {
             this._isReady = true;
-            persistence.manifest.connect(storage);
         });
+        on('error', function(error: Dynamic) {
+            throw error;
+        });
+
+        /**
+          process tail-deferred callbacks
+         **/
+        var recursionDepth:Int = -1;
+        do {
+            ++recursionDepth;
+            if (recursionDepth >= 200) {
+                throw new pm.Error('recursion depth limit exceeded');
+            }
+
+            for (f in FOOT.splice(0, FOOT.length)) {
+                f(this);
+            }
+        }
+        while (FOOT.length != 0);
     }
 
 /* === Methods === */
@@ -85,34 +111,38 @@ class Database extends Emitter<String, Dynamic> {
         }
     }
 
-    public function _openSelf(?tables:String) {
-        persistence.open(tables).then(
-            function(status) {
-                if ( status ) {
-                    trace('opened');
-                    emit('opened', null);
+    public function _openSelf(?tables: String):Promise<Database> {
+        trace('calling persistence.open()');
+        return Promise.async(function(done:Callback<Outcome<Database, Dynamic>>) {
+            persistence.open(tables)
+            .then(
+                function(status) {
+                    trace('persistence.open($tables) ${!status?"did not finish":"finished"} successfully');
+                    if (status) {
+                        // assert(@:privateAccess stores.array().every(store -> (
+                        //     store.isLoaded
+                        // )))
+                        emit('ready', null);
+                        done(Success(this));
+                    }
+                    else {
+                        emit('ready', null);
+                        done(Success(this));
+                    }
+                },
+                function(error) {
+                    done(Failure(error));
                 }
-                else {
-                    trace('Database.persistence.init()');
-                    persistence.init().then(
-                        function(status) {
-                            if (status) {
-                                emit('initialized', null);
-                            }
-                            else {
-                                throw 'Initialization of Database failed';
-                            }
-                        },
-                        err -> {
-                            throw err;
-                        }
-                    );
-                }
-            },
-            function(error) {
-                throw error;
+            );
+        }).handle(function(o) {
+            // trace('Outcome: $o');
+            switch o {
+                case Failure(error):
+                    emit('error', error);
+
+                default:
             }
-        );
+        });
     }
 
     /**
@@ -127,8 +157,10 @@ class Database extends Emitter<String, Dynamic> {
       closes `this` Database, and ceases all communication with it
       [TODO] use lockFile to track whether a Database folder is being managed by an active process already
      **/
-    public function close() {
-        persistence.release();
+    public function close(?callback:(error:Null<Dynamic>)->Void):Promise<Noise> {
+        return Promise.async(function(done) {
+            persistence.close().noisify().handle(done);
+        });
     }
 
     /**
@@ -141,7 +173,7 @@ class Database extends Emitter<String, Dynamic> {
     }
 
     static function failWhenNone<T>(promise: Promise<Option<T>>):Promise<T> {
-        return (promise.outcomeMap(function(outcome: pm.Outcome<Option<T>, Dynamic>) {
+        return (promise.transform(function(outcome: pm.Outcome<Option<T>, Dynamic>) {
             return switch outcome {
                 case Failure(err):
                     Failure(err);
@@ -158,16 +190,22 @@ class Database extends Emitter<String, Dynamic> {
       load the table denoted by @param name
      **/
     public function load(name: String):Promise<DbStore<Dynamic>> {
-        getTable(name);
-
+        // var tblp = getTable(name);
+        trace('Database.load($name)');
         if (loadedStores.exists(name)) {
-            return loadedStores[name];
+            return loadedStores.get(name);
         }
         else {
-            throw 'WTF?';
+            var tblp2 = persistence.openStore({
+                name: name,
+                preload: true
+            });
+            loadedStores[name] = tblp2;
+            return this.load(name);
         }
     }
 
+    @:deprecated
     function schemaFromData(data: TableStructureData):StructSchema {
         var data = {structure: data};
         var init:pmdb.core.FrozenStructSchema.FrozenStructSchemaInit = {
@@ -256,120 +294,6 @@ class Database extends Emitter<String, Dynamic> {
         return store;
     }
 
-    static function areSchemasEqual(a:StructSchema, b:StructSchema):Bool {
-        if (a.fields.length != b.fields.length)
-            return false;
-        for (name in a.fields.keys()) {
-            var aField = a.fields[name],
-                bField = b.fields[name];
-            if (!aField.type.equals(bField.type)) {
-                trace('${aField.type} != ${bField.type}');
-                return false;
-            }
-            else if (aField.flags.toInt() != bField.flags.toInt()) {
-                trace('${aField.flags.toInt()} != ${bField.flags.toInt()}');
-                return false;
-            }
-        }
-        if (a.indexes.length != b.indexes.length)
-            return false;
-        for (name in a.indexes.keys()) {
-            var aIdx = a.indexes[name],
-                bIdx = b.indexes[name];
-            if (!aIdx.kind.equals(bIdx.kind)) {
-                trace('${aIdx.kind} != ${bIdx.kind}');
-                return false;
-            }
-        }
-        if (a.type != null && b.type != null) {
-            var ap = a.type.proto,
-                bp = a.type.proto;
-            
-            if (ap != bp) {
-                trace('${a.type.proto} != ${b.type.proto}');
-                return false;
-            }
-            
-            trace(a.type.info);
-        }
-        return true;
-    }
-
-    /**
-      asynchronously acquire a Promise that resolves to the named table
-     **/
-    public function getTable<Row>(name: String):Promise<Option<DbStore<Row>>> {
-        if (loadingStores.exists(name)) {
-            return cast loadingStores[name];
-        }
-
-        var loaded:AsyncDeferred<DbStore<Row>, Dynamic> = Deferred.create();
-        // var loading:AsyncDeferred<Option<DbStore<Row>>, Dynamic> = Deferred.create();
-
-        var output:Promise<Option<DbStore<Row>>> = new Promise(function(resolve, reject) {
-            var man = persistence.manifest.peek();
-            if (stores.exists(name)) {
-                var store:DbStore<Row> = cast stores.get(name);
-                if (store._loadInProgress == null) {
-                    store._load();
-                }
-                if (store._loadInProgress != null) {
-                    store._loadInProgress.then(
-                        _ -> resolve(Some(store)),
-                        err -> reject(err)
-                    );
-                    return ;
-                }
-                
-                return resolve(Some(cast stores[name]));
-            }
-
-
-            var decl = declaredTables.get(name);
-            var tbl = man.tables.find(t -> t.name == name);
-            switch [decl, tbl] {
-                case [null, null]:
-                    resolve(None);
-                    // throw new pm.Error('Store "$name" not found!');
-
-                case [{options:o}, null]:
-                    var store:DbStore<Row> = new DbStore<Row>(name, this, o);
-                    addStore(name, store);
-                    store._load().map(store -> Some(cast store)).then(resolve, reject);
-                    return ;
-
-                case [a, b]: // both are present
-                    var aSchema = a.schema,
-                        bSchema = schemaFromData(b.structure);
-                    
-                    if (!areSchemasEqual(aSchema, bSchema)) {
-                        //TODO update manifest
-                        throw new pm.Error('$aSchema != $bSchema');
-                    }
-
-                    var store:DbStore<Row> = new DbStore<Row>(name, this, a.options);
-                    addStore(name, store);
-                    store._load().map(store -> Some(cast store)).then(resolve, reject);
-                    
-            }
-        });
-        
-        loadingStores[name] = output;
-        loadedStores[name] = loaded;
-
-        output.then(function(o) {
-            switch o {
-                case Some(store):
-                    loaded.done(store);
-
-                case None:
-                    loaded.fail('Not found!');
-            }
-        }, e -> loaded.fail(e));
-
-        return output;
-    }
-
     /**
       obtain a reference to the given table
       TODO: provide a table definition to this method as well, and intelligently merge/update the provided spec with the saved one when necessary
@@ -381,12 +305,43 @@ class Database extends Emitter<String, Dynamic> {
         else {
             throw new pm.Error('table("$name") not found');
         }
+        // this.addStore
     }
 
-    public function addStore<Row>(name:String, store:DbStore<Row>):DbStore<Row> {
-        stores[name] = store;
-        store._load();
+    public function declarationFor(name: String) {
+        return 
+        if (declaredTables.exists(name))
+            Some(declaredTables[name])
+        else
+            None;
+    }
+
+    /**
+      add a `Store<Row>` object to the Database's internal registry of stores to manage
+      [TODO] - create something like `pm.async.Callback.CallbackLink` for `Store<?>` objects, with an API something like `{heartbeat:Float, onSynced:Signal<?>, ...}`
+     **/
+    #if !debugSelf @:noCompletion #end
+    public function _addStoreToRegistry<Row>(name:String, store:DbStore<Row>):DbStore<Row> {
+        #if debug 
+            assert((store is DbStore<Dynamic>));
+            assert(pm.Helpers.nnSlow(this.stores) && !this.stores.exists(name));
+            var storeDeclaration = declarationFor(name).extract(new pm.Error.InvalidOperation('RegistrationOfNonDeclaredStore', 'No "$name" store found in declared database namespace'));
+            //TODO validate [store] against [storeDeclaration]
+        #end
+
+        if (!stores.exists(name))
+            stores[name] = store;
+        // store._load();//fixme
         return store;
+    }
+
+    public function _hasStoreInRegistry(store: DbStore<Dynamic>):Bool {
+        for (s in stores.iterator()) {
+            if (s == store) {
+                return true;
+            }
+        }
+        return false;
     }
 
     /**
@@ -417,7 +372,7 @@ class Database extends Emitter<String, Dynamic> {
         if (options == null) options = {};
 
         var o:StoreOptions = {
-            filename: nor(options.filename, Path.join([this.path, '$name.db'])),
+            filename: !options.filename.empty() ? Path.join([this.path, options.filename]) : Path.join([this.path, '$name.db']),
             schema: schema,
             primary: schema.primaryKey,
             executor: executor,
@@ -425,12 +380,7 @@ class Database extends Emitter<String, Dynamic> {
         };
         @:privateAccess schema._init();
         Arch.anon_copy(options, o);
-
-        declaredTables[name] = {
-            name: name,
-            schema: schema,
-            options: options
-        };
+        declaredTables.set(name, {name:name, schema: schema, options:o});
 
         //TODO sync [this] manifest
 
@@ -439,7 +389,9 @@ class Database extends Emitter<String, Dynamic> {
 
     /**
       create and register a Store<Dynamic> on [this] Database
-     **/
+      [TODO] deprecate and create a `Database.structure : DatabaseStructure` field
+    /*
+    @:deprecated('createStore has been deprecated in favor of using the DatabaseStructureBuilder API')
     public function createStore(name:String, ?schema:StructSchema, ?options:StoreOptions) {
         if (stores.exists(name)) {
             throw 'TODO!';
@@ -486,6 +438,7 @@ class Database extends Emitter<String, Dynamic> {
             return store;
         }
     }
+    */
 
     /**
       insert a new Doc into the given table
@@ -531,7 +484,7 @@ class Database extends Emitter<String, Dynamic> {
                 load( table );
             }
 
-            throw 'iEatAss';
+            throw new Error('err');
         }
 
         // if `table` has not yet been connected to
@@ -540,6 +493,13 @@ class Database extends Emitter<String, Dynamic> {
         }
 
         return cast connections[table];
+    }
+
+    #if !debug @:noCompletion #end
+    public dynamic function _putManifestInfo(i: ManifestData) {
+        this._putManifestInfo = function(_) return ;
+        // var state:Ref<ManifestData> = Ref.to(i);
+        defer(() -> emit('manifest:infoavailable', i));
     }
 
 /* === Variables === */
@@ -567,18 +527,48 @@ class Database extends Emitter<String, Dynamic> {
     private var _isReady:Bool = false;
 }
 
-typedef TableDeclaration = {
-    name: String,
-    schema: SchemaInit,
-    options: Null<StoreOptions>
-};
+@:structInit
+class TableDeclaration {
+    public var name: String;
+    public var schema: SchemaInit;
+    public var options: Null<StoreOptions>;
+    
+    @:optional
+    public var finalTableInit(default, null):Null<StoreOptions> = null;
+
+    public function new(name, schema:SchemaInit, options:Null<StoreOptions>) {
+        this.name = name;
+        this.schema = schema;
+        this.options = options;
+        this.finalTableInit = buildTableInit(name, schema, options);
+    }
+    
+    /**
+      @param db - the `Database` object to which the Store instance should be attached
+     **/
+    public inline function createStoreInstance(db: Database):DbStore<Dynamic> {
+        return new DbStore(name, db, finalTableInit);
+    }
+    
+    /**
+      jsonification`
+     **/
+    public inline function toJson():TableData {
+        return {
+            name: this.name,
+            pathName: '${name}.db',
+            structure: finalTableInit.schema.toJson()
+        };
+    }
+
+    static function buildTableInit(name, schema:StructSchema, options:StoreOptions) {
+        var o:StoreOptions = Reflect.copy(options);
+        o.schema = schema;
+        return o;
+    }
+}
 
 typedef SchemaInit = StructSchema;
-
-typedef DbOptions = {
-    ?path: String,
-    ?storage: Storage
-};
 
 @:access(pmdb.core.Database)
 class StoreConnection<Item> {

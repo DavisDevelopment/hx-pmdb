@@ -270,14 +270,16 @@ abstract PUpdate<T> (PCallback<T>) from PCallback<T> to PCallback<T> {
             p.__uRet = Some(newState);
         };
     }
+
     @:from
-    public static inline function modCb<T>(modifier: T -> Void):PUpdate<T> {
+    public static function modCb<T>(modifier: T -> Void):PUpdate<T> {
         return function(p:Persistent<T>, state: T):T {
             var tmp:T = p.copyState(state);
             modifier(tmp);
             return tmp;
         }
     }
+
     @:from public static inline function const<T>(state: T):PUpdate<T> {
         return mod(_ -> state);
     }

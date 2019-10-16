@@ -1,5 +1,6 @@
 package unit;
 
+import pm.async.Promise;
 import haxe.PosInfos;
 import haxe.io.*;
 
@@ -120,6 +121,17 @@ class TestSuite {
             return new TestCaseResult(measure( f ), null);
         }
     }
+    // private static function async_tcwrap(f:Void->Promise<Dynamic>, cb:TestCaseResult->Void):Void->Promise<TestCaseResult> {
+    //     return function() {
+    //         var start = timestamp();
+
+    //         return new Promise((yeah:TestCaseResult->Void, nawp) -> {
+    //             defer(()->{
+    //                 yeah()
+    //             })
+    //         })
+    //     }
+    // }
 
     private var cases(default, null): Array<TestCase>;
     private var caseMap(default, null): Map<String, TestCase>;

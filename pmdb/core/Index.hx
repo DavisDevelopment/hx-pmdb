@@ -54,7 +54,15 @@ class Index<Key, Item> {
             throw 'IndexError: $doc is missing "$fieldName" property';
         }
         
-        tree.insert(key, doc);
+        try {
+            tree.insert(key, doc);
+        }
+        catch (error: pm.Error) {
+            if (error.name == 'IndexError') {
+                @:privateAccess error.message = '("$fieldName") ' + error.message;
+            }
+            throw error;
+        }
     }
 
     /**
