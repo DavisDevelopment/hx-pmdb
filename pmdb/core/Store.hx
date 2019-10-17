@@ -16,7 +16,13 @@ import pmdb.core.query.StoreQueryInterface;
 import pmdb.core.query.FindCursor;
 import pmdb.core.query.UpdateCursor;
 import pmdb.core.query.UpdateHandle;
+
 import pmdb.core.StructSchema;
+import pmdb.core.schema.SchemaField;
+import pmdb.core.schema.FieldFlag;
+import pmdb.core.schema.Types.IndexType;
+import pmdb.core.schema.Types.IndexAlgo;
+
 import pmdb.storage.Persistence;
 import pmdb.storage.Storage;
 import pmdb.async.Executor;
@@ -282,17 +288,17 @@ class Store<Item> extends Emitter<String, Dynamic> {
     /**
       called when a new field is added to the schema, on an existing Store instance
      **/
-    private function _fieldAdded(field: StructSchemaField) {
+    private function _fieldAdded(field: SchemaField) {
         //_eachRow(function(row: Item) {
             
         //})
     }
 
-    private function _fieldUpdated(oldField:StructSchemaField, newField:StructSchemaField) {
+    private function _fieldUpdated(oldField:SchemaField, newField:SchemaField) {
         //TODO resolve changes
     }
 
-    private function _fieldDropped(field: StructSchemaField) {
+    private function _fieldDropped(field: SchemaField) {
         //
     }
 
@@ -465,9 +471,9 @@ class Store<Item> extends Emitter<String, Dynamic> {
       add a new Field to the schema which describes the structures to be stored in [this] Store
      **/
     public function addField(name:String, ?type:ValType, ?flags:Array<FieldFlag>, ?opts:{}) {
-        var prev:StructSchemaField = schema.field( name );
+        var prev:SchemaField = schema.field( name );
 
-        var curr:StructSchemaField = schema.addField(name, type, flags);
+        var curr:SchemaField = schema.addField(name, type, flags);
 
         if (prev == null) {
             _fieldAdded( curr );
@@ -485,8 +491,8 @@ class Store<Item> extends Emitter<String, Dynamic> {
     /**
       convenience method for creating a new Index
      **/
-    public function addSimpleIndex<T>(fieldName: EitherType<String, StructSchemaField>):Index<T, Item> {
-        var field = (fieldName is StructSchemaField) ? (fieldName : StructSchemaField) : schema.field(cast fieldName);
+    public function addSimpleIndex<T>(fieldName: EitherType<String, SchemaField>):Index<T, Item> {
+        var field = (fieldName is SchemaField) ? (fieldName : SchemaField) : schema.field(cast fieldName);
         schema.addIndex({
             name: field.name,
             type: field.type
@@ -1021,7 +1027,7 @@ class Store<Item> extends Emitter<String, Dynamic> {
     private function get_pid():Index<Any, Item> return indexes[primaryKey];
 
     // Id (primary key) property reference
-    public var idField(get, never): StructSchemaField;
+    public var idField(get, never): SchemaField;
     private function get_idField() return schema.field( primaryKey );
 
     public var ioLocked(get, never): Bool;
