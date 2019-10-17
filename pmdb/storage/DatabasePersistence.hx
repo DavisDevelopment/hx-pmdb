@@ -353,7 +353,7 @@ typedef TableData = {
 	var structure:TableStructureData;
 };
 
-typedef TableStructureData = pmdb.core.StructSchema.JsonSchemaData;
+typedef TableStructureData = pmdb.core.schema.Types.JsonSchemaData;
 
 enum abstract LoadStatus (Int) from Int to Int {
     var NoDataFile = -1;

@@ -117,11 +117,8 @@ class Database extends Emitter<String, Dynamic> {
             persistence.open(tables)
             .then(
                 function(status) {
-                    trace('persistence.open($tables) ${!status?"did not finish":"finished"} successfully');
+                    trace('persistence.open($tables) ${!status?"initialized database folder":"loaded database state"} successfully');
                     if (status) {
-                        // assert(@:privateAccess stores.array().every(store -> (
-                        //     store.isLoaded
-                        // )))
                         emit('ready', null);
                         done(Success(this));
                     }
@@ -135,7 +132,6 @@ class Database extends Emitter<String, Dynamic> {
                 }
             );
         }).handle(function(o) {
-            // trace('Outcome: $o');
             switch o {
                 case Failure(error):
                     emit('error', error);
@@ -378,7 +374,7 @@ class Database extends Emitter<String, Dynamic> {
             executor: executor,
             storage: storage
         };
-        @:privateAccess schema._init();
+
         Arch.anon_copy(options, o);
         declaredTables.set(name, {name:name, schema: schema, options:o});
 

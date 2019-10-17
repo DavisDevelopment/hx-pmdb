@@ -7,6 +7,9 @@ import pmdb.ql.ts.TypeSystemError;
 import pmdb.core.ds.*;
 import pmdb.core.ds.map.*;
 import pmdb.core.Object;
+import pmdb.core.schema.*;
+import pm.map.Dictionary;
+import pm.map.OrderedMap;
 
 import haxe.rtti.*;
 import haxe.rtti.CType;
@@ -16,6 +19,9 @@ import haxe.EnumFlags;
 import haxe.Serializer;
 import haxe.Unserializer;
 import haxe.macro.Expr;
+
+import pmdb.core.schema.Types;
+import pmdb.core.schema.SchemaField;
 
 using pmdb.ql.ts.DataTypes;
 using StringTools;
@@ -28,10 +34,8 @@ using pm.Functions;
 class StructSchema {
     /* Constructor Function */
     public function new(?typeClass: Class<Dynamic>) {
-        fields = new Dictionary();
-        indexes = new Dictionary();
-
-        this.type = null;
+        _construct_init();
+        
         if (typeClass != null) {
             this.type = {
                 proto: typeClass
@@ -45,15 +49,20 @@ class StructSchema {
             }
         }
 
-        _init();
+        _construct();
     }
 
 /* === Methods === */
 
-    function _init() {
+    private function _construct() {
         inline _refresh();
-
         _type_init_();
+    }
+
+    private function _construct_init() {
+        fields = new Dictionary();
+        indexes = new Dictionary();
+        this.type = null;
     }
 
     function _type_init_() {
@@ -69,12 +78,17 @@ class StructSchema {
 
     function _refresh() {
         if (_pk == null || !hasField(_pk) || !fields.get( _pk ).primary) {
-            _findPrimary();
+            _findPrimary(true);
         }
     }
 
-    function _findPrimary() {
+    /**
+      attempts to identify the primary-key field, and assign [_pk] to its name
+      if no primary field is declared, then a new, auto-generated primary-key field is created
+     **/
+    inline function _findPrimary(ensure: Bool) {
         _pk = null;
+
         for (field in fields) {
             if (field.primary) {
                 _pk = field.name;
@@ -82,13 +96,16 @@ class StructSchema {
             }
         }
 
-        if (_pk == null) {
-            addField(_pk = '_id', String, [Primary, Unique]);
+        if (ensure && _pk == null) {
+            addField(_pk = '_id', String, [Primary, Unique, AutoIncrement]);
         }
 
         return _pk;
     }
 
+    /**
+      create and return a FrozenStructSchema from [this]
+     **/
     public function freeze():FrozenStructSchema {
         return new FrozenStructSchema(
             this.fields.keys().array().map(function(k) {
@@ -115,21 +132,30 @@ class StructSchema {
         );
     }
 
+    /**
+      create and return a new `SchemaField` instance
+     **/
     public function createField(name, type:ValType, ?flags) {
-        var field = new StructSchemaField(name, type);
+        var field = new SchemaField(name, type);
         if (flags != null)
             field.addFlags( flags );
         return field;
     }
 
-    public function addField(name:String, type:ValType, ?flags:Array<FieldFlag>):StructSchemaField {
+    public function addField(name:String, type:ValType, ?flags:Array<FieldFlag>):SchemaField {
         return createField(name, type, flags)
             .tap(function(field) {
                 insertField(field);
             });
     }
 
-    function insertField(field: StructSchemaField) {
+    /**
+      [TODO]
+       - allow "locking" of a schema
+       - make mutations to a schema observable
+       - add useful options object to schema, making it flexible
+     **/
+    public function insertField(field: SchemaField) {
         fields[field.name] = field;
         if (field.primary) {
             if (_pk != null && field.name != _pk) {
@@ -139,21 +165,33 @@ class StructSchema {
         }
     }
 
-    public function dropField(field: EitherType<String, Int>) {
-        if ((field is Int))
-            fields.remove(fields.getByIndex((field : Int)).name);
+    public function dropField(field: EitherType<String, EitherType<Int, SchemaField>>):Bool {
+        return if ((field is Int))
+            fields.remove(fields.getByIndex((field : Int)).name)
+        else if ((field is String))
+            fields.remove((field : String))
+        else if ((field is SchemaField))
+            fields.remove(cast(field, SchemaField).name)
         else
-            fields.remove((field : String));
+            #if debug
+            throw new pm.Error('Invalid dropField argument: $field') 
+            #else 
+            false 
+            #end;
+    }
+
+    public inline function dropFieldNamed(fieldName: String):Bool {
+        return fields.remove(fieldName);
     }
 
     public inline function hasField(name: String):Bool {
         return fields.exists( name );
     }
 
-    public function field(name: String):Null<StructSchemaField> {
+    public function field(name: String):Null<SchemaField> {
         return switch fields.get( name ) {
             case null: null;
-            case fi: cast(fi, StructSchemaField);
+            case fi: cast(fi, SchemaField);
         }
     }
 
@@ -161,12 +199,14 @@ class StructSchema {
         return fields.keyArray();
     }
 
-    public function validateStruct(o: Object<Dynamic>):Bool {
+    public function validateStruct(o:Struct, unsafe=false):Bool {
         for (field in fields) {
             if (!o.exists(field.name) || o[field.name] == null) {
                 if (!field.isOmittable()) {
-                    throw new pmdb.core.Error('missing field "${field.name}"');
-                    return false;
+                    if (unsafe)
+                        throw SchemaError.FieldNotProvided(field);
+                    else
+                        return false;
                 }
             }
 
@@ -181,9 +221,11 @@ class StructSchema {
 
     /**
       perform initialization on [o] to prepare it for insertion into the data store
+      [TODO]
+       - create actual Struct type, which implements its own methods for the operations I'm relying on `Arch` to provide currently
      **/
-    public function prepareStruct(o: Object<Dynamic>):Object<Dynamic> {
-        var doc:Object<Dynamic>;
+    public function prepareStruct(o: Struct):Struct {
+        var doc:Struct;
         #if (row_type_coerce)
         if (type != null && !Std.is(o, type.proto)) {
             doc = Arch.buildClassInstance(type.proto, Arch.clone(o, ShallowRecurse));
@@ -197,7 +239,7 @@ class StructSchema {
         #else
         doc = Arch.clone(o, ShallowRecurse);
         #end
-        var doc:Object<Dynamic> = Arch.clone(Arch.ensure_anon(o), ShallowRecurse);
+        var doc:Struct = Arch.clone(Arch.ensure_anon(o), ShallowRecurse);
 
         if (!doc.exists(primaryKey) || doc[primaryKey] == null) {
             switch (field( primaryKey )) {
@@ -211,6 +253,11 @@ class StructSchema {
                     throw new pmdb.core.Error('Cannot auto-generate doc\'s primary-key, as the assigned column ("$primaryKey") is declared as a ${fieldType(primaryKey)} value');
             }
         }
+
+        /* === [Sanity Checks] === */
+        #if debug
+        validateStruct(doc, true);
+        #end
 
         return doc;
     }
@@ -404,237 +451,29 @@ class StructSchema {
         schema.putIndex(Simple( f.name ));
     }
 
+
 /* === Properties === */
 
     public var primaryKey(get, never): String;
-    inline function get_primaryKey():String return _pk == null ? _findPrimary() : _pk;
+    function get_primaryKey():String {
+        // return _pk == null ? _findPrimary(false) : _pk;
+        if (!_pk.empty()) return _pk; 
+        if (_pk == null) _findPrimary(false);
+        if (_pk == null) return '';
+        return _pk;
+    }
 
 /* === Fields === */
 
-    public var fields(default, null): Dictionary<StructSchemaField>;
+    public var fields(default, null): Dictionary<SchemaField>;
     public var indexes(default, null): Dictionary<IndexDefinition>;
     public var type(default, null): Null<StructClassInfo> = null;
 
     private var _pk(default, null): Null<String> = null;
+    private var options:Dynamic = {};
 }
 
-/**
-  class which represents a field of the schema
- **/
-class StructSchemaField {
-    public function new(name, type, ?flags) {
-        this.name = name;
-        this.flags = flags == null ? new EnumFlags() : flags;
-        this.type = type;
 
-        this.comparator = try this.etype.getTypedComparator() catch (err: Dynamic) Comparator.cany();
-        this.equator = try this.etype.getTypedEquator() catch (err: Dynamic) Equator.anyEq();
-
-        this.incrementer = null;
-        if (hasFlag(AutoIncrement)) {
-            this.incrementer = new Incrementer();
-        }
-
-        this.access = new FieldAccessHelper( this );
-    }
-
-/* === Methods === */
-
-    public function clone():StructSchemaField {
-        return new StructSchemaField(name, type, flags);
-    }
-
-    public function addFlags(flags: Array<FieldFlag>) {
-        for (flag in flags)
-            inline addFlag( flag );
-    }
-
-    public function addFlag(flag: FieldFlag) {
-        flags.set( flag );
-        calcEType();
-    }
-
-    public function removeFlag(flag: FieldFlag) {
-        flags.unset( flag );
-        calcEType();
-    }
-
-    public inline function hasFlag(flag: FieldFlag):Bool {
-        return flags.has( flag );
-    }
-
-    public inline function is(flag: FieldFlag):Bool {
-        return hasFlag( flag );
-    }
-
-    public function getComparator():Comparator<Dynamic> {
-        return comparator;
-    }
-
-    public function getEquator():Equator<Dynamic> {
-        return etype.getTypedEquator();
-    }
-
-    public inline function isOmittable():Bool {
-        return optional || primary || type.match(TNull(_));
-    }
-
-    public function checkValueType(value: Dynamic):Bool {
-        return etype.checkValue( value );
-    }
-
-    public function toString() {
-        return 'FieldDefinition("$name", ...)';
-    }
-
-    inline function calcEType() {
-        etype = type;
-        if (isOmittable())
-            etype = etype.makeNullable();
-    }
-
-    @:keep
-    public function hxSerialize(s: Serializer) {
-        s.serialize( name );
-        s.serialize( etype );
-        s.serialize(flags.toInt());
-        var extras:Dynamic = {};
-        if (incrementer != null && autoIncrement) {
-            extras.inc = incrementer.current();
-        }
-    }
-
-    @:keep
-    public function hxUnserialize(u: Unserializer) {
-        name = u.unserialize();
-        etype = u.unserialize();
-        flags = u.unserialize();
-        var extras:Dynamic = u.unserialize();
-        if (extras == null)
-            return ;
-        if (extras.inc != null) {
-            assert((extras.inc is Int), new TypeError(extras.inc, TScalar(TInteger)));
-            incrementer = new Incrementer(cast(extras.inc, Int));
-        }
-    }
-
-    public function toJson():JsonSchemaField {
-         return {
-            name: this.name,
-            type: this.type.print(),
-            optional: this.optional,
-            unique: this.unique,
-            primary: this.primary,
-            autoIncrement: this.autoIncrement,
-            incrementer: {
-                if (autoIncrement && incrementer != null)
-                    {
-                        state: incrementer.current()
-                    };
-                else null;
-            }
-        };
-    }
-
-    public function extract(o: Dynamic):Null<Dynamic> {
-        return Reflect.field(o, name);
-    }
-
-    public function assign(o:Dynamic, value:Dynamic):Null<Dynamic> {
-        Reflect.setField(o, name, value);
-        return value;
-    }
-
-    public inline function exists(o: Dynamic):Bool {
-        return Reflect.hasField(o, name);
-    }
-
-    /**
-      obtain the next value in the incrementation
-     **/
-    public function incr():Int {
-        assert(autoIncrement, 'Invalid call to incr()');
-        if (incrementer == null) {
-            incrementer = new Incrementer();
-        }
-        return incrementer.next();
-    }
-
-/* === Properties === */
-
-    public var optional(get, never): Bool;
-    inline function get_optional() return hasFlag(Optional);
-
-    public var unique(get, never): Bool;
-    inline function get_unique() return hasFlag(Unique);
-
-    public var primary(get, never): Bool;
-    inline function get_primary():Bool return is(Primary);
-
-    public var autoIncrement(get, never): Bool;
-    inline function get_autoIncrement():Bool return is(AutoIncrement);
-
-    public var type(default, set): DataType;
-    inline function set_type(v: DataType) {
-        this.type = v;
-        calcEType();
-        return type;
-    }
-
-/* === Fields === */
-
-    public var name(default, null): String;
-    public var flags(default, null): EnumFlags<FieldFlag>;
-    public var comparator(default, null): Null<Comparator<Dynamic>>;
-    public var equator(default, null): Null<Equator<Dynamic>>;
-    public var access(default, null): FieldAccessHelper;
-
-    public var etype(default, null): DataType;
-    private var incrementer(default, null): Null<Incrementer>;
-}
-
-enum FieldFlag {
-    Primary;
-    Optional;
-    Unique;
-    AutoIncrement;
-}
-
-/**
-    class which encapsulates and provides convenient methods for accessing fields of stored documents
-**/
-class FieldAccessHelper {
-    private var field: StructSchemaField;
-    public function new(field) {
-        this.field = field;
-    }
-
-    public inline function get(doc: Doc):Null<Dynamic> {
-        return doc[field.name];
-    }
-
-    public inline function set(doc:Doc, value:Dynamic, noCheck=false):Dynamic {
-        if (!noCheck) assert(field.checkValueType(value), new TypeError(value, field.type));
-        doc[field.name] = value;
-        return value;
-    }
-
-    public inline function del(doc: Doc):Bool {
-        return doc.remove( field.name );
-    }
-
-    public inline function has(doc: Doc):Bool {
-        return doc.exists( field.name );
-    }
-
-    public function cmp(x:Dynamic, y:Dynamic):Int {
-        return field.comparator.compare(x, y);
-    }
-
-    public function eq(x:Dynamic, y:Dynamic):Bool {
-        return field.equator.equals(x, y);
-    }
-}
 
 /**
     IndexDefinition - object which represents a Store index
@@ -645,45 +484,35 @@ class IndexDefinition {
         this.kind = kind;
         this.name = name == null ? kindName(kind) : name;
         this.algorithm = algo == null ? IndexAlgo.AVLIndex : algo;
-        this.type = kindType(owner, kind);
+        this.keyType = kindType(owner, kind);
     }
 
 /* === Methods === */
-    /*
-    @:keep
-    public function hxSerialize(s: Serializer) {
-        s.serialize( name );
-        s.serialize( kind );
-        s.serialize( algorithm );
-        s.serialize( type );
-    }
-
-    public function hxUnserialize(u: Unserializer) {
-        name = u.unserialize();
-        kind = u.unserialize();
-        algorithm = u.unserialize();
-        type = u.unserialize();
-    }
-    */
 
     static function kindName(k: IndexType):String {
         return switch k {
             case Simple(path): path.pathName;
-            case Compound(a): a.map(kindName).join(',');
+            // case Compound(a): "("+a.map(kindName).join(',')+")";
             case Expression(e): '$e';
         }
     }
 
-    public function toString() {
-        return 'IndexDefinition(...)';
+    public function toString():String {
+        return 'IndexDefinition(kind=${kindName(this.kind)}):${keyType.print()}';
     }
 
+    /**
+      [TODO]
+       - comprehensive index typing
+     **/
     static function kindType(schema:StructSchema, k:IndexType):DataType {
         return switch k {
-            case Simple(path) if (path.path.length == 1): schema.fields.get(path.pathName).type;
-            case Simple(_.pathName => key): schema.fieldType( key );
-            case Expression(_): TAny;
-            case Compound(arr): TTuple(arr.map(x -> kindType(schema, x)));
+            case Simple(path) if (path.path.length == 1): 
+                schema.fields.get(path.pathName).type;
+            case Simple(_.pathName => key): 
+                schema.fieldType( key );
+            case Expression(_): 
+                TAny; // 
         }
     }
 
@@ -696,72 +525,30 @@ class IndexDefinition {
         }
     }
 
+    /**
+      extract the "key" from the given struct that the Indexer will file the document under
+     **/
+    public function extractKey(doc: Struct):Dynamic {
+        throw new pm.Error.NotImplementedError();
+    }
+
+    public function createIndexMap():Dynamic {
+        throw new pm.Error.NotImplementedError('TODO: interface IndexMap');
+    }
+
+    public function createIndex():Dynamic {
+        throw new pm.Error.NotImplementedError('TODO: interface Index');
+    }
+
 /* === Fields === */
 
     public var name(default, null): String;
     @:keep
     public var algorithm(default, null): IndexAlgo;
-    public var type(default, null): DataType;
+    
+    public var keyType(default, null): DataType;
     public var kind(default, null): IndexType;
 
     @:allow( pmdb.core.StructSchema )
     public var owner(default, null): StructSchema;
-}
-
-@:keep
-enum IndexType {
-    Simple(path: DotPath);
-    Compound(types: Array<IndexType>);
-    Expression(expr: ValueExpr);
-}
-
-@:keep
-enum abstract IndexAlgo (String) from String to String {
-    var AVLIndex;
-}
-
-typedef TypedAttr = {
-    var name(default, null): String;
-    var type(default, null): DataType;
-}
-
-typedef IndexInit = {
-    ?name: String,
-    ?type: ValType,
-    ?kind: IndexType,
-    ?algorithm: IndexAlgo
-};
-
-typedef StructClassInfo = {
-    proto : Class<Dynamic>,
-    ?info  : Null<Classdef>
-}
-
-/* === Json-State Typedefs === */
-
-typedef JsonSchemaField = {
-    var name : String;
-    var type : String;
-
-    var optional : Bool;
-    var unique : Bool;
-    var primary : Bool;
-    var autoIncrement : Bool;
-    
-    @:optional
-    var incrementer: Null<{
-        state: Dynamic
-    }>;
-};
-/**
-  [TODO] represent the entire index-spec here
- **/
-typedef JsonSchemaIndex = {
-    var fieldName: String;
-};
-typedef JsonSchemaData = {
-    ?rowClass: String,
-    version: Int,
-    fields: Array<JsonSchemaField>,
-    indexes: Array<JsonSchemaIndex>
 }

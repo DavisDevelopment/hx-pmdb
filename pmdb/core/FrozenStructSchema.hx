@@ -1,7 +1,9 @@
 package pmdb.core;
 
-import pmdb.core.StructSchema.IndexType;
-import pmdb.core.StructSchema.IndexAlgo;
+import pmdb.core.schema.Types.IndexType;
+import pmdb.core.schema.Types.IndexAlgo;
+import pmdb.core.schema.FieldFlag;
+
 import pmdb.ql.ts.DataType;
 import pmdb.ql.ast.Value;
 
@@ -451,7 +453,7 @@ typedef StructSchemaMethodsInit = {
 
 typedef StructSchemaOptions = {
     ?methods: StructSchemaMethodsInit,
-    ?type: StructClassInfo
+    ?type: pmdb.core.schema.Types.StructClassInfo
 };
 
 class DefaultStructSchemaMethods {
