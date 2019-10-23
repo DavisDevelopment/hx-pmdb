@@ -272,7 +272,6 @@ class Index<Key, Item> {
 
         if (_fn == null)
             _fn = DotPath.fromPathName(fieldName);
-            // _fn = DotPath.parse( fieldName );
 
         pullOptions( options );
     }

@@ -156,7 +156,6 @@ class Persistence<Item> {
     public function loadDataStore(store:Store<Item>, ?options:{?filename:String}):Promise<Store<Item>> {
         if (loadedDataStorePromise != null)
             return loadedDataStorePromise;
-            // throw 0;
         
         if (loadDataStoreCallCount != 0) {
             throw new pm.Error.InvalidOperation('.loadDataStore(...)');
@@ -170,7 +169,6 @@ class Persistence<Item> {
             filename: options.filename
         })
         .map(function(raw: Null<RawStoreData<Item>>) {
-            // trace('decoded datafile: ', raw);
             if (raw == null) {
                 throw new pm.Error('Should not be null');
                 return store;
@@ -180,18 +178,8 @@ class Persistence<Item> {
                 // TODO stop using the store's datafile for schema-related computations
                 var allocatedSize = store.size();
                 store.reset();
-                trace('Store::RESET(documents=$allocatedSize)');
-                
-                // for (index in raw.indexes) {
-                //     store.ensureIndex({
-                //         name: index.fieldName,
-                //         type: index.fieldType,
-                //         unique: index.unique,
-                //         sparse: index.sparse
-                //     });
-                // }
+                @:privateAccess store._init_indices_();
 
-                // trace('Store::INSERT(collection=${raw.docs})');
                 if (raw.docs != null) {
                     store.insertMany(raw.docs);
                 }
@@ -200,6 +188,7 @@ class Persistence<Item> {
             }
         }));
     }
+
     private var loadDataStoreCallCount:Int = 0;
     private var loadedDataStorePromise:Null<Promise<Store<Item>>> = null;
 
@@ -209,7 +198,6 @@ class Persistence<Item> {
     public function persistCachedDataStore(store: Store<Item>):Promise<Store<Item>> {
         try {
             final data = encodeDataStore( store );
-            trace(data.length);
             return storage.crashSafeWriteFile(filename, data).map(x -> store);
         }
         catch (error: Dynamic) {
@@ -227,8 +215,8 @@ class Persistence<Item> {
             b.add(serialize( item ));
             b.addChar('\n'.code);
         });
-        var data = Bytes.ofString(b.toString());
 
+        var data = Bytes.ofString(b.toString());
         return storage.appendFileBinary(filename, data);
     }
 

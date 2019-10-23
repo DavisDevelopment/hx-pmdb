@@ -1,5 +1,6 @@
 package pmdb.core;
 
+import pm.datetime.DateTime;
 import pmdb.ql.ts.DataType;
 import pmdb.ql.ast.Value;
 import pmdb.ql.ts.TypeSystemError;
@@ -31,6 +32,16 @@ using pm.Arrays;
 using pm.Iterators;
 using pm.Functions;
 
+typedef StructSchemaConfig = {
+    autoInsertIndexes: Bool,
+    ignoreTypes: Bool,
+    
+    primaryKey: Bool
+};
+
+/**
+  data class which manages and represents the role, shape and type structure of an anonymous object within a particular context in the pmdb library
+ **/
 class StructSchema {
     /* Constructor Function */
     public function new(?typeClass: Class<Dynamic>) {
@@ -52,6 +63,34 @@ class StructSchema {
         _construct();
     }
 
+/* === Fields === */
+
+	public var fields(default, null):Dictionary<SchemaField>;
+	public var indexes(default, null):Dictionary<IndexDefinition>;
+	public var type(default, null):Null<StructClassInfo> = null;
+
+	private var _pk(default, null):Null<String> = null;
+	private var options:StructSchemaConfig;
+
+    private var _dirty(default, null):Bool = false;
+    private var _packedAt(default, null):Null<DateTime> = null;
+    private var _preventExtension(default, null):Bool = false;
+
+/* === Properties === */
+
+	public var primaryKey(get, never):String;
+
+	function get_primaryKey():String {
+		// return _pk == null ? _findPrimary(false) : _pk;
+		if (!_pk.empty())
+			return _pk;
+		if (_pk == null)
+			_findPrimary(false);
+		if (_pk == null)
+			return '';
+		return _pk;
+	}
+
 /* === Methods === */
 
     private function _construct() {
@@ -63,6 +102,14 @@ class StructSchema {
         fields = new Dictionary();
         indexes = new Dictionary();
         this.type = null;
+        this._dirty = false;
+        this._packedAt = null;
+        this._preventExtension = false;
+        this.options = {
+            autoInsertIndexes: true,
+            primaryKey: true,
+            ignoreTypes: false
+        };
     }
 
     function _type_init_() {
@@ -96,11 +143,69 @@ class StructSchema {
             }
         }
 
-        if (ensure && _pk == null) {
+        if (ensure && options.autoInsertIndexes && _pk == null) {
             addField(_pk = '_id', String, [Primary, Unique, AutoIncrement]);
         }
 
         return _pk;
+    }
+
+    /**
+      [betty]
+     **/
+    public function pack() {
+        var oldPacketAt = this._packedAt;
+        if (_dirty || true) {
+            _packedAt = DateTime.now();
+            for (idx in indexes) switch idx.kind {
+                case IndexType.Simple({path: [fieldName]}):
+                    var correspondingField = fields.get(fieldName);
+                    if (correspondingField == null) {
+                        correspondingField = this.addField(fieldName, idx.keyType);
+                    }
+
+                case IndexType.Expression(e):
+                    throw 'Unhandled $e';
+
+                default:
+            }
+
+            for (field in fields) {
+                if (field.unique) {
+                    var correspondingIdx = indexes.find(function(idx) {
+                        return switch idx.kind {
+                            case Simple({path:[name]}): name==field.name;
+                            default: false;
+                        }
+                    });
+
+                    if (correspondingIdx == null) {
+                        correspondingIdx = this.addIndex({
+                            name: field.name,
+                            kind: Simple(DotPath.fromPath([field.name])),
+                            type: field.type,
+                            algorithm: IndexAlgo.AVLIndex
+                        });
+                    }
+                }
+                
+            }
+        }
+        // throw new pm.Error.NotImplementedError();
+    }
+
+    /**
+      perform basic sanity and coherence checks, and error out if any fail
+     **/
+    public function validate(unsafe=false):Bool {
+        if (!_dirty && options.primaryKey && (_pk == null || !hasField(_pk) || !fields.get(_pk).primary)) {
+            if (!unsafe)
+                return false;
+            else
+                throw new pm.Error('StructSchema is missing its primary-key, but is configured to require one');
+        }
+        return true;
+        //TODO more checks...
     }
 
     /**
@@ -122,9 +227,10 @@ class StructSchema {
             }),
             //[],
             this.indexes.iterator().map(function(i) {
+                
                 return {
                     name: i.name,
-                    type: i.type,
+                    type: i.keyType,
                     algorithm: i.algorithm,
                     kind: i.kind
                 };
@@ -225,7 +331,8 @@ class StructSchema {
        - create actual Struct type, which implements its own methods for the operations I'm relying on `Arch` to provide currently
      **/
     public function prepareStruct(o: Struct):Struct {
-        var doc:Struct;
+        // create the document object which will actually be inserted into the Store's internal cache
+        var doc: Struct;
         #if (row_type_coerce)
         if (type != null && !Std.is(o, type.proto)) {
             doc = Arch.buildClassInstance(type.proto, Arch.clone(o, ShallowRecurse));
@@ -239,8 +346,11 @@ class StructSchema {
         #else
         doc = Arch.clone(o, ShallowRecurse);
         #end
+
+        // redeclare the document, (This really shouldn't be being done)
         var doc:Struct = Arch.clone(Arch.ensure_anon(o), ShallowRecurse);
 
+        // ensure that the primary-key field has a value
         if (!doc.exists(primaryKey) || doc[primaryKey] == null) {
             switch (field( primaryKey )) {
                 case {type:TAny|TScalar(TString)}:
@@ -450,27 +560,6 @@ class StructSchema {
         schema.addField(f.name, type, flags);
         schema.putIndex(Simple( f.name ));
     }
-
-
-/* === Properties === */
-
-    public var primaryKey(get, never): String;
-    function get_primaryKey():String {
-        // return _pk == null ? _findPrimary(false) : _pk;
-        if (!_pk.empty()) return _pk; 
-        if (_pk == null) _findPrimary(false);
-        if (_pk == null) return '';
-        return _pk;
-    }
-
-/* === Fields === */
-
-    public var fields(default, null): Dictionary<SchemaField>;
-    public var indexes(default, null): Dictionary<IndexDefinition>;
-    public var type(default, null): Null<StructClassInfo> = null;
-
-    private var _pk(default, null): Null<String> = null;
-    private var options:Dynamic = {};
 }
 
 

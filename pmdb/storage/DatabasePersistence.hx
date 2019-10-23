@@ -87,7 +87,7 @@ class DatabasePersistence {
                         });
                         return this.openTables(ImmutableList.fromArray(tableSet)).flatMap(function(stores) {
                             trace('Loaded (${stores.map(x -> x.name).join(',')})');
-                            trace(stores);
+                            trace(stores.join(','));
                             //TODO verify the validity of the loaded data
                             return true;
                         });
@@ -291,7 +291,16 @@ class DatabasePersistence {
 	private inline function getStoreSets():Array<Array<DbStore<Dynamic>>> {
 		assert(manifest != null && db != null);
 		var results = [];
-		results.push([for (x in db.declaredTables) x.createStoreInstance(db)]);
+        for (d in db.declaredTables) {
+            trace(d.schema.indexes.keyArray());
+        }
+        var declaredList = [];
+	    for (d in db.declaredTables) {
+            var store = d.createStoreInstance(db);
+            declaredList.push(store);
+            trace(store.indexes.keys().array());
+        }
+        results.push(declaredList);
 		return results;
 	}
 

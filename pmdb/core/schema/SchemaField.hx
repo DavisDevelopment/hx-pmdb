@@ -69,7 +69,7 @@ class SchemaField {
 		return optional || primary || type.match(TNull(_));
 	}
 
-	public function checkValueType(value:Dynamic):Bool {
+	public function checkValueType(value: Dynamic):Bool {
 		return etype.checkValue(value);
 	}
 
