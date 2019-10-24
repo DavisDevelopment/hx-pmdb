@@ -1,5 +1,6 @@
 package pmdb.async;
 
+import pm.async.impl.PromiseObject;
 import pm.async.impl.Defer;
 import pm.async.*;
 import pm.async.Deferred;
@@ -10,6 +11,10 @@ import haxe.Constraints.Function;
 
 using pm.Functions;
 
+/**
+  the `Executor` type maintains a set of named execution queues, which are all processed concurrently
+  within a given execution queue, tasks are executed in one-at-a-time in the order in which they were inserted
+ **/
 class Executor {
     public var cats: Map<String, IQueue<Task>>;
     //public var queue: IQueue<Task>;
@@ -19,8 +24,12 @@ class Executor {
         //queue = new LinkedQueue();
         cats = new Map();
         isClosed = false;
+        Console.warn('<#F00>Executor.new</>');
     }
 
+    /**
+      [TODO] implement some system for deallocating the LinkedQueue instances which are no longer in use
+     **/
     private function category(n: String):IQueue<Task> {
         if (!cats.exists( n )) {
             cats[n] = new LinkedQueue<Task>();
@@ -28,23 +37,34 @@ class Executor {
         return cats[n];
     }
 
-    public function add(n:String, t:Task):Promise<Float> {
+    /**
+      append a given Task onto the Queue for the execution queue named by `category`
+     **/
+    public function add(category:String, task:Task):Promise<Float> {
         var runit:Bool = false;
-        if (category(n).isEmpty()) {
+        var queue = this.category(category);
+        if (queue.isEmpty()) {
             runit = true;
         }
-        category( n ).enqueue( t );
+
+        queue.enqueue( task );
+        trace('Task added to "$category" queue');
 
         if ( runit ) {
-            nextTick(() -> _next_( n ));
+            nextTick(function() {
+                _next_( category );
+            });
         }
         
-        return Promise.deferred(t.de).map(function(_) {
-            return (t.end - t.begin);
+        return task.promise.map(function(_) {
+            return task.end - task.begin;
         });
     }
 
-    public function exec<T>(n:String, param:Or<{?o:Dynamic, f:Function, args:Array<Dynamic>}, Void->Promise<T>>, ?param2:Promise<T>->Void):Promise<Float> {
+    /**
+      [TODO] deal with this fucking mess
+     **/
+    public function _exec<T>(n:String, param:Or<{?o:Dynamic, f:Function, args:Array<Dynamic>}, Void->Promise<T>>, ?param2:Promise<T>->Void):Promise<Float> {
         if (Reflect.isObject( param )) {
             var opts:{?o:Dynamic, f:Function, args:Array<Dynamic>} = cast param;
             return exec(n, function():Promise<T> {
@@ -67,6 +87,23 @@ class Executor {
             return add(n, new Task( fn ));
         }
     }
+    
+    public function exec<T>(category:String, executor:Void->Promise<T>, ?hook:Callback<Promise<T>>):Promise<Float> {
+        var taskExecutor;
+        if (hook == null) {
+            taskExecutor = function() {
+                return executor().noisify();
+            };
+        }
+        else {
+            taskExecutor = function() {
+                var promise = executor();
+                hook(promise);
+                return promise.noisify();
+            };
+        }
+        return add(category, new Task(taskExecutor));
+    }
 
     public function stop() {
         isClosed = true;
@@ -81,7 +118,9 @@ class Executor {
             var task = queue.dequeue();
             task.await(function() {
                 if (!queue.isEmpty() && !isClosed) {
-                    nextTick(() -> _next_( n ));
+                    nextTick(function() {
+                        _next_(n);
+                    });
                 }
             });
             task.start();
@@ -97,58 +136,51 @@ class Executor {
                 ret(took);
             });
         });
-        // return new Promise(function(yes, no) {
-        //     Callback.defer(function() {
-        //         var begin = timestamp();
-        //         fn();
-        //         var took = (timestamp() - begin);
-        //         yes( took );
-        //     });
-        // });
     }
 }
 
 class Task {
+    @:native('executor')
     public var f(default, null): Void -> Promise<Noise>;
-    public var de(default, null): AsyncDeferred<Noise, Dynamic>;
-    private var p(default, null): Null<Promise<Noise>>;
+    // public var de(default, null): AsyncDeferred<Noise, Dynamic>;
+    public var executionPromise:Null<Promise<Noise>>;
+    public var promise(default, null): Promise<Noise>;
+    public final trigger: PromiseTriggerObject<Noise>;
     public var begin(default, null): Null<Float>;
     public var end(default, null): Null<Float>;
 
     public function new(fn) {
         f = fn;
-        p = null;
-        de = Deferred.create();
-
+        promise = null;
+        // de = Deferred.create();
+        trigger = Promise.trigger();
+        promise = Promise.createFromTrigger(trigger);
+        executionPromise = null;
         begin = null;
         end = null;
     }
 
     public function start() {
-        p = f();
-        begin = timestamp();
-        p.then(
-            function(v) {
-                end = timestamp();
-                de.done( v );
-            },
-            function(e) {
-                end = timestamp();
-                de.fail( e );
-            }
-        );
+        if (executionPromise == null && begin == null && end == null) {
+            executionPromise = f();
+            begin = timestamp();
+            executionPromise.handle(o -> switch o {
+                case Success(result):
+                    end = timestamp();
+                    trigger.resolve(result);
+
+                case Failure(error):
+                    end = timestamp();
+                    trigger.reject(error);
+            });
+        }
+        else {
+            throw new Error('Cannot start a Task which has already been started');
+        }
     }
 
-    public function await(fn: Void->Void) {
-        Promise.deferred(de).always(fn);
-        // Promise.make( de ).then(
-        //     function(_) {
-        //         fn();
-        //     },
-        //     function(_) {
-        //         fn();
-        //     }
-        // );
+    public function await(fn: Void -> Void) {
+        promise.always( fn );
     }
 
     public inline function isEnded():Bool {
