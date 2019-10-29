@@ -147,7 +147,11 @@ class Database extends Emitter<String, Dynamic> {
       @see DatabasePersistence.sync
      **/
     public function sync(?pos: haxe.PosInfos) {
-        throw new NotImplementedError('Database.sync', pos);
+        executor.exec('root', function() {
+            return Promise.async(function(done) {
+                persistence.sync().noisify().handle(done);
+            });
+        });
     }
 
     /**
@@ -155,9 +159,11 @@ class Database extends Emitter<String, Dynamic> {
       [TODO] use lockFile to track whether a Database folder is being managed by an active process already
      **/
     public function close(?callback:(error:Null<Dynamic>)->Void):Promise<Noise> {
-        return Promise.async(function(done) {
-            persistence.close().noisify().handle(done);
-        });
+        return executor.exec('root', function() {
+            return Promise.async(function(done) {
+                persistence.close().handle(done);
+            });
+        }).noisify();
     }
 
     /**

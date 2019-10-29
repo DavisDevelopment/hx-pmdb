@@ -290,16 +290,52 @@ class DatabasePersistence {
      **/
 	private function mergeStoreSets(sets: Array<Array<TableDeclaration>>):Array<DbStore<Dynamic>> {
         assert(sets != null && sets.length != 0, new pm.Error('sets=$sets', 'InvalidArgument'));
-        var result = new Array();
-		// return sets[0].map(function(d) {
-        //     return d.createStoreInstance(db);
-        // });
-        for (decl in sets[0]) {
-            result.push(decl.createStoreInstance(db));
+
+		var swap = new Map<String, {left:Null<TableDeclaration>, right:Null<TableDeclaration>}>();
+
+        for (a in sets[0])
+            swap[a.name] = {left:a, right:null};
+        
+        for (b in sets[1]) {
+            if (swap.exists(b.name))
+                swap[b.name].right = b;
+            else
+                swap[b.name] = {left:null, right:b};
         }
-        for (decl in sets[1]) {
-            trace('state for Store<${decl.name}> was loaded from the manifest');
+
+        var merged = new Map();
+        var added = new Map();
+        var removed = new Map();
+        
+        for (name=>pair in swap) {
+            switch pair {
+                case {left:a, right:b}:
+                    a.schema.pack();
+                    b.schema.pack();
+                    if (StructSchema.areSchemasEqual(a.schema, b.schema)) {
+                        merged[b.name] = b;
+                    }
+                    else {
+                        throw new pm.Error('Unhandled inequality');
+                        Sys.exit(0);
+                    }
+
+                case {left:a, right:null}:
+                    added[a.name] = a;
+
+                case {left:null, right:a}:
+                    removed[a.name] = a;
+
+                case null|{left:null, right:null}:
+                    throw new pm.Error('Unhandled nullness');
+            }
         }
+
+        /**
+          [TODO] handle `removed` and `added`
+         **/
+        
+        var result = [for (d in merged) d.createStoreInstance(db)];
         return result;
 	}
 
@@ -330,7 +366,28 @@ class DatabasePersistence {
      **/
     public function sync():Promise<Bool> {
         trace('TODO: sync all stores');
+        syncManifest();
         return Promise.resolve(true);
+    }
+
+    function syncManifest() {
+        var tables:Array<DbStore<Dynamic>> = [for (store in db.stores) store];
+		this.manifest.update(PUpdate.modCb(function(info:ManifestData) {
+			final len = tables.length;
+			var storeManifests = pm.Arrays.alloc(len);
+
+			for (index in 0...len) {
+				var store = tables[index];
+				storeManifests[index] = Tools.toJson(store);
+			}
+
+			storeManifests.sort(function(a, b) {
+				return Reflect.compare(a.name, b.name);
+			});
+
+			info.tables = storeManifests;
+		}));
+		this.manifest.push();
     }
 
     /**

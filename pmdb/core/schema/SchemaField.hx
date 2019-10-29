@@ -114,7 +114,7 @@ class SchemaField {
 	}
 
 	public function toJson():JsonSchemaField {
-		return {
+		var data:JsonSchemaField = {
 			name: this.name,
 			type: this.type.print(),
 			flags: this.flags.toInt(),
@@ -131,6 +131,7 @@ class SchemaField {
 					null;
 			}
 		};
+		return data;
 	}
 
 	public function fromJson(state: JsonSchemaField) {

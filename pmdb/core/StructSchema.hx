@@ -306,17 +306,31 @@ class StructSchema {
     }
 
     public static function areSchemasEqual(a:StructSchema, b:StructSchema):Bool {
+        var strSort:String->String->Int = (a:String, b:String)->Reflect.compare(a, b);
         var aFields = a.fields.keyArray(), bFields = b.fields.keyArray();
+        aFields.sort(strSort);
+        bFields.sort(strSort);
         if (!Arch.areArraysEqual(aFields, bFields)) return false;
+        trace('field keys are equal');
         var aIndexes = a.indexes.keyArray(), bIndexes = b.indexes.keyArray();
+        aIndexes.sort(strSort);
+        bIndexes.sort(strSort);
+        trace([aIndexes, bIndexes]);
         if (!Arch.areArraysEqual(aIndexes, bIndexes)) return false;
+        trace('index keys are equal');
+
         for (i in 0...aFields.length) {
-            if (!a.fields[aFields[i]].equals(b.fields[bFields[i]]))
+            var aField = a.fields[aFields[i]], bField = b.fields[bFields[i]];
+            if (!aField.equals(bField)) {
+                trace('${aField.name} != ${bField.name}');
                 return false;
+            }
         }
+
         for (i in 0...aIndexes.length) {
             // if (!a.indexes[aIndexes[i]])
         }
+
         return true;
     }
 
