@@ -205,7 +205,7 @@ class StructSchema {
                 throw new pm.Error('StructSchema is missing its primary-key, but is configured to require one');
         }
         return true;
-        //TODO more checks...
+        //TODO more checks
     }
 
     /**
@@ -305,7 +305,28 @@ class StructSchema {
         return fields.keyArray();
     }
 
+    public static function areSchemasEqual(a:StructSchema, b:StructSchema):Bool {
+        var aFields = a.fields.keyArray(), bFields = b.fields.keyArray();
+        if (!Arch.areArraysEqual(aFields, bFields)) return false;
+        var aIndexes = a.indexes.keyArray(), bIndexes = b.indexes.keyArray();
+        if (!Arch.areArraysEqual(aIndexes, bIndexes)) return false;
+        for (i in 0...aFields.length) {
+            if (!a.fields[aFields[i]].equals(b.fields[bFields[i]]))
+                return false;
+        }
+        for (i in 0...aIndexes.length) {
+            // if (!a.indexes[aIndexes[i]])
+        }
+        return true;
+    }
+
+    /**
+      [TODO] add fields to StructSchema for tracking field information over iterated calls to `validateStruct`
+     **/
     public function validateStruct(o:Struct, unsafe=false):Bool {
+        var keepTrackOfExtraFields = true;
+        var structFields = o.keys();
+
         for (field in fields) {
             if (!o.exists(field.name) || o[field.name] == null) {
                 if (!field.isOmittable()) {
@@ -320,6 +341,15 @@ class StructSchema {
                 throw new pmdb.core.Error('${o[field.name]} should be ${field.type}');
                 return false;
             }
+
+            if (keepTrackOfExtraFields) {
+                structFields.remove(field.name);
+            }
+        }
+
+        if (keepTrackOfExtraFields && !structFields.empty()) {
+            structFields.sort(cast Reflect.compare);
+            var extraFields = [for (name in structFields) name=>o[name].dataTypeOf()];
         }
 
         return true;
@@ -365,9 +395,11 @@ class StructSchema {
         }
 
         /* === [Sanity Checks] === */
-        #if debug
+
+
+        // this will ensure that the document has been altered such that it can be inserted successfully into a Store<?>
+        // and ensure that the shape/structure of documents passing through the schema can have analytics reliably captured
         validateStruct(doc, true);
-        #end
 
         return doc;
     }
@@ -406,6 +438,12 @@ class StructSchema {
     }
 
     public function addIndex(desc: IndexInit):IndexDefinition {
+        var i:Dynamic = untyped desc;
+        if ((i is IndexDefinition)) {
+            insertIndex(cast(i, IndexDefinition));
+            return cast(i, IndexDefinition);
+        }
+
         return switch desc {
             case {name:null, kind:null}:
                 throw new pmdb.core.Error('Either "name" or "kind" fields MUST be provided');
@@ -424,8 +462,9 @@ class StructSchema {
                     desc.type
                 );
 
-            case other:
-                throw new pmdb.core.Error('Invalid IndexInit object $other');
+            case literal:
+                trace(literal);
+                putIndex(desc.kind, desc.name, desc.algorithm, desc.type);
         }
     }
 
@@ -450,6 +489,7 @@ class StructSchema {
         return DataType.TAnon(toObjectType());
     }
 
+    @:deprecated("StructSchema should represent a DataType category of its own")
     public function toObjectType() {
         var o = new CObjectType([]);
         o.fields.resize( fields.length );
@@ -560,6 +600,36 @@ class StructSchema {
         schema.addField(f.name, type, flags);
         schema.putIndex(Simple( f.name ));
     }
+
+    /**
+      [TODO] actually implement this method
+     **/
+    public static function ofClass<T>(type:Class<T>) {
+        if (Rtti.hasRtti(type)) {
+            var info = Rtti.getRtti(type);
+        }
+    }
+
+    public function fromJsonState(state:JsonSchemaData, clearFirst=true) {
+        if (clearFirst) {
+            this._construct_init();
+        }
+        for (f in state.fields) {
+            var field = new SchemaField(f.name, DataType.TUnknown);
+            field.fromJson(f);
+            this.insertField(field);
+        }
+        for (s in state.indexes) {
+            this.insertIndex(IndexDefinition.unserialize(this, s));
+        }
+        this.pack();
+    }
+
+    public static function ofJsonState(state: JsonSchemaData) {
+        var schema = new StructSchema(state.rowClass.empty()?null:Type.resolveClass(state.rowClass));
+        schema.fromJsonState( state );
+        return schema;
+    }
 }
 
 
@@ -606,12 +676,7 @@ class IndexDefinition {
     }
 
     public function toJson():JsonSchemaIndex {
-        return switch kind {
-            case Simple(path):
-                {fieldName: path.pathName};
-            case other:
-                throw new pm.Error('Unhandled $other');
-        }
+        return serialize();
     }
 
     /**
@@ -627,6 +692,38 @@ class IndexDefinition {
 
     public function createIndex():Dynamic {
         throw new pm.Error.NotImplementedError('TODO: interface Index');
+    }
+
+    public function serialize():String {
+        var s = new Serializer();
+        s.useCache = true;
+        s.serialize(this);
+        return s.toString();
+    }
+
+    @:keep
+    public function hxSerialize(s: Serializer) {
+        s.serialize({
+            name: name,
+            algorithm: algorithm,
+            keyType: keyType,
+            kind: kind
+        });
+    }
+
+    @:keep
+    public function hxUnserialize(u: Unserializer) {
+        var state:Struct = Struct.unsafe(u.unserialize());
+        state.push(this);
+    }
+
+    public static function unserialize(schema:StructSchema, serialized:String):IndexDefinition {
+        var u = new Unserializer(serialized);
+        var idx = u.unserialize();
+        assert((idx is IndexDefinition), 'Invalid value');
+        var idx:IndexDefinition = cast(idx, IndexDefinition);
+        idx.owner = schema;
+        return idx;
     }
 
 /* === Fields === */

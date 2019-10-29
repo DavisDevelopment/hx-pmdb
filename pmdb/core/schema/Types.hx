@@ -53,6 +53,7 @@ typedef JsonSchemaField = {
 	var name:String;
 	var type:String;
 
+	var flags: Int;
 	var optional:Bool;
 	var unique:Bool;
 	var primary:Bool;
@@ -66,9 +67,7 @@ typedef JsonSchemaField = {
 /**
 	[TODO] represent the entire index-spec here
 **/
-typedef JsonSchemaIndex = {
-	var fieldName:String;
-};
+typedef JsonSchemaIndex = String;
 
 typedef JsonSchemaData = {
 	?rowClass:String,

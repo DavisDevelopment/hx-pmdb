@@ -1,5 +1,6 @@
 package pmdb.storage;
 
+import pmdb.core.schema.TableDeclaration;
 import pm.async.Callback;
 import pm.Noise;
 import pm.ImmutableList;
@@ -85,6 +86,8 @@ class DatabasePersistence {
                             //TODO: filter preloads here
                             return true;
                         });
+                        trace(tableSet);
+
                         return this.openTables(ImmutableList.fromArray(tableSet)).flatMap(function(stores) {
                             trace('Loaded (${stores.map(x -> x.name).join(',')})');
                             trace(stores.join(','));
@@ -181,8 +184,6 @@ class DatabasePersistence {
         final startRowCount = table.size();
         Console.debug('calling table._load');
         var ltbl = table._load().failAfter(2000);
-        // ltbl.inspect();
-        // ltbl.map(x -> x.size()).inspect();
     
         return ltbl.map(x -> x.size()).flatMap(function(endRowCount: Int) {
             Console.success("Loaded ", endRowCount, " documents into ", table.name);
@@ -207,7 +208,8 @@ class DatabasePersistence {
                     return done(Failure("ENOENT"));
                 }
             }, error -> done(Failure(error)));
-        }).noisify();
+        })
+        .noisify();
     }
 
     function openManifest(?update):ManifestData {
@@ -219,7 +221,7 @@ class DatabasePersistence {
         });
         // this.manifest.setFormat(Format.json());
         this.manifest.configure({
-            name: 'manifest.json',
+			name: this.getPath('manifest.json').toString(),
             format: cast Format.json()
         });
         this.manifest.open();
@@ -283,37 +285,62 @@ class DatabasePersistence {
         
     }
 
-	private inline function mergeStoreSets(sets: Array<Array<DbStore<Dynamic>>>):Array<DbStore<Dynamic>> {
+    /**
+      given a 2-dimensional list of store declarations, flatten it into the list of actual store instances which should be loaded
+     **/
+	private function mergeStoreSets(sets: Array<Array<TableDeclaration>>):Array<DbStore<Dynamic>> {
         assert(sets != null && sets.length != 0, new pm.Error('sets=$sets', 'InvalidArgument'));
-		return sets[0];
+        var result = new Array();
+		// return sets[0].map(function(d) {
+        //     return d.createStoreInstance(db);
+        // });
+        for (decl in sets[0]) {
+            result.push(decl.createStoreInstance(db));
+        }
+        for (decl in sets[1]) {
+            trace('state for Store<${decl.name}> was loaded from the manifest');
+        }
+        return result;
 	}
 
-	private inline function getStoreSets():Array<Array<DbStore<Dynamic>>> {
+	private inline function getStoreSets():Array<Array<TableDeclaration>> {
 		assert(manifest != null && db != null);
-		var results = [];
-        for (d in db.declaredTables) {
+		var storeSets = new Array();
+        for (d in db.declaredTables)
             trace(d.schema.indexes.keyArray());
-        }
-        var declaredList = [];
+
+        var declaredList = new Array();
 	    for (d in db.declaredTables) {
-            var store = d.createStoreInstance(db);
-            declaredList.push(store);
-            trace(store.indexes.keys().array());
+            declaredList.push(d);
         }
-        results.push(declaredList);
-		return results;
+        storeSets.push(declaredList);
+
+        var manifestStores = new Array();
+        for (l in manifest.currentState.tables) {
+            // var store = new TableDeclaration(l.name, StructSchema.ofJsonState(l.structure));
+            var store = db.createStoreDeclaration(l.name, StructSchema.ofJsonState(l.structure));
+            manifestStores.push(store);
+        }
+        storeSets.push(manifestStores);
+		return storeSets;
 	}
 
+    /**
+      initiate synchronization of all opened Store instances, and resolve when all are complete
+     **/
     public function sync():Promise<Bool> {
         trace('TODO: sync all stores');
         return Promise.resolve(true);
     }
 
+    /**
+      prepare [this] persistence instance for garbage collection
+     **/
     public function release() {
         throw 'Not Implemented';
     }
 
-	public function openStore(options:{?path:String, ?name:String, ?preload:Bool}):Promise<DbStore<Dynamic>> {
+	public function openStore(options: {?path:String, ?name:String, ?preload:Bool}):Promise<DbStore<Dynamic>> {
 		return Promise.reject("Not Implemented");
     }
 

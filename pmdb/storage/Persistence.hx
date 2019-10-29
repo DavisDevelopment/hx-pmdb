@@ -231,7 +231,7 @@ class Persistence<Item> {
     }
 
     inline function getPath(?overrideFilename: String):String {
-        return pm.Helpers.nor(overrideFilename, this.filename);
+        return pm.Helpers.nor(overrideFilename.nullEmpty(), this.filename);
     }
 
     private function serialize(item: Dynamic):String {
