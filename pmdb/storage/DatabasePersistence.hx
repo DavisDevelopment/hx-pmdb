@@ -1,5 +1,6 @@
 package pmdb.storage;
 
+import pmdb.core.schema.TableDeclaration;
 import pm.async.Callback;
 import pm.Noise;
 import pm.ImmutableList;
@@ -85,9 +86,11 @@ class DatabasePersistence {
                             //TODO: filter preloads here
                             return true;
                         });
+                        trace(tableSet);
+
                         return this.openTables(ImmutableList.fromArray(tableSet)).flatMap(function(stores) {
                             trace('Loaded (${stores.map(x -> x.name).join(',')})');
-                            trace(stores);
+                            trace(stores.join(','));
                             //TODO verify the validity of the loaded data
                             return true;
                         });
@@ -181,8 +184,6 @@ class DatabasePersistence {
         final startRowCount = table.size();
         Console.debug('calling table._load');
         var ltbl = table._load().failAfter(2000);
-        // ltbl.inspect();
-        // ltbl.map(x -> x.size()).inspect();
     
         return ltbl.map(x -> x.size()).flatMap(function(endRowCount: Int) {
             Console.success("Loaded ", endRowCount, " documents into ", table.name);
@@ -207,7 +208,8 @@ class DatabasePersistence {
                     return done(Failure("ENOENT"));
                 }
             }, error -> done(Failure(error)));
-        }).noisify();
+        })
+        .noisify();
     }
 
     function openManifest(?update):ManifestData {
@@ -219,7 +221,7 @@ class DatabasePersistence {
         });
         // this.manifest.setFormat(Format.json());
         this.manifest.configure({
-            name: 'manifest.json',
+			name: this.getPath('manifest.json').toString(),
             format: cast Format.json()
         });
         this.manifest.open();
@@ -283,28 +285,119 @@ class DatabasePersistence {
         
     }
 
-	private inline function mergeStoreSets(sets: Array<Array<DbStore<Dynamic>>>):Array<DbStore<Dynamic>> {
+    /**
+      given a 2-dimensional list of store declarations, flatten it into the list of actual store instances which should be loaded
+     **/
+	private function mergeStoreSets(sets: Array<Array<TableDeclaration>>):Array<DbStore<Dynamic>> {
         assert(sets != null && sets.length != 0, new pm.Error('sets=$sets', 'InvalidArgument'));
-		return sets[0];
+
+		var swap = new Map<String, {left:Null<TableDeclaration>, right:Null<TableDeclaration>}>();
+
+        for (a in sets[0])
+            swap[a.name] = {left:a, right:null};
+        
+        for (b in sets[1]) {
+            if (swap.exists(b.name))
+                swap[b.name].right = b;
+            else
+                swap[b.name] = {left:null, right:b};
+        }
+
+        var merged = new Map();
+        var added = new Map();
+        var removed = new Map();
+        
+        for (name=>pair in swap) {
+            switch pair {
+                case {left:a, right:b}:
+                    a.schema.pack();
+                    b.schema.pack();
+                    if (StructSchema.areSchemasEqual(a.schema, b.schema)) {
+                        merged[b.name] = b;
+                    }
+                    else {
+                        throw new pm.Error('Unhandled inequality');
+                        Sys.exit(0);
+                    }
+
+                case {left:a, right:null}:
+                    added[a.name] = a;
+
+                case {left:null, right:a}:
+                    removed[a.name] = a;
+
+                case null|{left:null, right:null}:
+                    throw new pm.Error('Unhandled nullness');
+            }
+        }
+
+        /**
+          [TODO] handle `removed` and `added`
+         **/
+        
+        var result = [for (d in merged) d.createStoreInstance(db)];
+        return result;
 	}
 
-	private inline function getStoreSets():Array<Array<DbStore<Dynamic>>> {
+	private inline function getStoreSets():Array<Array<TableDeclaration>> {
 		assert(manifest != null && db != null);
-		var results = [];
-		results.push([for (x in db.declaredTables) x.createStoreInstance(db)]);
-		return results;
+		var storeSets = new Array();
+        for (d in db.declaredTables)
+            trace(d.schema.indexes.keyArray());
+
+        var declaredList = new Array();
+	    for (d in db.declaredTables) {
+            declaredList.push(d);
+        }
+        storeSets.push(declaredList);
+
+        var manifestStores = new Array();
+        for (l in manifest.currentState.tables) {
+            // var store = new TableDeclaration(l.name, StructSchema.ofJsonState(l.structure));
+            var store = db.createStoreDeclaration(l.name, StructSchema.ofJsonState(l.structure));
+            manifestStores.push(store);
+        }
+        storeSets.push(manifestStores);
+		return storeSets;
 	}
 
+    /**
+      initiate synchronization of all opened Store instances, and resolve when all are complete
+     **/
     public function sync():Promise<Bool> {
         trace('TODO: sync all stores');
+        syncManifest();
         return Promise.resolve(true);
     }
 
+    function syncManifest() {
+        var tables:Array<DbStore<Dynamic>> = [for (store in db.stores) store];
+		this.manifest.update(PUpdate.modCb(function(info:ManifestData) {
+			final len = tables.length;
+			var storeManifests = pm.Arrays.alloc(len);
+
+			for (index in 0...len) {
+				var store = tables[index];
+				storeManifests[index] = Tools.toJson(store);
+			}
+
+			storeManifests.sort(function(a, b) {
+				return Reflect.compare(a.name, b.name);
+			});
+
+			info.tables = storeManifests;
+		}));
+		this.manifest.push();
+    }
+
+    /**
+      prepare [this] persistence instance for garbage collection
+     **/
     public function release() {
         throw 'Not Implemented';
     }
 
-	public function openStore(options:{?path:String, ?name:String, ?preload:Bool}):Promise<DbStore<Dynamic>> {
+	public function openStore(options: {?path:String, ?name:String, ?preload:Bool}):Promise<DbStore<Dynamic>> {
 		return Promise.reject("Not Implemented");
     }
 

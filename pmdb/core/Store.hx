@@ -131,9 +131,11 @@ class Store<Item> extends Emitter<String, Dynamic> {
 
         assert(schema != null, new Error('Schema must be provided'));
 
+
+        final allowIndexingOnDynamicFields = true;
         for (info in schema.indexes) {
-            //_addIndexToCache(_buildIndex( info ));
-            if (schema.hasField( info.name )) {
+            
+            if (allowIndexingOnDynamicFields || schema.hasField( info.name )) {
                 addSimpleIndex( info.name );
             }
         }

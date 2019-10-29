@@ -7,9 +7,23 @@ import haxe.rtti.CType;
 
 @:keep
 enum IndexType {
-	Simple(path:DotPath);
+	Simple(path: DotPath);
 	// Compound(types:Array<IndexType>);
-	Expression(expr:ValueExpr);
+	Expression(expr: ValueExpr);
+}
+interface IndexDefObject {
+	function toString():String;
+	function getIndexType():IndexType;
+	function getStructKey(o: Struct):Dynamic;
+	function compareKeys(a:Dynamic, b:Dynamic):Int;
+
+	function isUnique():Bool;
+	function isSparse():Bool;
+	function createNewInstance():Dynamic;
+}
+
+class SimpleIndexDef {
+	public var path: DotPath;
 }
 
 @:keep
@@ -39,6 +53,7 @@ typedef JsonSchemaField = {
 	var name:String;
 	var type:String;
 
+	var flags: Int;
 	var optional:Bool;
 	var unique:Bool;
 	var primary:Bool;
@@ -52,9 +67,7 @@ typedef JsonSchemaField = {
 /**
 	[TODO] represent the entire index-spec here
 **/
-typedef JsonSchemaIndex = {
-	var fieldName:String;
-};
+typedef JsonSchemaIndex = String;
 
 typedef JsonSchemaData = {
 	?rowClass:String,

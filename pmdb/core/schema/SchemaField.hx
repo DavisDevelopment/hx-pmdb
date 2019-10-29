@@ -10,9 +10,10 @@ import pmdb.core.schema.Types;
 import pmdb.core.schema.SchemaFieldAccessHelper;
 
 /**
-	class which represents a field of the schema
+	class which represents an object field (row column) and is attached to a schema
 **/
 class SchemaField {
+	/* Constructor Function */
 	public function new(name, type, ?flags) {
 		this.name = name;
 		this.flags = flags == null ? new EnumFlags() : flags;
@@ -29,7 +30,8 @@ class SchemaField {
 		this.access = new SchemaFieldAccessHelper(this);
 	}
 
-	/* === Methods === */
+/* === Methods === */
+
 	public function clone():SchemaField {
 		return new SchemaField(name, type, flags);
 	}
@@ -44,16 +46,16 @@ class SchemaField {
 		calcEType();
 	}
 
-	public function removeFlag(flag:FieldFlag) {
+	public function removeFlag(flag: FieldFlag) {
 		flags.unset(flag);
 		calcEType();
 	}
 
-	public inline function hasFlag(flag:FieldFlag):Bool {
+	public inline function hasFlag(flag: FieldFlag):Bool {
 		return flags.has(flag);
 	}
 
-	public inline function is(flag:FieldFlag):Bool {
+	public inline function is(flag: FieldFlag):Bool {
 		return hasFlag(flag);
 	}
 
@@ -69,7 +71,7 @@ class SchemaField {
 		return optional || primary || type.match(TNull(_));
 	}
 
-	public function checkValueType(value:Dynamic):Bool {
+	public function checkValueType(value: Dynamic):Bool {
 		return etype.checkValue(value);
 	}
 
@@ -77,6 +79,9 @@ class SchemaField {
 		return 'FieldDefinition("$name", ...)';
 	}
 
+	/**
+	  [TODO] surely the necessity of this hack can be eliminated(?)
+	 **/
 	inline function calcEType() {
 		etype = type;
 		if (isOmittable())
@@ -109,15 +114,16 @@ class SchemaField {
 	}
 
 	public function toJson():JsonSchemaField {
-		return {
+		var data:JsonSchemaField = {
 			name: this.name,
 			type: this.type.print(),
+			flags: this.flags.toInt(),
 			optional: this.optional,
 			unique: this.unique,
 			primary: this.primary,
 			autoIncrement: this.autoIncrement,
 			incrementer: {
-				if (autoIncrement && incrementer != null)
+				if (autoIncrement && this.incrementer != null)
 					{
 						state: incrementer.current()
 					};
@@ -125,19 +131,48 @@ class SchemaField {
 					null;
 			}
 		};
+		return data;
+	}
+
+	public function fromJson(state: JsonSchemaField) {
+		/**
+		  [?] should a SchemaField's "name" be changeable?
+		 **/
+		this.type = ValType.ofString(state.type);
+		this.flags = new EnumFlags(state.flags);
+		if (this.autoIncrement && nn(state.incrementer)) {
+			this.incrementer = new Incrementer(cast(state.incrementer.state, Int));
+		}
+		_dirty = true;
+	}
+
+	public function equals(other: SchemaField):Bool {
+		return (
+			this.name == other.name &&
+			this.type.equals(other.type) &&
+			this.flags.toInt() == other.flags.toInt()
+		);
 	}
 
 	public function extract(o:Dynamic):Null<Dynamic> {
+		Console.warn('<invert>TODO:</> <b>reimplement/refactor SchemaField.extract</>');
 		return Reflect.field(o, name);
 	}
 
 	public function assign(o:Dynamic, value:Dynamic):Null<Dynamic> {
+		Console.warn('<invert>TODO:</> <b>reimplement/refactor SchemaField.assign</>');
 		Reflect.setField(o, name, value);
 		return value;
 	}
 
 	public inline function exists(o:Dynamic):Bool {
+		Console.warn('<invert>TODO:</> <b>reimplement/refactor SchemaField.exists</>');
 		return Reflect.hasField(o, name);
+	}
+
+	inline function set_flag(flag:FieldFlag, b:Bool) {
+		if (b) flags.set(flag) else flags.unset(flag);
+		return b;
 	}
 
 	/**
@@ -190,5 +225,7 @@ class SchemaField {
 	public var etype(default, null): DataType;
 
 	private var incrementer(default, null): Null<Incrementer>;
+
+	private var _dirty: Bool = false;
 }
 

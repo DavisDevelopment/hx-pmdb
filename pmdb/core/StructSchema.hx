@@ -1,5 +1,6 @@
 package pmdb.core;
 
+import pm.datetime.DateTime;
 import pmdb.ql.ts.DataType;
 import pmdb.ql.ast.Value;
 import pmdb.ql.ts.TypeSystemError;
@@ -31,6 +32,16 @@ using pm.Arrays;
 using pm.Iterators;
 using pm.Functions;
 
+typedef StructSchemaConfig = {
+    autoInsertIndexes: Bool,
+    ignoreTypes: Bool,
+    
+    primaryKey: Bool
+};
+
+/**
+  data class which manages and represents the role, shape and type structure of an anonymous object within a particular context in the pmdb library
+ **/
 class StructSchema {
     /* Constructor Function */
     public function new(?typeClass: Class<Dynamic>) {
@@ -52,6 +63,34 @@ class StructSchema {
         _construct();
     }
 
+/* === Fields === */
+
+	public var fields(default, null):Dictionary<SchemaField>;
+	public var indexes(default, null):Dictionary<IndexDefinition>;
+	public var type(default, null):Null<StructClassInfo> = null;
+
+	private var _pk(default, null):Null<String> = null;
+	private var options:StructSchemaConfig;
+
+    private var _dirty(default, null):Bool = false;
+    private var _packedAt(default, null):Null<DateTime> = null;
+    private var _preventExtension(default, null):Bool = false;
+
+/* === Properties === */
+
+	public var primaryKey(get, never):String;
+
+	function get_primaryKey():String {
+		// return _pk == null ? _findPrimary(false) : _pk;
+		if (!_pk.empty())
+			return _pk;
+		if (_pk == null)
+			_findPrimary(false);
+		if (_pk == null)
+			return '';
+		return _pk;
+	}
+
 /* === Methods === */
 
     private function _construct() {
@@ -63,6 +102,14 @@ class StructSchema {
         fields = new Dictionary();
         indexes = new Dictionary();
         this.type = null;
+        this._dirty = false;
+        this._packedAt = null;
+        this._preventExtension = false;
+        this.options = {
+            autoInsertIndexes: true,
+            primaryKey: true,
+            ignoreTypes: false
+        };
     }
 
     function _type_init_() {
@@ -96,11 +143,69 @@ class StructSchema {
             }
         }
 
-        if (ensure && _pk == null) {
+        if (ensure && options.autoInsertIndexes && _pk == null) {
             addField(_pk = '_id', String, [Primary, Unique, AutoIncrement]);
         }
 
         return _pk;
+    }
+
+    /**
+      [betty]
+     **/
+    public function pack() {
+        var oldPacketAt = this._packedAt;
+        if (_dirty || true) {
+            _packedAt = DateTime.now();
+            for (idx in indexes) switch idx.kind {
+                case IndexType.Simple({path: [fieldName]}):
+                    var correspondingField = fields.get(fieldName);
+                    if (correspondingField == null) {
+                        correspondingField = this.addField(fieldName, idx.keyType);
+                    }
+
+                case IndexType.Expression(e):
+                    throw 'Unhandled $e';
+
+                default:
+            }
+
+            for (field in fields) {
+                if (field.unique) {
+                    var correspondingIdx = indexes.find(function(idx) {
+                        return switch idx.kind {
+                            case Simple({path:[name]}): name==field.name;
+                            default: false;
+                        }
+                    });
+
+                    if (correspondingIdx == null) {
+                        correspondingIdx = this.addIndex({
+                            name: field.name,
+                            kind: Simple(DotPath.fromPath([field.name])),
+                            type: field.type,
+                            algorithm: IndexAlgo.AVLIndex
+                        });
+                    }
+                }
+                
+            }
+        }
+        // throw new pm.Error.NotImplementedError();
+    }
+
+    /**
+      perform basic sanity and coherence checks, and error out if any fail
+     **/
+    public function validate(unsafe=false):Bool {
+        if (!_dirty && options.primaryKey && (_pk == null || !hasField(_pk) || !fields.get(_pk).primary)) {
+            if (!unsafe)
+                return false;
+            else
+                throw new pm.Error('StructSchema is missing its primary-key, but is configured to require one');
+        }
+        return true;
+        //TODO more checks
     }
 
     /**
@@ -122,9 +227,10 @@ class StructSchema {
             }),
             //[],
             this.indexes.iterator().map(function(i) {
+                
                 return {
                     name: i.name,
-                    type: i.type,
+                    type: i.keyType,
                     algorithm: i.algorithm,
                     kind: i.kind
                 };
@@ -199,7 +305,42 @@ class StructSchema {
         return fields.keyArray();
     }
 
+    public static function areSchemasEqual(a:StructSchema, b:StructSchema):Bool {
+        var strSort:String->String->Int = (a:String, b:String)->Reflect.compare(a, b);
+        var aFields = a.fields.keyArray(), bFields = b.fields.keyArray();
+        aFields.sort(strSort);
+        bFields.sort(strSort);
+        if (!Arch.areArraysEqual(aFields, bFields)) return false;
+        trace('field keys are equal');
+        var aIndexes = a.indexes.keyArray(), bIndexes = b.indexes.keyArray();
+        aIndexes.sort(strSort);
+        bIndexes.sort(strSort);
+        trace([aIndexes, bIndexes]);
+        if (!Arch.areArraysEqual(aIndexes, bIndexes)) return false;
+        trace('index keys are equal');
+
+        for (i in 0...aFields.length) {
+            var aField = a.fields[aFields[i]], bField = b.fields[bFields[i]];
+            if (!aField.equals(bField)) {
+                trace('${aField.name} != ${bField.name}');
+                return false;
+            }
+        }
+
+        for (i in 0...aIndexes.length) {
+            // if (!a.indexes[aIndexes[i]])
+        }
+
+        return true;
+    }
+
+    /**
+      [TODO] add fields to StructSchema for tracking field information over iterated calls to `validateStruct`
+     **/
     public function validateStruct(o:Struct, unsafe=false):Bool {
+        var keepTrackOfExtraFields = true;
+        var structFields = o.keys();
+
         for (field in fields) {
             if (!o.exists(field.name) || o[field.name] == null) {
                 if (!field.isOmittable()) {
@@ -214,6 +355,15 @@ class StructSchema {
                 throw new pmdb.core.Error('${o[field.name]} should be ${field.type}');
                 return false;
             }
+
+            if (keepTrackOfExtraFields) {
+                structFields.remove(field.name);
+            }
+        }
+
+        if (keepTrackOfExtraFields && !structFields.empty()) {
+            structFields.sort(cast Reflect.compare);
+            var extraFields = [for (name in structFields) name=>o[name].dataTypeOf()];
         }
 
         return true;
@@ -225,7 +375,8 @@ class StructSchema {
        - create actual Struct type, which implements its own methods for the operations I'm relying on `Arch` to provide currently
      **/
     public function prepareStruct(o: Struct):Struct {
-        var doc:Struct;
+        // create the document object which will actually be inserted into the Store's internal cache
+        var doc: Struct;
         #if (row_type_coerce)
         if (type != null && !Std.is(o, type.proto)) {
             doc = Arch.buildClassInstance(type.proto, Arch.clone(o, ShallowRecurse));
@@ -239,8 +390,11 @@ class StructSchema {
         #else
         doc = Arch.clone(o, ShallowRecurse);
         #end
+
+        // redeclare the document, (This really shouldn't be being done)
         var doc:Struct = Arch.clone(Arch.ensure_anon(o), ShallowRecurse);
 
+        // ensure that the primary-key field has a value
         if (!doc.exists(primaryKey) || doc[primaryKey] == null) {
             switch (field( primaryKey )) {
                 case {type:TAny|TScalar(TString)}:
@@ -255,9 +409,11 @@ class StructSchema {
         }
 
         /* === [Sanity Checks] === */
-        #if debug
+
+
+        // this will ensure that the document has been altered such that it can be inserted successfully into a Store<?>
+        // and ensure that the shape/structure of documents passing through the schema can have analytics reliably captured
         validateStruct(doc, true);
-        #end
 
         return doc;
     }
@@ -296,6 +452,12 @@ class StructSchema {
     }
 
     public function addIndex(desc: IndexInit):IndexDefinition {
+        var i:Dynamic = untyped desc;
+        if ((i is IndexDefinition)) {
+            insertIndex(cast(i, IndexDefinition));
+            return cast(i, IndexDefinition);
+        }
+
         return switch desc {
             case {name:null, kind:null}:
                 throw new pmdb.core.Error('Either "name" or "kind" fields MUST be provided');
@@ -314,8 +476,9 @@ class StructSchema {
                     desc.type
                 );
 
-            case other:
-                throw new pmdb.core.Error('Invalid IndexInit object $other');
+            case literal:
+                trace(literal);
+                putIndex(desc.kind, desc.name, desc.algorithm, desc.type);
         }
     }
 
@@ -340,6 +503,7 @@ class StructSchema {
         return DataType.TAnon(toObjectType());
     }
 
+    @:deprecated("StructSchema should represent a DataType category of its own")
     public function toObjectType() {
         var o = new CObjectType([]);
         o.fields.resize( fields.length );
@@ -451,26 +615,35 @@ class StructSchema {
         schema.putIndex(Simple( f.name ));
     }
 
-
-/* === Properties === */
-
-    public var primaryKey(get, never): String;
-    function get_primaryKey():String {
-        // return _pk == null ? _findPrimary(false) : _pk;
-        if (!_pk.empty()) return _pk; 
-        if (_pk == null) _findPrimary(false);
-        if (_pk == null) return '';
-        return _pk;
+    /**
+      [TODO] actually implement this method
+     **/
+    public static function ofClass<T>(type:Class<T>) {
+        if (Rtti.hasRtti(type)) {
+            var info = Rtti.getRtti(type);
+        }
     }
 
-/* === Fields === */
+    public function fromJsonState(state:JsonSchemaData, clearFirst=true) {
+        if (clearFirst) {
+            this._construct_init();
+        }
+        for (f in state.fields) {
+            var field = new SchemaField(f.name, DataType.TUnknown);
+            field.fromJson(f);
+            this.insertField(field);
+        }
+        for (s in state.indexes) {
+            this.insertIndex(IndexDefinition.unserialize(this, s));
+        }
+        this.pack();
+    }
 
-    public var fields(default, null): Dictionary<SchemaField>;
-    public var indexes(default, null): Dictionary<IndexDefinition>;
-    public var type(default, null): Null<StructClassInfo> = null;
-
-    private var _pk(default, null): Null<String> = null;
-    private var options:Dynamic = {};
+    public static function ofJsonState(state: JsonSchemaData) {
+        var schema = new StructSchema(state.rowClass.empty()?null:Type.resolveClass(state.rowClass));
+        schema.fromJsonState( state );
+        return schema;
+    }
 }
 
 
@@ -517,12 +690,7 @@ class IndexDefinition {
     }
 
     public function toJson():JsonSchemaIndex {
-        return switch kind {
-            case Simple(path):
-                {fieldName: path.pathName};
-            case other:
-                throw new pm.Error('Unhandled $other');
-        }
+        return serialize();
     }
 
     /**
@@ -538,6 +706,38 @@ class IndexDefinition {
 
     public function createIndex():Dynamic {
         throw new pm.Error.NotImplementedError('TODO: interface Index');
+    }
+
+    public function serialize():String {
+        var s = new Serializer();
+        s.useCache = true;
+        s.serialize(this);
+        return s.toString();
+    }
+
+    @:keep
+    public function hxSerialize(s: Serializer) {
+        s.serialize({
+            name: name,
+            algorithm: algorithm,
+            keyType: keyType,
+            kind: kind
+        });
+    }
+
+    @:keep
+    public function hxUnserialize(u: Unserializer) {
+        var state:Struct = Struct.unsafe(u.unserialize());
+        state.push(this);
+    }
+
+    public static function unserialize(schema:StructSchema, serialized:String):IndexDefinition {
+        var u = new Unserializer(serialized);
+        var idx = u.unserialize();
+        assert((idx is IndexDefinition), 'Invalid value');
+        var idx:IndexDefinition = cast(idx, IndexDefinition);
+        idx.owner = schema;
+        return idx;
     }
 
 /* === Fields === */

@@ -12,6 +12,7 @@ import pmdb.async.Executor;
 import pmdb.core.query.*;
 import pmdb.storage.*;
 import pmdb.storage.DatabasePersistence;
+import pmdb.core.schema.TableDeclaration;
 
 import pm.async.*;
 
@@ -143,10 +144,14 @@ class Database extends Emitter<String, Dynamic> {
 
     /**
       synchronizes `this` Database
-      @see `DatabasePersistence.sync`
+      @see DatabasePersistence.sync
      **/
-    public function sync() {
-        persistence.sync();
+    public function sync(?pos: haxe.PosInfos) {
+        executor.exec('root', function() {
+            return Promise.async(function(done) {
+                persistence.sync().noisify().handle(done);
+            });
+        });
     }
 
     /**
@@ -154,9 +159,11 @@ class Database extends Emitter<String, Dynamic> {
       [TODO] use lockFile to track whether a Database folder is being managed by an active process already
      **/
     public function close(?callback:(error:Null<Dynamic>)->Void):Promise<Noise> {
-        return Promise.async(function(done) {
-            persistence.close().noisify().handle(done);
-        });
+        return executor.exec('root', function() {
+            return Promise.async(function(done) {
+                persistence.close().handle(done);
+            });
+        }).noisify();
     }
 
     /**
@@ -196,103 +203,14 @@ class Database extends Emitter<String, Dynamic> {
                 name: name,
                 preload: true
             });
-            loadedStores[name] = tblp2;
-            return this.load(name);
+            return loadedStores[name] = tblp2;
         }
-    }
-
-    @:deprecated
-    function schemaFromData(data: TableStructureData):StructSchema {
-        var data = {structure: data};
-        var init:pmdb.core.FrozenStructSchema.FrozenStructSchemaInit = {
-            fields: new Array(),
-            indexes: new Array(),
-            options: {}
-        };
-        init.fields.resize(data.structure.fields.length);
-        init.indexes.resize(data.structure.indexes.length);
-
-        for (i in 0...data.structure.fields.length) {
-            var f = data.structure.fields[i];
-            init.fields[i] = {
-                name: f.name,
-                type: ValType.ofString(f.type),
-                flags: {
-                    optional: f.optional,
-                    unique: f.unique,
-                    autoIncrement: f.autoIncrement,
-                    primary: f.primary
-                }
-            };
-        }
-
-        for (i in 0...data.structure.indexes.length) {
-            var idx = data.structure.indexes[i];
-            init.indexes[i] = {
-                name: idx.fieldName
-            };
-        }
-
-        var rowClass:Null<Class<Dynamic>> = null;
-        if (data.structure.rowClass != null)
-            rowClass = Type.resolveClass(data.structure.rowClass);
-        if (rowClass == null)
-            throw new pm.Error('Class<${data.structure.rowClass}> not found!');
-
-        var schema:StructSchema = new FrozenStructSchema(init.fields, init.indexes, init.options).thaw(rowClass);
-
-        return schema;
-    }
-
-    /**
-      build a Store<?> object from the given TableData
-     **/
-    function tableFromData(data: TableData):DbStore<Dynamic> {
-        var init:pmdb.core.FrozenStructSchema.FrozenStructSchemaInit = {
-            fields: new Array(),
-            indexes: new Array(),
-            options: {}
-        };
-        init.fields.resize(data.structure.fields.length);
-        init.indexes.resize(data.structure.indexes.length);
-
-        for (i in 0...data.structure.fields.length) {
-            var f = data.structure.fields[i];
-            init.fields[i] = {
-                name: f.name,
-                type: ValType.ofString(f.type),
-                flags: {
-                    optional: f.optional,
-                    unique: f.unique,
-                    autoIncrement: f.autoIncrement,
-                    primary: f.primary
-                }
-            };
-        }
-
-        for (i in 0...data.structure.indexes.length) {
-            var idx = data.structure.indexes[i];
-            init.indexes[i] = {
-                name: idx.fieldName
-            };
-        }
-
-        var schema:StructSchema = new FrozenStructSchema(init.fields, init.indexes, init.options).thaw();
-        var o:StoreOptions = {
-            filename: Path.join([this.path, '${data.name}.db']),
-            schema: schema,
-            inMemoryOnly: false,
-            primary: schema.primaryKey,
-            executor: executor,
-            storage: storage
-        };
-        var store:DbStore<Dynamic> = new DbStore<Dynamic>(data.name, this, o);
-        return store;
     }
 
     /**
       obtain a reference to the given table
       TODO: provide a table definition to this method as well, and intelligently merge/update the provided spec with the saved one when necessary
+      TODO: throw special error when the referenced Store is not loaded, but *is* loading
      **/
     public function table<Row>(name: String):DbStore<Row> {
         if (stores.exists(name)) {
@@ -301,7 +219,6 @@ class Database extends Emitter<String, Dynamic> {
         else {
             throw new pm.Error('table("$name") not found');
         }
-        // this.addStore
     }
 
     public function declarationFor(name: String) {
@@ -327,7 +244,6 @@ class Database extends Emitter<String, Dynamic> {
 
         if (!stores.exists(name))
             stores[name] = store;
-        // store._load();//fixme
         return store;
     }
 
@@ -365,76 +281,29 @@ class Database extends Emitter<String, Dynamic> {
             throw 'Nope, sha';
         }
 
-        if (options == null) options = {};
-
-        var o:StoreOptions = {
-            filename: !options.filename.empty() ? Path.join([this.path, options.filename]) : Path.join([this.path, '$name.db']),
-            schema: schema,
-            primary: schema.primaryKey,
-            executor: executor,
-            storage: storage
-        };
-
-        Arch.anon_copy(options, o);
-        declaredTables.set(name, {name:name, schema: schema, options:o});
-
+        var d = createStoreDeclaration(name, schema, options);
+        declaredTables.set(name, d);
         //TODO sync [this] manifest
 
         return this;
     }
 
-    /**
-      create and register a Store<Dynamic> on [this] Database
-      [TODO] deprecate and create a `Database.structure : DatabaseStructure` field
-    /*
-    @:deprecated('createStore has been deprecated in favor of using the DatabaseStructureBuilder API')
-    public function createStore(name:String, ?schema:StructSchema, ?options:StoreOptions) {
-        if (stores.exists(name)) {
-            throw 'TODO!';
-        }
-        else {
-            switch [name, schema, options] {
-                case [name, null, null]:
-                    var decl = declaredTables[name];
-                    if (decl == null) {
-                        throw 'Invalid call';
-                    }
-                    var store:DbStore<Dynamic> = new DbStore(name, this, decl.options);
-                    store = addStore(name, store);
-                    sync();
-                    return store;
+    public function createStoreDeclaration(name, schema, ?options:StoreOptions):TableDeclaration {
+		if (options == null)
+			options = {};
 
-                case [_, _, _]:
-                    if (!declaredTables.exists(name)) {
-                        defineStore(name, schema, options);
-                        return createStore(name, null, null);
-                    }
-                    else {
-                        throw 'Invalid call';
-                    }
-            }
-            throw 'Unreachable';
+		var o:StoreOptions = {
+			filename: !options.filename.empty() ? Path.join([this.path, options.filename]) : Path.join([this.path, '$name.db']),
+			schema: schema,
+			primary: schema.primaryKey,
+			executor: executor,
+			storage: storage
+		};
 
-            if (options == null) {
-                options = {};
-            }
-            var o:StoreOptions = {
-                filename: nor(options.filename, Path.join([this.path, '$name.db'])),
-                schema: schema,
-                inMemoryOnly: path == '<in-memory>',
-                primary: schema.primaryKey,
-                executor: executor,
-                storage: storage
-            };
-            @:privateAccess schema._init();
-            Arch.anon_copy(options, o);
-
-            var store:DbStore<Dynamic> = new DbStore(name, this, o);
-            store = addStore(name, store);
-            return store;
-        }
+		Arch.anon_copy(options, o);
+        trace(options);
+        return new TableDeclaration(name, schema, o);
     }
-    */
 
     /**
       insert a new Doc into the given table
@@ -522,49 +391,6 @@ class Database extends Emitter<String, Dynamic> {
 
     private var _isReady:Bool = false;
 }
-
-@:structInit
-class TableDeclaration {
-    public var name: String;
-    public var schema: SchemaInit;
-    public var options: Null<StoreOptions>;
-    
-    @:optional
-    public var finalTableInit(default, null):Null<StoreOptions> = null;
-
-    public function new(name, schema:SchemaInit, options:Null<StoreOptions>) {
-        this.name = name;
-        this.schema = schema;
-        this.options = options;
-        this.finalTableInit = buildTableInit(name, schema, options);
-    }
-    
-    /**
-      @param db - the `Database` object to which the Store instance should be attached
-     **/
-    public inline function createStoreInstance(db: Database):DbStore<Dynamic> {
-        return new DbStore(name, db, finalTableInit);
-    }
-    
-    /**
-      jsonification`
-     **/
-    public inline function toJson():TableData {
-        return {
-            name: this.name,
-            pathName: '${name}.db',
-            structure: finalTableInit.schema.toJson()
-        };
-    }
-
-    static function buildTableInit(name, schema:StructSchema, options:StoreOptions) {
-        var o:StoreOptions = Reflect.copy(options);
-        o.schema = schema;
-        return o;
-    }
-}
-
-typedef SchemaInit = StructSchema;
 
 @:access(pmdb.core.Database)
 class StoreConnection<Item> {
