@@ -10,6 +10,7 @@ abstract Lazy<T> (ILazy<T>) from ILazy<T> to ILazy<T> {
         return this.get();
     }
 
+    #if (tannus || tnative)
     @:to
     public inline function asTannusLazy():tannus.ds.Lazy<T> {
         var me = this;
@@ -17,6 +18,7 @@ abstract Lazy<T> (ILazy<T>) from ILazy<T> to ILazy<T> {
             return me.get();
         });
     }
+    #end
 
     public inline function map<O>(fn: T -> O):Lazy<O> {
         return ofFn(function():O {

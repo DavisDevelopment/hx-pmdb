@@ -1,5 +1,6 @@
 package unit;
 
+import pm.async.Promise;
 import haxe.PosInfos;
 import haxe.io.*;
 
@@ -15,10 +16,9 @@ import pmdb.Macros.*;
 using Slambda;
 using pmdb.core.Error;
 using StringTools;
-using tannus.FunctionTools;
+using pm.Functions;
 
 using haxe.macro.ExprTools;
-using tannus.macro.MacroTools;
 
 /**
   TODO also write some scaffolding for running benchmarks
@@ -70,7 +70,8 @@ class TestSuite {
       I'm doing in <code>assertEq</code> and <code>assertNEq</code>
      **/
     @:keep
-    inline function assertEq<A, B>(a:A, b:B, ?c:Dynamic) {
+    inline function assertEq<A, B>(a:A, b:B, ?c:Dynamic, ?pos:haxe.PosInfos) {
+        // trace('assertEq($a, $b)', pos);
         assert(Arch.areThingsEqual(a, b), c != null ? c : '$a == $b');
     }
 
@@ -120,6 +121,17 @@ class TestSuite {
             return new TestCaseResult(measure( f ), null);
         }
     }
+    // private static function async_tcwrap(f:Void->Promise<Dynamic>, cb:TestCaseResult->Void):Void->Promise<TestCaseResult> {
+    //     return function() {
+    //         var start = timestamp();
+
+    //         return new Promise((yeah:TestCaseResult->Void, nawp) -> {
+    //             defer(()->{
+    //                 yeah()
+    //             })
+    //         })
+    //     }
+    // }
 
     private var cases(default, null): Array<TestCase>;
     private var caseMap(default, null): Map<String, TestCase>;

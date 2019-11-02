@@ -14,10 +14,8 @@ import haxe.Constraints.Function;
 import haxe.rtti.Meta;
 
 using StringTools;
-using tannus.ds.StringUtils;
-using Slambda;
-using tannus.ds.ArrayTools;
-using tannus.FunctionTools;
+using pm.Arrays;
+using pm.Functions;
 using pmdb.ql.ts.DataTypes;
 using pmdb.ql.ast.Predicates;
 

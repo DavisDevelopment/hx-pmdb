@@ -1,19 +1,21 @@
 package pmdb.core.ds;
 
-import tannus.ds.Pair;
 import haxe.ds.Option;
-
-import tannus.math.TMath as Math;
+import pm.Pair;
 
 import pmdb.core.Comparator;
 
 import Slambda.fn;
 
-using Slambda;
-using tannus.ds.ArrayTools;
-using tannus.ds.IteratorTools;
-using tannus.FunctionTools;
-using tannus.async.OptionTools;
+// using Slambda;
+// using tannus.ds.ArrayTools;
+// using tannus.ds.IteratorTools;
+// using tannus.FunctionTools;
+// using tannus.async.OptionTools;
+using pm.Arrays;
+using pm.Iterators;
+using pm.Functions;
+using pm.Options;
 
 @:forward
 abstract TreeModel<K, V> (ITreeModel<K, V>) from ITreeModel<K, V> {

@@ -9,21 +9,17 @@ import pmdb.core.Equator;
 import pmdb.core.Assert.assert;
 import pmdb.core.*;
 import pmdb.ql.ts.TypeSystemError;
-//import pmdb.core.query.IndexCaret;
+import pmdb.core.query.IndexCaret;
 
 import haxe.ds.Option;
 import haxe.PosInfos;
 
-import tannus.math.TMath as M;
+// import tannus.math.TMath as M;
 import Slambda.fn;
 //import pmdb.Globals.*;
 //import pmdb.Macros.*;
 
 using Slambda;
-using tannus.ds.ArrayTools;
-using StringTools;
-using tannus.ds.StringUtils;
-using tannus.FunctionTools;
 
 @:forward
 abstract IndexItemCaret<Item> (IndexItemCaretObject<Item>) from IndexItemCaretObject<Item> to IndexItemCaretObject<Item> {

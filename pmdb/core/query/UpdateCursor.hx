@@ -1,7 +1,6 @@
 package pmdb.core.query;
 
-import tannus.ds.Lazy;
-
+import pm.Lazy;
 import pmdb.ql.types.*;
 import pmdb.ql.ts.*;
 import pmdb.ql.ts.DataType;
@@ -33,12 +32,11 @@ import Std.is as isType;
 import pmdb.core.Assert.assert;
 
 using StringTools;
-using tannus.ds.StringUtils;
-using Slambda;
-using tannus.ds.ArrayTools;
-using tannus.async.OptionTools;
-using tannus.ds.IteratorTools;
-using tannus.FunctionTools;
+using pm.Strings;
+using pm.Arrays;
+using pm.Iterators;
+using pm.Options;
+using pm.Functions;
 using pmdb.ql.ast.Predicates;
 using pmdb.core.ds.Outcome;
 

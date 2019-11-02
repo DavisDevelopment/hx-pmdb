@@ -1,12 +1,12 @@
 package pmdb.ql.ast;
 
-import tannus.ds.Lazy;
+import pm.Lazy;
 
 import pmdb.ql.ts.DataType;
 
 using StringTools;
-using tannus.ds.StringUtils;
-using tannus.ds.ArrayTools;
+using pm.Strings;
+using pm.Arrays;
 
 enum TypeExpr {
     TEPath(path: TypePath);

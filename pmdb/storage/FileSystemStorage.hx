@@ -11,6 +11,10 @@ import sys.io.File;
 
 import pmdb.storage.IStorage;
 
+using pm.Strings;
+using pm.Path;
+using pm.Arrays;
+
 class FileSystemStorage implements IStorageSync {
     /* Constructor Function */
     public function new() {
@@ -21,6 +25,10 @@ class FileSystemStorage implements IStorageSync {
 
     public function exists(path: String):Bool {
         return inline FileSystem.exists( path );
+    }
+
+    public function size(path: String):Int {
+        return FileSystem.stat(path).size;
     }
 
     public function rename(oname:String, nname:String) {
@@ -67,8 +75,56 @@ class FileSystemStorage implements IStorageSync {
         #end
     }
 
+    public function createDirectory(path: String) {
+        FileSystem.createDirectory(path);
+    }
+
     public function mkdirp(path: String):Void {
-        FileSystem.createDirectory( path );
+        var pieces:Array<String> = [];
+        var p:String = path;
+        do {
+            pieces.push(p);
+            p = p.directory();
+        }
+        while (!(p.empty() || p == '.' || p == '..'));
+
+        try {
+            FileSystem.createDirectory( path );
+        }
+        catch (err: Dynamic) {
+            trace('createDirectory($path) error: $err');
+            if (isNotFoundError(err)) {
+                var i = pieces.length;
+                while (i-- > 0) {
+                    var part:String = pieces[i];
+                    if (!exists(part)) {
+                        createDirectory(part);
+                    }
+                }
+                assert(exists(path), new pm.Error('Failed to create "$path"'));
+            }
+            else {
+                throw err;
+            }
+        }
+    }
+
+    private function isNotFoundError(error: Dynamic) {
+        var message:String = '';
+        if ((error is String))
+            message = cast(error, String);
+        else {
+            return false;
+        }
+
+        if (message.empty()) {
+            return false;
+        }
+        var enoent:EReg = (~/ENOENT: no such file or directory/gmi);
+        if (enoent.match(message)) {
+            return true;
+        }
+        return false;
     }
 
     public function ensureFileDoesntExist(path: String):Bool {

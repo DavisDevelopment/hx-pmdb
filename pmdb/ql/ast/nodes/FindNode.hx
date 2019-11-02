@@ -8,9 +8,8 @@ import pmdb.core.Assert.assert;
 import pmdb.ql.ast.QlCommand;
 import pmdb.ql.ast.nodes.Check;
 
-using Slambda;
-using tannus.ds.ArrayTools;
-using tannus.FunctionTools;
+using pm.Arrays;
+using pm.Functions;
 using pmdb.Macros;
 
 class FindNode<Item> extends QueryRootNode<Iterable<Item>> {

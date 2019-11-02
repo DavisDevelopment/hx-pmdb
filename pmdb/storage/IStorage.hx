@@ -7,8 +7,12 @@ import pm.async.*;
 import haxe.io.Bytes;
 import haxe.PosInfos;
 
+typedef Cb<T> = (error:Null<Dynamic>, result:T)->Void;
+
 interface IStorage {
     public function exists(path: String):Promise<Bool>;
+    public function size(path: String):Promise<Int>;
+    
     public function rename(oldPath:String, newPath:String):Promise<Bool>;
     public function writeFileBinary(path:String, data:Bytes):Promise<Bool>;
     public function readFileBinary(path: String):Promise<Bytes>;
@@ -24,8 +28,30 @@ interface IStorage {
     public function ensureDatafileIntegrity(filename: String):Promise<Bool>;
 }
 
+/**
+  IStorage, but which handles async via callbacks
+ **/
+interface ICbStorage {
+    function exists(path:String, callback:Callback<Bool>):Void;
+    function size(path:String, callback:Cb<Int>):Void;
+    function rename(oldPath:String, newPath:String, callback:Cb<Bool>):Void;
+	function writeFileBinary(path:String, data:Bytes, callback:Cb<Bool>):Void;
+	function readFileBinary(path:String, callback:Cb<Bytes>):Void;
+	function appendFileBinary(path:String, data:Bytes, callback:Cb<Bool>):Void;
+	function writeFile(path:String, data:String, callback:Cb<Bool>):Void;
+	function readFile(path:String, callback:Cb<String>):Void;
+	function appendFile(path:String, data:String, callback:Cb<Bool>):Void;
+	function unlink(path:String, callback:Cb<Bool>):Void;
+	function mkdirp(path:String, callback:Cb<Bool>):Void;
+	function ensureFileDoesntExist(path:String, callback:Cb<Bool>):Void;
+	function flushToStorage(options:{filename:String, ?isDir:Bool}, callback:Cb<Bool>):Void;
+	function crashSafeWriteFile(path:String, data:Bytes, callback:Cb<Bool>):Void;
+	function ensureDatafileIntegrity(filename:String, callback:Cb<Bool>):Void;
+}
+
 interface IStorageSync {
     public function exists(path: String):Bool;
+    public function size(path: String):Int;
     public function rename(oldPath:String, newPath:String):Void;
     public function writeFileBinary(path:String, data:Bytes):Void;
     public function readFileBinary(path: String):Bytes;

@@ -10,10 +10,9 @@ import haxe.PosInfos;
 import haxe.extern.EitherType;
 
 using StringTools;
-using tannus.ds.StringUtils;
-using Slambda;
-using tannus.ds.ArrayTools;
-using tannus.FunctionTools;
+using pm.Strings;
+using pm.Arrays;
+using pm.Functions;
 using pmdb.ql.ts.DataTypes;
 using pmdb.ql.ast.Predicates;
 
@@ -37,20 +36,19 @@ class BinaryCheck extends Check {
         return [left, right];
     }
 
-    #if !macro
     override function equals(other: QueryNode):Bool {
         return (
             super.equals(other) 
             || 
             (Type.typeof(this).equals(Type.typeof(other))
              && 
-             cast(other, BinaryCheck).with(
-                 left.equals(_.left) && right.equals(_.right)
-             )
+             {
+                var bc:BinaryCheck = cast(other, BinaryCheck);
+                left.equals(bc.left) && right.equals(bc.right);
+             }
             )
         );
     }
-    #end
 
     override function map(fn: QueryNode -> QueryNode, deep:Bool=false):QueryNode {
         return new BinaryCheck(safeValue(fn(left)), safeValue(fn(right)));

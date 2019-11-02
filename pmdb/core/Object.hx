@@ -7,7 +7,7 @@ import pmdb.core.Arch;
 import Reflect as O;
 
 using Lambda;
-using tannus.ds.ArrayTools;
+using pm.Arrays;
 
 //@:runtimeValue
 @:forward
@@ -79,10 +79,20 @@ abstract Object<T> (DynamicAccess<T>) from DynamicAccess<T> to DynamicAccess<T> 
         return Arch.clone_object((this:Dynamic), method);
     }
 
-    public function pull(src: Object<T>) {
+    public inline function pull(src: Object<T>) {
         for (key in src.keys()) {
             this[key] = src[key];
         }
+    }
+
+    @:op(A += B)
+    public static inline function extendAByB<T>(a:Object<T>, b:Object<T>):Object<T> {
+        a.append(b);
+        return a;
+    }
+
+    public inline function append(tail: Object<T>) {
+        pull(tail);
     }
 
     public function push(dest: Object<T>) {
@@ -103,6 +113,7 @@ abstract Object<T> (DynamicAccess<T>) from DynamicAccess<T> to DynamicAccess<T> 
         Arch.clone_object_onto(this, sub, subFields);
         return sub;
     }
+
 
     @:op(A + B)
     public static function sum<T>(left:Object<T>, right:Object<T>):Object<T> {
@@ -142,6 +153,11 @@ abstract Object<T> (DynamicAccess<T>) from DynamicAccess<T> to DynamicAccess<T> 
     public static inline function ofStruct<O:{}>(o: O):Object<Dynamic> {
         return of(cast o);
     }
+	
+    // @:from
+	public static inline function unsafe(o:Dynamic):Object<Dynamic> {
+		return of((o : Dynamic<Dynamic>));
+	}
 }
 
 typedef Doc = Object<Dynamic>;

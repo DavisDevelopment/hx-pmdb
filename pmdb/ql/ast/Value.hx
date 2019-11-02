@@ -1,6 +1,6 @@
 package pmdb.ql.ast;
 
-import tannus.ds.Lazy;
+import pm.Lazy;
 
 import hscript.Expr;
 

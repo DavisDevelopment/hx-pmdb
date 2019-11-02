@@ -5,7 +5,6 @@ import pm.Ref;
 //import tannus.math.TMath as M;
 
 import pmdb.ql.types.*;
-import pmdb.ql.types.DotPath;
 import pmdb.ql.ts.DataType;
 import pmdb.core.ds.AVLTree;
 import pmdb.core.ds.*;
@@ -49,13 +48,21 @@ class Index<Key, Item> {
       insert a single Item onto [this] Index
      **/
     public function insertOne(doc: Item):Void {
-        var key:Key = _fn.follow( doc );
+        var key:Key = _fn.get(cast doc, null);
 
         if (key == null && !sparse) {
-            throw 'IndexError: Missing "$fieldName" property';
+            throw 'IndexError: $doc is missing "$fieldName" property';
         }
         
-        tree.insert(key, doc);
+        try {
+            tree.insert(key, doc);
+        }
+        catch (error: pm.Error) {
+            if (error.name == 'IndexError') {
+                @:privateAccess error.message = '("$fieldName") ' + error.message;
+            }
+            throw error;
+        }
     }
 
     /**
@@ -63,7 +70,7 @@ class Index<Key, Item> {
      **/
     public function removeOne(doc: Item) {
         //var key = getDocKey( doc );
-        var key:Key = _fn.follow( doc );
+        var key:Key = _fn.get(cast doc, null);
         if (key == null) {
             if ( sparse ) {
                 return ;
@@ -98,7 +105,7 @@ class Index<Key, Item> {
     /**
       insert an array of items on [this] Index
      **/
-    public function insertMany(docs: Array<Item>):Void {
+    public function insertMany(docs:Array<Item>):Void {
         try {
             for (i in 0...docs.length) {
                 try {
@@ -264,7 +271,7 @@ class Index<Key, Item> {
         }
 
         if (_fn == null)
-            _fn = DotPath.parse( fieldName );
+            _fn = DotPath.fromPathName(fieldName);
 
         pullOptions( options );
     }
@@ -300,7 +307,7 @@ class Index<Key, Item> {
       get the 'Key' for the given Item
      **/
     public inline function getDocKey(doc: Item):Null<Key> {
-        return _fn.follow( doc );
+        return _fn.get(cast doc, null);
     }
 
     /**

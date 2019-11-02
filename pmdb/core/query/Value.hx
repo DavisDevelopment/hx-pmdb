@@ -9,12 +9,11 @@ import haxe.PosInfos;
 import haxe.ds.Option;
 
 using StringTools;
-using tannus.ds.StringUtils;
-using Slambda;
-using tannus.ds.ArrayTools;
-using tannus.async.OptionTools;
-using tannus.ds.IteratorTools;
-using tannus.FunctionTools;
+using pm.Strings;
+using pm.Options;
+using pm.Arrays;
+using pm.Iterators;
+using pm.Functions;
 
 @:forward
 abstract Value (EValue) from EValue to EValue {

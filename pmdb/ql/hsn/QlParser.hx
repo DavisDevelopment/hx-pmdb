@@ -109,6 +109,29 @@ class QlParser {
         return fparse(code, x->readDataType(x));
     }
 
+    public static function parseCType(code: String):CType @:privateAccess {
+		var parser = new Parser();
+		parser.allowMetadata = true;
+		parser.allowTypes = true;
+		parser.allowJSON = true;
+
+		parser.initParser('types');
+		parser.input = new haxe.io.StringInput(code);
+		// var a = new Array();
+		// while (true) {
+		// 	var tk = token();
+		// 	if (tk == TEof)
+		// 		break;
+		// 	push(tk);
+		// 	parseFullExpr(a);
+		// }
+		// return if (a.length == 1) a[0] else mk(EBlock(a), 0);
+
+        var ctype = parser.parseType();
+        parser.ensure(TEof);
+        return ctype;
+    }
+
     /**
       parse [e] as a command
      **/

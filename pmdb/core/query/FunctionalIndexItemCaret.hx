@@ -10,14 +10,11 @@ import pmdb.core.query.IndexItemCaret;
 
 import haxe.ds.Option;
 
-import tannus.math.TMath as M;
 import pmdb.Globals.*;
 import pmdb.Macros.*;
 
 using Slambda;
 using StringTools;
-using tannus.ds.StringUtils;
-using tannus.FunctionTools;
 
 class FunctionalIndexItemCaret<Item> extends StdIndexItemCaret<Item> {
     /* Constructor Function */

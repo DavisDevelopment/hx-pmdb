@@ -2,7 +2,6 @@ package pmdb.ql;
 
 import pmdb.ql.ast.BoundingValue;
 import pmdb.core.Index;
-import pmdb.core.query.IndexItemCaret;
 
 class QueryIndex<K, T> {
     /* Constructor Function */

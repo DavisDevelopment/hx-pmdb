@@ -8,7 +8,7 @@ import pmdb.core.ds.AVLTree;
 import pmdb.core.ds.AVLTree.AVLTreeNode as Leaf;
 import pmdb.core.ds.*;
 import pmdb.core.*;
-import pmdb.core.query.IndexCaret;
+// import pmdb.core.query.IndexCaret;
 import pmdb.core.Store;
 
 import pmdb.ql.*;

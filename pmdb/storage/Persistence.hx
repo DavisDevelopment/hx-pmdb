@@ -10,6 +10,13 @@ import haxe.io.Bytes;
 import pmdb.storage.IPersistence;
 import pm.async.*;
 
+import pm.Assert.assert;
+
+using StringTools;
+using pm.Strings;
+using pm.Arrays;
+using pm.Iterators;
+
 class Persistence<Item> {
     /* Constructor Function */
     public function new(options) {
@@ -53,11 +60,12 @@ class Persistence<Item> {
         return Bytes.ofString(b.toString());
     }
 
+    /**
+      parse (and compact) the raw serialized store format into a dynamic representation of the store's contents
+     **/
     public function decodeRawStoreData(data: Bytes):RawStoreData<Item> {
+        var textData:String = data.toString();
         var data:Array<String> = data.toString().split('\n');
-        #if neko
-        trace(data[0]);
-        #end
         var dataById:Map<String, Item> = new Map();
         var tdata = new Array();
         var indexes = new Map();
@@ -117,11 +125,13 @@ class Persistence<Item> {
     /**
       load and parse the raw store-data from the datafile
      **/
-    public function loadRawStoreData():Promise<Null<RawStoreData<Item>>> {
+    public function loadRawStoreData(?options: {?filename:String}):Promise<Null<RawStoreData<Item>>> {
+        if (options == null) options = {};
+        var path:String = nor(options.filename, filename);
         try {
-            return dataFileExists().flatMap(function(status: Bool):Promise<Null<RawStoreData<Item>>> {
+            return dataFileExists(path).flatMap(function(status: Bool):Promise<Null<RawStoreData<Item>>> {
                 if ( status ) {
-                    return storage.readFileBinary( filename ).map( decodeRawStoreData );
+                    return storage.readFileBinary( path ).map( decodeRawStoreData );
                 }
                 else {
                     return Promise.resolve( null );
@@ -136,52 +146,51 @@ class Persistence<Item> {
     /**
       load the datafile onto the given Store instance
      **/
-    public function loadDataStore(store: Store<Item>):Promise<Store<Item>> {
-        //store.reset();
-        return loadRawStoreData().map(function(raw: Null<RawStoreData<Item>>) {
+/* === <//> === */
+    /**
+      [TODO] 
+       * find why the routine is being invoked twice, and correct this; 
+       * it's probably causing a call to `store.reset()` to be deferred 
+       * onto the frame after the raw data has been copied over, erasing it
+     **/
+    public function loadDataStore(store:Store<Item>, ?options:{?filename:String}):Promise<Store<Item>> {
+        if (loadedDataStorePromise != null)
+            return loadedDataStorePromise;
+        
+        if (loadDataStoreCallCount != 0) {
+            throw new pm.Error.InvalidOperation('.loadDataStore(...)');
+        }
+        loadDataStoreCallCount++;
+        
+        if (options == null) 
+            options = {};
+        
+        return loadedDataStorePromise = (loadRawStoreData({
+            filename: options.filename
+        })
+        .map(function(raw: Null<RawStoreData<Item>>) {
             if (raw == null) {
+                throw new pm.Error('Should not be null');
                 return store;
             }
             else {
-                //TODO add internal methods for stash/pop management of store state
-                if (!(raw.docs.empty() || raw.indexes.empty())) {
-                    store.reset();
-                    for (index in raw.indexes) {
-                        store.ensureIndex({
-                            name: index.fieldName,
-                            type: index.fieldType,
-                            unique: index.unique,
-                            sparse: index.sparse
-                        });
-                    }
+                //(?)TODO add internal methods for stash/pop management of store state
+                // TODO stop using the store's datafile for schema-related computations
+                var allocatedSize = store.size();
+                store.reset();
+                @:privateAccess store._init_indices_();
 
-                    store.insertMany( raw.docs );
+                if (raw.docs != null) {
+                    store.insertMany(raw.docs);
                 }
+                trace('Inserted ${raw.docs.length} rows; Store has ${store.size()} rows in total');
                 return store;
             }
-        });
-
-        /*
-        switch (loadRawStoreData()) {
-            case Success(null):
-                return ;
-
-            case Success({docs:items, indexes:indexes}):
-                for (index in indexes) {
-                    store.ensureIndex({
-                        name: index.fieldName,
-                        type: index.fieldType,
-                        unique: index.unique,
-                        sparse: index.sparse
-                    });
-                }
-                store.insertMany( items );
-
-            case Failure( error ):
-                throw error;
-        }
-        */
+        }));
     }
+
+    private var loadDataStoreCallCount:Int = 0;
+    private var loadedDataStorePromise:Null<Promise<Store<Item>>> = null;
 
     /**
       persist the given Store instance to the datafile
@@ -192,6 +201,7 @@ class Persistence<Item> {
             return storage.crashSafeWriteFile(filename, data).map(x -> store);
         }
         catch (error: Dynamic) {
+            trace('$error');
             return Promise.reject( error );
         }
     }
@@ -205,16 +215,23 @@ class Persistence<Item> {
             b.add(serialize( item ));
             b.addChar('\n'.code);
         });
-        var data = Bytes.ofString(b.toString());
 
+        var data = Bytes.ofString(b.toString());
         return storage.appendFileBinary(filename, data);
     }
 
     /**
       check whether the data-file exists
      **/
-    public inline function dataFileExists():Promise<Bool> {
-        return storage.exists( filename );
+    public inline function dataFileExists(?argFilename: String):Promise<Bool> {
+        var path:String = getPath(argFilename);
+        assert(!path.empty());
+        trace('filename="$filename"');
+        return storage.exists(path);
+    }
+
+    inline function getPath(?overrideFilename: String):String {
+        return pm.Helpers.nor(overrideFilename.nullEmpty(), this.filename);
     }
 
     private function serialize(item: Dynamic):String {

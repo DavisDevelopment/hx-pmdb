@@ -27,7 +27,8 @@ class BinaryOperator<A, B, C> extends Operator<(left:A, right:B)->C> {
 }
 
 class UnaryOperator<A, B> extends Operator<A -> B> {
-    public final prefix:Bool;
+    @:keep
+    public var prefix : Bool;
     public function new(name, func, prefix=false) {
         super(name, 1, func);
         this.prefix = prefix;

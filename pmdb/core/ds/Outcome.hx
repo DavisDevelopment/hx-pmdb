@@ -1,5 +1,6 @@
 package pmdb.core.ds;
 
+#if some_made_up_define
 @:using(pmdb.core.ds.Outcome.Outcomes)
 enum Outcome<Result, Error> {
     Success(result: Result);
@@ -35,3 +36,6 @@ class Outcomes {
         }
     }
 }
+#end
+
+typedef Outcome<R, E> = pm.Outcome<R, E>;

@@ -2,7 +2,7 @@ package pmdb.core.ds.map;
 
 import haxe.Constraints.IMap;
 
-using tannus.ds.IteratorTools;
+using pm.Iterators;
 
 /**
  * In this implementation, Dictionary is like a StringMap,

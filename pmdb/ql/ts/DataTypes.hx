@@ -6,7 +6,6 @@ import haxe.io.Bytes;
 import haxe.io.*;
 
 import pmdb.core.TypedValue;
-import pmdb.core.Check;
 import pmdb.core.Comparator;
 import pmdb.core.Equator;
 import pmdb.core.Error;
@@ -20,7 +19,6 @@ import Type;
 using StringTools;
 using pm.Strings;
 using pm.Arrays;
-using tannus.ds.DictTools;
 using pm.Functions;
 using pmdb.ql.ts.TypeChecks;
 

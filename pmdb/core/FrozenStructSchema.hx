@@ -1,7 +1,9 @@
 package pmdb.core;
 
-import pmdb.core.StructSchema.IndexType;
-import pmdb.core.StructSchema.IndexAlgo;
+import pmdb.core.schema.Types.IndexType;
+import pmdb.core.schema.Types.IndexAlgo;
+import pmdb.core.schema.FieldFlag;
+
 import pmdb.ql.ts.DataType;
 import pmdb.ql.ast.Value;
 
@@ -181,8 +183,8 @@ class FrozenStructSchema {
         }
     }
 
-    public function thaw():StructSchema {
-        var res = new StructSchema();
+    public function thaw(?rowClass: Dynamic):StructSchema {
+        var res = new StructSchema(rowClass);
         for (f in fields) {
             var flags = [];
             if (f.state.flags.optional) flags.push(FieldFlag.Optional);
@@ -227,6 +229,39 @@ class FrozenStructSchema {
             case other:
                 throw 'Unhandled $other';
         }
+    }
+
+    public static function ofClass(classType:Class<Dynamic>) {
+        if (!Rtti.hasRtti(classType)) {
+            throw 'nope';
+        }
+
+        var cdef:Classdef = Rtti.getRtti(classType);
+        for (field in cdef.fields) {
+            trace('${field.type}');
+            switch field.type {
+                case CUnknown:
+                    //
+                case CEnum(name, params):
+                    //
+                case CClass(name, params):
+                    //
+                case CTypedef(name, params):
+                    //
+                case CFunction(args, ret):
+                    //
+                case CAnonymous(fields):
+                    //
+                case CDynamic(t):
+                    //
+                case CAbstract(name, params):
+                    //
+            }
+        }
+    }
+
+    public static inline function build(schema: FrozenStructSchemaInit):FrozenStructSchema {
+        return new FrozenStructSchema(schema.fields, schema.indexes, schema.options);
     }
 
     private static function buildInit(schema : FrozenStructSchemaInit):FrozenStructSchema {
@@ -418,7 +453,7 @@ typedef StructSchemaMethodsInit = {
 
 typedef StructSchemaOptions = {
     ?methods: StructSchemaMethodsInit,
-    ?type: StructClassInfo
+    ?type: pmdb.core.schema.Types.StructClassInfo
 };
 
 class DefaultStructSchemaMethods {

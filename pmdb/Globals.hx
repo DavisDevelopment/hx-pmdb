@@ -1,5 +1,6 @@
 package pmdb;
 
+import pm.concurrent.RunLoop;
 import haxe.PosInfos;
 
 //using StringTools;
@@ -30,8 +31,27 @@ class Globals {
         return (timestamp() - start);
     }
 
+    public static inline function nn<T>(v: Null<T>):Bool
+        return v != null;
+    
     public static inline function nor<T>(a:Null<T>, b:Null<T>):Null<T> {
-        return a != null ? a : b;
+        return nn(a) ? a : b;
+    }
+    public static inline function defer(f: Void->Void) {
+        RunLoop.current.work(f);
+    }
+    
+    public static function log(x: Dynamic):Void {
+        #if js
+            try {
+                untyped console.log(x);
+            }
+            catch (e: Dynamic) {
+                Console.log(x);
+            }
+        #else
+            Console.log(x);
+        #end
     }
 
     public static var DKEY = '_id';

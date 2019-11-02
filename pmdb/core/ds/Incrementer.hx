@@ -1,9 +1,5 @@
 package pmdb.core.ds;
 
-import tannus.math.TMath as Math;
-
-using tannus.math.TMath;
-
 class Incrementer {
     public function new(state:Int = 0):Void {
         this.state = state;

@@ -1,5 +1,6 @@
 package pmdb.core;
 
+import pm.datetime.DateTimeUtc;
 import pmdb.ql.types.*;
 import pmdb.ql.ts.*;
 import pmdb.ql.ts.DataType;
@@ -15,13 +16,19 @@ import pmdb.core.query.StoreQueryInterface;
 import pmdb.core.query.FindCursor;
 import pmdb.core.query.UpdateCursor;
 import pmdb.core.query.UpdateHandle;
-import pmdb.core.Query;
+
 import pmdb.core.StructSchema;
+import pmdb.core.schema.SchemaField;
+import pmdb.core.schema.FieldFlag;
+import pmdb.core.schema.Types.IndexType;
+import pmdb.core.schema.Types.IndexAlgo;
+
 import pmdb.storage.Persistence;
 import pmdb.storage.Storage;
 import pmdb.async.Executor;
 
 import pm.async.*;
+import pm.datetime.DateTime;
 
 import haxe.ds.Either;
 import haxe.extern.EitherType;
@@ -31,7 +38,6 @@ import haxe.PosInfos;
 import haxe.macro.Expr;
 import haxe.macro.Context;
 
-//import tannus.math.TMath as M;
 import pmdb.core.Error;
 import pm.Functions.fn;
 import Std.is as isType;
@@ -39,16 +45,11 @@ import pm.Assert.assert;
 
 using pmdb.core.Arch;
 using StringTools;
-//using tannus.ds.StringUtils;
 using pm.Strings;
 using Lambda;
-//using tannus.ds.ArrayTools;
 using pm.Arrays;
-//using tannus.ds.DictTools;
-//using tannus.ds.MapTools;
 using pm.Maps;
 using pmdb.core.ds.tools.Options;
-//using tannus.FunctionTools;
 using pm.Functions;
 using pmdb.ql.ts.DataTypes;
 
@@ -56,9 +57,12 @@ using pmdb.ql.ts.DataTypes;
   Store<Item> - stores a "table" of documents, indexed by their various keys
   based heavily on louischatriot's "nedb" [DataStore](https://github.com/louischatriot/nedb/blob/master/lib/datastore.js)
  **/
-class Store<Item> {
+class Store<Item> extends Emitter<String, Dynamic> {
     /* Constructor Function */
     public function new(options: StoreOptions):Void {
+        super();
+        this._signals = new haxe.ds.StringMap();
+
         this.options = options;
 
         indexes = new Map();
@@ -101,6 +105,12 @@ class Store<Item> {
         _init_();
 
         q = new StoreQueryInterface( this );
+
+        /*
+         == Declare Store Events
+        */
+        addEvent('persistent');
+        addEvent('close');
     }
 
 /* === Internal Methods === */
@@ -121,9 +131,11 @@ class Store<Item> {
 
         assert(schema != null, new Error('Schema must be provided'));
 
+
+        final allowIndexingOnDynamicFields = true;
         for (info in schema.indexes) {
-            //_addIndexToCache(_buildIndex( info ));
-            if (schema.hasField( info.name )) {
+            
+            if (allowIndexingOnDynamicFields || schema.hasField( info.name )) {
                 addSimpleIndex( info.name );
             }
         }
@@ -139,6 +151,14 @@ class Store<Item> {
             unique: true,
             sparse: false
         });
+    }
+
+    @:keep
+    function toString():String {
+        return Type.getClassName(Type.getClass(this)).afterLast('.').append("(").append(
+            if (Reflect.hasField(this, 'name')) '"'+Reflect.field(this, 'name')+'"'
+            else '#$_id'
+        ).append(')');
     }
 
     /**
@@ -185,6 +205,7 @@ class Store<Item> {
     private function _execKey():String {
         return 'store';
     }
+
     private function _updatePromise(promise: Promise<Store<Item>>):Promise<Store<Item>> {
         return promise;
     }
@@ -204,13 +225,38 @@ class Store<Item> {
     /**
       load [this] Store from a data file
      **/
-    public function _load():Promise<Store<Item>> {
-        var fp = (() -> persistence.loadDataStore( this ));
-        return _updatePromise(new Promise<Store<Item>>(function(accept, reject) {
-            executor.exec(_execKey(), fp, function(prom: Promise<Store<Item>>) {
-                prom.then(accept, reject);
+    private var _loadcc:Int=0;
+    public function _load(?pos: haxe.PosInfos):Promise<Store<Item>> {
+        trace('_load called from ${pos.fileName}:${pos.lineNumber}');
+
+        inline function isStaleForSomeReason(promise: Promise<Store<Item>>):Bool {
+            return false;
+        }
+
+
+        var output:Promise<Store<Item>> = Promise.async(function(done) {
+            #if hxnodejs
+            if (_loadcc != 0) {
+                Console.printlnFormatted('<#F00><bg#FFF>You did a bad!<//>');
+            }
+            _loadcc++;
+            #end
+
+            var hasBeenLoadedPromise = this.persistence.loadDataStore(this).failAfter(1000);
+            hasBeenLoadedPromise.then(function(self: Store<Item>) {
+                #if !notrace
+                Console.debug({
+                    loaded: self.size(),
+                    loadedAt: (DateTime.now().toString())
+                });
+                #end
             });
-        }));
+            return hasBeenLoadedPromise.handle(done);
+        });
+
+        this._loadInProgress = output;
+        
+        return output.failAfter(1200);
     }
 
     public function schedule<T>(fn:Store<Item>->T):Promise<T> {
@@ -244,17 +290,17 @@ class Store<Item> {
     /**
       called when a new field is added to the schema, on an existing Store instance
      **/
-    private function _fieldAdded(field: StructSchemaField) {
+    private function _fieldAdded(field: SchemaField) {
         //_eachRow(function(row: Item) {
             
         //})
     }
 
-    private function _fieldUpdated(oldField:StructSchemaField, newField:StructSchemaField) {
+    private function _fieldUpdated(oldField:SchemaField, newField:SchemaField) {
         //TODO resolve changes
     }
 
-    private function _fieldDropped(field: StructSchemaField) {
+    private function _fieldDropped(field: SchemaField) {
         //
     }
 
@@ -271,6 +317,10 @@ class Store<Item> {
       get all data from [this] Store
      **/
     public function getAllData():Array<Item> {
+        trace(primaryKey);
+        if (pid == null) {
+            Sys.exit(0);
+        }
         return pid.getAll();
     }
 
@@ -304,9 +354,28 @@ class Store<Item> {
 
     /**
       insert one or more new documents into [this] Store
+      @return the versions
      **/
-    public function insert(doc: OneOrMany<Item>):Void {
-        _insert( doc );
+    public function insert(doc:OneOrMany<Item>, safe:Bool=false):Bool {
+        if (!safe) {
+            return !_insert( doc ).empty();
+            // return true;
+        }
+        else {
+            try {
+                return !_insert(doc).empty();
+                // return true;
+            }
+            catch (error: pm.Error) {
+				if (error.message == 'IndexError: Unique-constraint violated') {
+                    return false;
+                }
+                else {
+                    throw error;
+                }
+                return false;
+            }
+        }
     }
 
     /**
@@ -325,7 +394,7 @@ class Store<Item> {
       When <code>true</code>, only the documents for which the insertion failed are returned.
       Otherwise, all inserted documents are returned
      **/
-    public function insertMany(docs:Array<Item>, allowPartial:Bool=false):Array<Item> {
+    public function insertMany(docs:Array<Item>, allowPartial:Bool=false, safe:Bool=false):Array<Item> {
         if ( allowPartial ) {
             var failed = [];
             for (doc in docs) {
@@ -333,6 +402,11 @@ class Store<Item> {
                     var preparedDoc = prepareForInsertion( doc );
                     addOneToIndexes( preparedDoc );
                 }
+                // catch (err: pm.Error) {
+                //     if (safe && err.message == 'IndexError: Unique-constraint violated') {
+
+                //     }
+                // }
                 catch (err: Dynamic) {
                     failed.push( doc );
                 }
@@ -343,25 +417,31 @@ class Store<Item> {
         else {
             // prepare the lot for insertion
             var preparedDocs:Array<Item> = docs.map(o -> prepareForInsertion(o));
-
-            addManyToIndexes( preparedDocs );
+            var insertedDocs = addManyToIndexes(preparedDocs, safe);
+            
+            // trace(insertedDocs);
             _persist();
 
-            return preparedDocs;
+            return insertedDocs;
         }
     }
 
     /**
       insert
      **/
-    private function _insert(doc: OneOrMany<Item>) {
+    private function _insert(doc: OneOrMany<Item>):Array<Item> {
         try {
-            _insertIntoCache( doc );
+            var inserted:Array<Item> = _insertIntoCache(doc).asMany();
             
             if ( !ioLocked ) {
-                executor.exec(_execKey(), (() -> persistence.persistNewState(cast doc.asMany())));
-                //persistence.persistNewState(cast doc.asMany());
+                // Console.printlnFormatted('<#F00>[INFO]</>scheduling .persistNewState');
+                executor.exec(_execKey(), function() {
+					return persistence.persistNewState((cast (inserted : Array<Dynamic>) : Array<pmdb.core.Object.Doc>));
+                });
             }
+            // Console.examine(doc, ioLocked);
+
+            return inserted;
         }
         catch (err: Dynamic) {
             throw err;
@@ -371,13 +451,15 @@ class Store<Item> {
     /**
       insert the given value(s) into [this] DataStore
      **/
-    private function _insertIntoCache(doc: OneOrMany<Item>) {
+    private function _insertIntoCache(doc: OneOrMany<Item>):OneOrMany<Item> {
+        var output:OneOrMany<Item>;
         if (doc.isMany()) {
-            insertMany(doc);
+            output = insertMany(doc);
         }
         else {
-            insertOne(doc.asOne());
+            output = insertOne(doc.asOne());
         }
+        return output;
     }
 
     /**
@@ -391,9 +473,9 @@ class Store<Item> {
       add a new Field to the schema which describes the structures to be stored in [this] Store
      **/
     public function addField(name:String, ?type:ValType, ?flags:Array<FieldFlag>, ?opts:{}) {
-        var prev:StructSchemaField = schema.field( name );
+        var prev:SchemaField = schema.field( name );
 
-        var curr:StructSchemaField = schema.addField(name, type, flags);
+        var curr:SchemaField = schema.addField(name, type, flags);
 
         if (prev == null) {
             _fieldAdded( curr );
@@ -411,8 +493,8 @@ class Store<Item> {
     /**
       convenience method for creating a new Index
      **/
-    public function addSimpleIndex<T>(fieldName: EitherType<String, StructSchemaField>):Index<T, Item> {
-        var field = (fieldName is StructSchemaField) ? (fieldName : StructSchemaField) : schema.field(cast fieldName);
+    public function addSimpleIndex<T>(fieldName: EitherType<String, SchemaField>):Index<T, Item> {
+        var field = (fieldName is SchemaField) ? (fieldName : SchemaField) : schema.field(cast fieldName);
         schema.addIndex({
             name: field.name,
             type: field.type
@@ -523,22 +605,73 @@ class Store<Item> {
 
     /**
       add many documents to [this] Store
+      @returns the Items that were successfully inserted into the indexes
      **/
-    public function addManyToIndexes(docs: Array<Item>) {
+    public function addManyToIndexes(docs: Array<Item>, safe:Bool=false):Array<Item> {
         var failingIndex:Int = -1,
         error: Dynamic = null,
-        keys = indexes.keyArray();
+        keys = indexes.keyArray(),
+        inserted = new Array();
 
+        var failedDocs:Map<Int, Bool> = new Map();
+        
         for (i in 0...keys.length) {
-            try {
-                indexes[keys[i]].insertMany( docs );
-                trace('successfully inserted ${docs.length} documents into "${keys[i]}"');
+            var wasInserted = false;
+            if (safe == true) {
+                var failingDocIndex:Int = -1;
+
+                for (j in 0...docs.length) {
+                    if (failedDocs.exists(j) && failedDocs[j]) continue;
+                    try {
+                        indexes[keys[i]].insertOne(docs[j]);
+                        wasInserted = true;
+                    }
+                    catch (err: pm.Error) {
+						if (err.message == 'IndexError: Unique-constraint violated') {
+                            wasInserted = false;
+                            failedDocs[j] = true;
+                        }
+                        else {
+                            failingDocIndex = j;
+                            error = err;
+                            break;
+                        }
+                    }
+                    catch (err: Dynamic) {
+                        failingDocIndex = j;
+                        error = err;
+                        break;
+                    }
+
+                }
+
+                if (failingDocIndex != -1 && error != null) {
+                    for (j in 0...failingDocIndex) {
+                        indexes[keys[i]].removeOne(docs[j]);
+                    }
+                    failingIndex = i;
+                    break;
+                }
             }
-            catch (e: Dynamic) {
-                failingIndex = i;
-                error = e;
-                trace('attempted insertion of the given ${docs.length} documents failed');
-                break;
+            else {
+                try {
+                    indexes[keys[i]].insertMany( docs );
+                    trace('successfully inserted ${docs.length} documents into "${keys[i]}"');
+                }
+                catch (e: Dynamic) {
+                    failingIndex = i;
+                    error = e;
+                    trace('attempted insertion of the given ${docs.length} documents failed');
+                    break;
+                }
+            }
+        }
+
+        if (error == null) {
+            for (i in 0...docs.length) {
+                if (!failedDocs[i]) {
+                    inserted.push(docs[i]);
+                }
             }
         }
 
@@ -549,6 +682,8 @@ class Store<Item> {
 
             throw error;
         }
+
+        return inserted;
     }
 
     public function updateIndexes(oldDoc:Item, newDoc:Item) {
@@ -618,11 +753,40 @@ class Store<Item> {
         }
     }
 
+    /**
+      delete an Item from `this` Store
+     **/
     public function del(doc: Item):Bool {
         removeOneFromIndexes( doc );
         return true;
     }
 
+    public function exists(a:Dynamic, ?b:Dynamic):Bool {
+        if (b == null) {
+            b = a;
+            a = primaryKey;
+        }
+        return _exists(a, b);
+    }
+
+    function _exists(path:String, value:Dynamic):Bool {
+        if (indexes.exists( path )) {
+            var idx = index(path);
+            var node = idx.getByKey(value);
+            return !node.empty();
+        }
+        else {
+            return !pid.getAll().filter(function(item: Item) {
+                return Arch.getDotValue(item.asObject(), path).isEqualTo(value);
+            }).empty();
+        }
+
+        return false;
+    }
+
+    /**
+      fast single-field match lookup
+     **/
     public function get(a:Dynamic, ?b:Dynamic):Null<Item> {
         if (b == null) {
             b = a;
@@ -644,13 +808,13 @@ class Store<Item> {
         }
     }
 
-    public inline function freshQuery() {
-        return Query.make(Store(this));
-    }
+    // public inline function freshQuery() {
+    //     return Query.make(Store(this));
+    // }
 
-    public function makeQuery(fn: Query<Item> -> Query<Item>):Query<Item> {
-        return freshQuery().apply( fn );
-    }
+    // public function makeQuery(fn: Query<Item> -> Query<Item>):Query<Item> {
+    //     return freshQuery().apply( fn );
+    // }
 
     /**
       get a subset of rows chosen based on constraints in [check]
@@ -865,13 +1029,15 @@ class Store<Item> {
     private function get_pid():Index<Any, Item> return indexes[primaryKey];
 
     // Id (primary key) property reference
-    public var idField(get, never): StructSchemaField;
+    public var idField(get, never): SchemaField;
     private function get_idField() return schema.field( primaryKey );
 
     public var ioLocked(get, never): Bool;
     private function get_ioLocked() return ioLock > 0;
 
 /* === Instance Fields === */
+
+    public final _id:Int = pm.HashKey.next();
 
     // Map of Indexes on [this] Store
     public var indexes(default, null): Map<String, Index<Any, Item>>;
@@ -900,6 +1066,10 @@ class Store<Item> {
     // numeric counter for io locks
     @:noCompletion
     public var ioLock(default, null): Int = 0;
+    @:noCompletion
+    public var isLoaded(default, null):Bool = false;
+    @:noCompletion
+    public var _loadInProgress(default, null):Null<Promise<Store<Item>>> = null;
 }
 
 typedef StoreOptions = {

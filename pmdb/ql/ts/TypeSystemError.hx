@@ -6,7 +6,6 @@ import haxe.ds.Option;
 
 import pmdb.core.Error;
 import pmdb.core.ValType;
-import pmdb.ql.ts.TypeSignature;
 
 using pmdb.ql.ts.DataTypes;
 

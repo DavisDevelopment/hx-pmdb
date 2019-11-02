@@ -1,6 +1,6 @@
 package pmdb.ql.ast.nodes;
 
-import tannus.ds.Lazy;
+import pm.Lazy;
 
 import pmdb.core.Error;
 import pmdb.core.ValType;
@@ -11,10 +11,9 @@ import pmdb.ql.ts.DataType;
 import haxe.PosInfos;
 import haxe.ds.Option;
 
-using tannus.FunctionTools;
-using tannus.async.OptionTools;
-using Slambda;
-using tannus.ds.ArrayTools;
+using pm.Functions;
+using pm.Options;
+using pm.Arrays;
 
 /**
   this class represents Nodes which extract values from some source (usually database document objects)
