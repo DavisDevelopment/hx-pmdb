@@ -1,5 +1,6 @@
 package pmdb.core;
 
+import pmdb.ql.hsn.Tools.HSTools;
 import Type.ValueType as TVType;
 
 import pmdb.ql.ts.DataType;
@@ -15,6 +16,7 @@ using pm.Options;
 using haxe.macro.ComplexTypeTools;
 
 @:forward
+@:using(pmdb.ql.ts.DataTypes)
 abstract ValType (DataType) from DataType  to DataType {
     @:from
     static inline function of(t: DataType):ValType {
@@ -43,9 +45,14 @@ abstract ValType (DataType) from DataType  to DataType {
         }
     }
 
-    @:from public static function ofString(s: String):ValType {
+    @:from 
+    public static function ofString(s: String):ValType {
         try {
-            return try ofTypeName( s ) catch (e: Dynamic) ofTypeExprString( s );
+			return try ofTypeName(s) catch (e:Dynamic) (
+                try ofTypeExprString(s)
+                catch (e2: Dynamic)
+				ofHscriptCType(pmdb.ql.hsn.QlParser.parseCType(s))
+            );
         }
         catch (e: Dynamic) {
             throw new Error('"$s" does not describe a type');
@@ -102,6 +109,30 @@ abstract ValType (DataType) from DataType  to DataType {
         }
     }
 
+    public static function ofHscriptCType(type: hscript.Expr.CType):ValType {
+        return ofComplexType(@:privateAccess Util.hsMacro.convertType(type));
+        // switch type {
+        //     case CTPath(path, params):
+        //         throw type;
+
+        //     case CTAnon(fields):
+        //         return DataType.TAnon(new CObjectType(fields.map(function(field) {
+        //             var fieldType = ofHscriptCType(field.t);
+        //             return new Property(field.name, fieldType, {
+        //                 if (fieldType.match(TNull(_))) true;
+        //                 else if (field.meta != null) {
+        //                     field.meta.find(item -> item.name == 'optional' || item.name == ':optional') != null;
+        //                 }
+        //                 else false;
+        //             });
+        //         })));
+        //     case CTNamed(_, t), CTOpt(t), CTParent(t):
+        //         return ofHscriptCType(t);
+        //     case CTFun(_, _):
+        //         throw new pm.Error('Function types (as in $type) are unsupported');
+        // }
+    }
+
     public static function ofTypeExprString(s: String):ValType {
         try {
             return of(pmdb.core.query.StoreQueryInterface.globalParser.parseDataType( s ));
@@ -136,4 +167,12 @@ abstract ValType (DataType) from DataType  to DataType {
             return null;
         }
     }
+}
+
+class Util {
+    #if !(macro)
+    public static var hsMacro = new hscript.Macro((macro null).pos);
+    #else
+    public static var hsMacro:Dynamic = {};
+    #end
 }

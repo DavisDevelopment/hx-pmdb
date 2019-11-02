@@ -323,6 +323,7 @@ class StructSchema {
             var aField = a.fields[aFields[i]], bField = b.fields[bFields[i]];
             if (!aField.equals(bField)) {
                 trace('${aField.name} != ${bField.name}');
+                Console.error('${aField.type.print()} != ${bField.type.print()}');
                 return false;
             }
         }
@@ -352,7 +353,7 @@ class StructSchema {
             }
 
             if (!field.checkValueType(o[field.name])) {
-                throw new pmdb.core.Error('${o[field.name]} should be ${field.type}');
+                throw new pmdb.core.Error('${o[field.name]}:${o[field.name].dataTypeOf().print()} should be ${field.type}\nin object ${haxe.Json.stringify(o)}');
                 return false;
             }
 

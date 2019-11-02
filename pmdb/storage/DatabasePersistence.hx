@@ -454,7 +454,8 @@ enum abstract LoadStatus (Int) from Int to Int {
     var Ok;
 
     public inline function validate() {
-        assert(this != null && !this.isNaN() && this.isFinite(), new pm.Error('Invalid Integer $this'));
+        var me:Null<Int> = cast this;
+        assert(me != null && !me.isNaN() && me.isFinite(), new pm.Error('Invalid Integer $this'));
         switch this {
             case NoDataFile, NoSavedState, Ok:
                 //

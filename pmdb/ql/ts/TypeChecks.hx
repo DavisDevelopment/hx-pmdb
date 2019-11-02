@@ -47,7 +47,7 @@ class TypeChecks {
 
     #if !no_inline_typechecks inline #end
     public static function is_integer(v: Dynamic):Bool {
-        return (v is Int);
+		return (#if js (is_number(v) && js.Syntax.code('Number.isInteger({0})', v)) #else false #end)||(v is Int);
     }
 
     #if !no_inline_typechecks inline #end

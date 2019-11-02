@@ -142,6 +142,10 @@ class Database extends Emitter<String, Dynamic> {
         });
     }
 
+    private inline function exec<T>(f: Void->Promise<T>):Promise<Float> {
+        return executor.exec('root', f);
+    }
+
     /**
       synchronizes `this` Database
       @see DatabasePersistence.sync

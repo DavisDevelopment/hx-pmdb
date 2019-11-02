@@ -149,7 +149,7 @@ class SchemaField {
 	public function equals(other: SchemaField):Bool {
 		return (
 			this.name == other.name &&
-			this.type.equals(other.type) &&
+			(this.type.unify(other.type) || this.type.print() == other.type.print()) && //probably not a good solution, but it's a hack that should work for now
 			this.flags.toInt() == other.flags.toInt()
 		);
 	}
