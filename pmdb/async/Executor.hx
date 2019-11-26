@@ -25,6 +25,11 @@ class Executor {
         cats = new Map();
         isClosed = false;
         Console.warn('<#F00>Executor.new</>');
+        nextTick(function() {
+            Console.error('.nextTick is not broken!');
+        }).always(function() {
+            Console.error('... and neither is the Promise which it returns');
+        });
     }
 
     /**
@@ -39,11 +44,13 @@ class Executor {
 
     /**
       append a given Task onto the Queue for the execution queue named by `category`
+      [TODO] make the Task be held in the queue until it's finished, and then remove it. This should prevent premateur termination of the event loop
      **/
     public function add(category:String, task:Task):Promise<Float> {
         var runit:Bool = false;
         var queue = this.category(category);
         if (queue.isEmpty()) {
+            trace('queue($category) is empty, so next Task will be run immediately');
             runit = true;
         }
 
@@ -51,9 +58,9 @@ class Executor {
         trace('Task added to "$category" queue');
 
         if ( runit ) {
-            nextTick(function() {
-                _next_( category );
-            });
+            Console.success('Task will be run on next frame');
+            Console.error('$category');
+            _next_( category );
         }
         
         return task.promise.map(function(_) {
@@ -92,11 +99,13 @@ class Executor {
         var taskExecutor;
         if (hook == null) {
             taskExecutor = function() {
+                trace('task in "$category" being run..');
                 return executor().noisify();
             };
         }
         else {
             taskExecutor = function() {
+				trace('task in "$category" being run..');
                 var promise = executor();
                 hook(promise);
                 return promise.noisify();
@@ -113,29 +122,44 @@ class Executor {
       execute the next Task in the queue
      **/
     function _next_(n: String) {
+        Console.error('_next_($n)');
         var queue = category( n );
         if (!queue.isEmpty()) {
-            var task = queue.dequeue();
+            var task = queue.peek();
+            trace(task);
+
             task.await(function() {
+                queue.dequeue();
                 if (!queue.isEmpty() && !isClosed) {
-                    nextTick(function() {
-                        _next_(n);
-                    });
+                    _next_(n);
                 }
             });
+
             task.start();
         }
     }
 
+    /**
+      [TODO] probably refactoring this to call .defer immediately will fix some issues
+     **/
     static function nextTick(fn: Void -> Void):Promise<Float> {
-        return Promise.asyncFulfill(function(ret) {
-            Defer.defer(function() {
-                var begin = timestamp();
-                fn();
-                var took = (timestamp() - begin);
-                ret(took);
-            });
+        // return Promise.asyncFulfill(function(ret) {
+        //     Defer.defer(function() {
+        //         var begin = timestamp();
+        //         fn();
+        //         var took = (timestamp() - begin);
+        //         ret(took);
+        //     });
+        // });
+
+        var t = Promise.trigger();
+        Defer.defer(function() {
+            var begin = timestamp();
+            fn();
+            var took = (timestamp() - begin);
+            t.resolve(took);
         });
+        return Promise.createFromTrigger(t);
     }
 }
 
@@ -155,23 +179,31 @@ class Task {
         // de = Deferred.create();
         trigger = Promise.trigger();
         promise = Promise.createFromTrigger(trigger);
+        promise.then(function(_) {
+            Console.error('betty');
+        });
         executionPromise = null;
         begin = null;
         end = null;
     }
 
     public function start() {
+        trace('starting a Task');
         if (executionPromise == null && begin == null && end == null) {
             executionPromise = f();
+            executionPromise = executionPromise.failAfter(2000, new pm.Error('Fuck yew'));
             begin = timestamp();
-            executionPromise.handle(o -> switch o {
-                case Success(result):
-                    end = timestamp();
-                    trigger.resolve(result);
+            executionPromise.handle(function(o) {
+                Console.error(o);
+                switch o {
+                    case Success(result):
+                        end = timestamp();
+                        trigger.resolve(result);
 
-                case Failure(error):
-                    end = timestamp();
-                    trigger.reject(error);
+                    case Failure(error):
+                        end = timestamp();
+                        trigger.reject(error);
+                }
             });
         }
         else {
