@@ -43,6 +43,7 @@ class Database extends Emitter<String, Dynamic> {
         var FOOT:Array<Callback<Database>> = [];
         super();
         _signals = new StringMap();
+        
         isAsync = true;
 
         stores = new Map();

@@ -941,19 +941,22 @@ class Store<Item> extends Emitter<String, Dynamic> {
       overwrite an existing document in [this] `Store<?>`
      **/
     public function replaceOne(p1:Item, ?p2:Item) {
+        var prim = schema.field(schema.primaryKey);
         var oldDoc:Item, newDoc:Item;
         switch [p1, p2] {
             case [a, null]:
                 newDoc = a;
-                oldDoc = get(Reflect.field(newDoc, primaryKey));
+                oldDoc = get(prim.access.get(cast newDoc));
 
             case [a, b]:
                 oldDoc = a;
                 newDoc = b;
         }
 
-        var uid = Reflect.field(oldDoc, primaryKey);
-        Reflect.setField(newDoc, primaryKey, uid);
+        // Console.examine(oldDoc, newDoc, oldDoc==newDoc);
+
+        var uid = schema.field(schema.primaryKey).access.get(cast oldDoc);
+        prim.access.set(cast newDoc, uid);
         updateIndexes(oldDoc, newDoc);
         
         if ( !ioLocked ) {
@@ -974,19 +977,22 @@ class Store<Item> extends Emitter<String, Dynamic> {
     public function replaceMany(docs: Array<Item>) {
         var failingIndex:Int = -1, exception:Dynamic = null;
         var completed = [];
+
         lockio();
         for (idx in 0...docs.length) {
             try {
-                var log = inline replaceOne(docs[idx]);
+                var log = replaceOne(docs[idx]);
                 completed.push( log );
             }
             catch (err: Dynamic) {
                 failingIndex = idx;
                 exception = err;
+                Console.error(exception);
                 break;
             }
         }
         unlockio();
+        
         if (exception != null && failingIndex != -1) {
             // rollback
             for (re in completed) {
@@ -999,6 +1005,9 @@ class Store<Item> extends Emitter<String, Dynamic> {
                 executor.exec(_execKey(), function() {
                     return persistence.persistNewState(cast completed.map(x -> x.post));
                 });
+            }
+            else {
+                throw new pm.Error('I/O is not supposed to be locked here!');
             }
             return completed;
         }
