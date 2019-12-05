@@ -4,7 +4,6 @@ import pm.*;
 import pm.async.*;
 import pm.async.Callback;
 import pm.async.Promise;
-import pm.async.Stream;
 
 import haxe.ds.Option;
 // import haxe.Constraints.

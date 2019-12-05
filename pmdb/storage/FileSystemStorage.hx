@@ -11,6 +11,11 @@ import sys.io.File;
 
 import pmdb.storage.IStorage;
 
+#if js
+import js.node.Fs as NodeFs;
+import js.node.Buffer as NodeBuffer;
+#end
+
 using pm.Strings;
 using pm.Path;
 using pm.Arrays;
@@ -67,7 +72,8 @@ class FileSystemStorage implements IStorageSync {
 
     public function appendFileBinary(path:String, data:Bytes):Void {
         #if js
-            js.node.Fs.appendFileSync(path, js.node.Buffer.from(data.getData()));
+            // js.node.Fs.appendFileSync(path, js.node.Buffer.from(data.getData()));
+            NodeFs.appendFileSync(path, NodeBuffer.hxFromBytes(data));
         #else
             final out:Null<sys.io.FileOutput> = File.append( path );
             out.writeString( path );
@@ -78,7 +84,13 @@ class FileSystemStorage implements IStorageSync {
     public function createDirectory(path: String) {
         FileSystem.createDirectory(path);
     }
+    public inline function mkdir(path:String) {
+        return inline FileSystem.createDirectory(path);
+    }
 
+    /**
+      `mkdirp` (synchronous) implementation
+     **/
     public function mkdirp(path: String):Void {
         var pieces:Array<String> = [];
         var p:String = path;

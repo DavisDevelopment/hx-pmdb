@@ -217,7 +217,8 @@ class Persistence<Item> {
         });
 
         var data = Bytes.ofString(b.toString());
-        return storage.appendFileBinary(filename, data);
+        var promise = storage.appendFileBinary(filename, data);
+        return promise;
     }
 
     /**

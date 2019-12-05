@@ -1,12 +1,9 @@
 package pmdb;
 
+#if !(macro || display)
 import pm.concurrent.RunLoop;
+#end
 import haxe.PosInfos;
-
-//using StringTools;
-//using pm.Strings;
-//using pm.Numbers;
-//using pm.Functions;
 
 class Globals {
     /**
@@ -33,12 +30,16 @@ class Globals {
 
     public static inline function nn<T>(v: Null<T>):Bool
         return v != null;
+
     
     public static inline function nor<T>(a:Null<T>, b:Null<T>):Null<T> {
         return nn(a) ? a : b;
     }
+
     public static inline function defer(f: Void->Void) {
+        #if !(macro || display)
         RunLoop.current.work(f);
+        #end
     }
     
     public static function log(x: Dynamic):Void {

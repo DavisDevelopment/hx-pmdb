@@ -41,7 +41,7 @@ using pm.Numbers;
 @:access(pmdb.core.Database)
 class DatabasePersistence {
     public var db:Database;
-    public var storage:IStorage;
+    public var storage: Storage;
     public var manifest:Persistent<ManifestData>;
 
     // private var afterOpenListeners: CallbackList<DatabasePersistence>;
@@ -78,6 +78,7 @@ class DatabasePersistence {
     public function open(?tables: String):Promise<Bool> {
         return Promise.async(function(done) {
             return openDirectory().next(function(o) {
+                trace('openDirectory() resolved with: $o');
                 switch o {
                     case Success(_):
                         var tableSets = getStoreSets();
@@ -106,7 +107,7 @@ class DatabasePersistence {
                         return Promise.reject(e);
                 }
             }).handle(done);
-        });
+        }).failAfter(2000, new pm.Error('Bruh, ya took too damn long'));
     }
 
     private function openTables(tables: ImmutableList<DbStore<Dynamic>>) {
@@ -200,7 +201,9 @@ class DatabasePersistence {
 
     function openDirectory():Promise<Noise> {
         return Promise.async(function(done) {
-            storage.exists(getPath()).then(function(hasDir) {
+            var ex = storage.exists(getPath());
+            ex.then(function(hasDir) {
+                trace('hasDir: $hasDir');
                 if (hasDir) {
                     return done(Success(openManifest()));
                 }
@@ -233,8 +236,10 @@ class DatabasePersistence {
     }
 
     function buildDirectoryStructure():Promise<Noise> {
+        trace('building directory structure');
         return Promise.async(function(done) {
-            storage.mkdirp(db.path).handle(function(outcome) {
+            var makeDir = storage.mkdirp(db.path);
+            makeDir.handle(function(outcome) {
                 switch outcome {
                     case Success(true):
                         openManifest();

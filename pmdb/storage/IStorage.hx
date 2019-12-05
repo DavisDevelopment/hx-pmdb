@@ -7,8 +7,31 @@ import pm.async.*;
 import haxe.io.Bytes;
 import haxe.PosInfos;
 
-typedef Cb<T> = (error:Null<Dynamic>, result:T)->Void;
+typedef TCb<T> = (error:Null<Dynamic>, result:T)->Void;
+@:callable
+@:forward
+abstract Cb<T> (TCb<T>) from TCb<T> to TCb<T> {
+    @:from public static function ofCallback<T>(cb: Callback<T>):Cb<T> {
+        return (error, value:T) -> {
+            if (error != null) 
+                cb.invoke(value);
+        };
+    }
+	@:from public static function ofMonad<T>(cb:T->Void):Cb<T> {
+		return (error, value:T) -> {
+			if (error != null)
+				cb(value);
+		};
+	}
+    @:from public static function ofOutcomeMonad<T>(f: Outcome<T, Dynamic> -> Void):Cb<T> {
+        return (error, value:T) -> {
+            if (nn(error)) return f(Failure(error));
+            else return f(Success(value));
+        }
+    }
+}
 
+@:using(pmdb.storage.IStorageMethods)
 interface IStorage {
     public function exists(path: String):Promise<Bool>;
     public function size(path: String):Promise<Int>;
@@ -21,6 +44,15 @@ interface IStorage {
     public function readFile(path: String):Promise<String>;
     public function appendFile(path:String, data:String):Promise<Bool>;
     public function unlink(path: String):Promise<Bool>;
+
+    /**
+      attempts to create a new directory node at `path`
+      @param path
+      @returns a `Promise<Bool>` which resolves to `true` when the directory was created successfully, and `false` when it was not created because it already exists
+      @throws Dynamic underlying SystemError when directory creation fails for any other reason
+     **/
+    public function mkdir(path:String):Promise<Bool>;
+    
     public function mkdirp(path: String):Promise<Bool>;
     public function ensureFileDoesntExist(path: String):Promise<Bool>;
     public function flushToStorage(options: {filename:String, ?isDir:Bool}):Promise<Bool>;
@@ -32,7 +64,7 @@ interface IStorage {
   IStorage, but which handles async via callbacks
  **/
 interface ICbStorage {
-    function exists(path:String, callback:Callback<Bool>):Void;
+    function exists(path:String, callback:Cb<Bool>):Void;
     function size(path:String, callback:Cb<Int>):Void;
     function rename(oldPath:String, newPath:String, callback:Cb<Bool>):Void;
 	function writeFileBinary(path:String, data:Bytes, callback:Cb<Bool>):Void;
@@ -42,6 +74,7 @@ interface ICbStorage {
 	function readFile(path:String, callback:Cb<String>):Void;
 	function appendFile(path:String, data:String, callback:Cb<Bool>):Void;
 	function unlink(path:String, callback:Cb<Bool>):Void;
+    function mkdir(path:String, callback:Cb<Bool>):Void;
 	function mkdirp(path:String, callback:Cb<Bool>):Void;
 	function ensureFileDoesntExist(path:String, callback:Cb<Bool>):Void;
 	function flushToStorage(options:{filename:String, ?isDir:Bool}, callback:Cb<Bool>):Void;
@@ -60,6 +93,7 @@ interface IStorageSync {
     public function readFile(path: String):String;
     public function appendFile(path:String, data:String):Void;
     public function unlink(path: String):Void;
+    public function mkdir(path:String):Void;
     public function mkdirp(path: String):Void;
     public function ensureFileDoesntExist(path: String):Bool;
     public function flushToStorage(options: {filename:String, ?isDir:Bool}):Void;
@@ -76,6 +110,15 @@ class StorageError extends Error {
         this.code = code;
     }
 }
+class OperationNotImplemented extends StorageError {
+    public function new(?id:String, ?message, ?position:PosInfos) {
+        super(EFallback(id), message, position);
+    }
+    public static inline function make(?id, ?pos:PosInfos) {
+        return new OperationNotImplemented(id, null, pos);
+    }
+}
+typedef OpMissing = OperationNotImplemented;
 
 /**
   see: https://nodejs.org/api/errors.html#errors_class_systemerror
@@ -93,4 +136,11 @@ enum StorageErrorCode {
     ENotEmpty;
     /* (Operation Not Permitted) */
     EPerm;
+
+    /**
+	  Operation not implemented by the `Storage` class
+      Instructs to the caller that the relevant "fallback" implementation 
+      (further identified by `id`, if provided) should be used instead
+     **/
+    EFallback(?id: String);
 }

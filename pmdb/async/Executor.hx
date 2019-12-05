@@ -50,16 +50,12 @@ class Executor {
         var runit:Bool = false;
         var queue = this.category(category);
         if (queue.isEmpty()) {
-            trace('queue($category) is empty, so next Task will be run immediately');
             runit = true;
         }
 
         queue.enqueue( task );
-        trace('Task added to "$category" queue');
 
         if ( runit ) {
-            Console.success('Task will be run on next frame');
-            Console.error('$category');
             _next_( category );
         }
         
@@ -99,39 +95,41 @@ class Executor {
         var taskExecutor;
         if (hook == null) {
             taskExecutor = function() {
-                trace('task in "$category" being run..');
                 return executor().noisify();
             };
         }
         else {
             taskExecutor = function() {
-				trace('task in "$category" being run..');
                 var promise = executor();
                 hook(promise);
                 return promise.noisify();
             };
         }
+
         return add(category, new Task(taskExecutor));
     }
 
-    public function stop() {
-        isClosed = true;
+    public inline function stop() {
+        // isClosed = true;
     }
 
     /**
       execute the next Task in the queue
      **/
-    function _next_(n: String) {
-        Console.error('_next_($n)');
+    private inline function _next_(n: String) {
+        // Console.error('_next_($n)');
         var queue = category( n );
         if (!queue.isEmpty()) {
             var task = queue.peek();
-            trace(task);
 
             task.await(function() {
                 queue.dequeue();
+                Console.error('Task dequeued from "$n"');
+
                 if (!queue.isEmpty() && !isClosed) {
-                    _next_(n);
+                    // Defer.defer(function() {
+                        _next_(n);
+                    // });
                 }
             });
 

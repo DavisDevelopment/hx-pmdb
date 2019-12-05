@@ -70,6 +70,10 @@ class AsyncStorageAdapter implements IStorage {
         return doo(() -> storage.unlink(path));
     }
 
+    public function mkdir(path:String):Promise<Bool> {
+        return doo(storage.mkdir.bind(path));
+    }
+
     public function mkdirp(path: String):Promise<Bool> {
         return doo(storage.mkdirp.bind(path));
     }
@@ -98,49 +102,6 @@ class AsyncStorageAdapter implements IStorage {
                 safe: true
             };
         }
-        /*
-        // var outcome: Outcome<Bool, Dynamic>, ctor:(o: Outcome<Bool, Dynamic>)->Promise<Bool>;
-        // switch [config.forceAsync, config.safe] {
-        //     case [true, false]: ctor = o -> {
-        //         Promise.asyncNiladUnsafe(function(dun) {
-        //             haxe.Timer.delay(function() {
-        //                 trace('pre:doo/callback');
-        //                 dun();
-        //             }, 2);
-        //         })
-        //         .inspect()
-        //         .transform(o -> switch o {
-        //             case Success(_): Success(true);
-        //             case Failure(x) if (config.discardException): Success(false);
-        //             case Failure(e): Failure(e);
-        //         });
-        //     };
-
-        //     case [true, true]:
-        //         ctor=o->Promise.async(function(resolve) {
-        //             Defer.defer(function() {
-        //                 try {
-        //                     fn();
-        //                     resolve(Success(true));
-        //                 }
-        //                 catch (e: Dynamic) {
-        //                     resolve(Failure(e));
-        //                 }
-        //             });
-        //         });
-
-        //     // case [false, _]:
-        //     //     var nilad = fn;
-        //     //     var fn:Void->Bool = function() {
-        //     //         nilad();
-        //     //         return true;
-        //     //     }
-        //     //     Promise.sync()
-
-        //     default:
-
-        // }
-        */
         throw 0;
     }
 
