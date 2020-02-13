@@ -608,7 +608,8 @@ class Arch {
 
         if (isDate( value )) {
             final date:Date = cast(value, Date);
-            return Date.fromTime(date.getTime());
+            // return Date.fromTime(date.getTime());
+            return Date.fromString(date.toString());
         }
 
         if (isArray( value )) {
