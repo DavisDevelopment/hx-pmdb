@@ -32,16 +32,33 @@ using pm.Strings;
 using pm.Iterators;
 using pm.Functions;
 
+#if !(macro || java)
+import pm.Assert.aassert as assert;
+#end
+
 /**
   TODO
   TODO
   TODO
   TOdo!
+
+```markdown
+
+    ## Roadmap for pmdb.core.FrozenStructSchema:
+    
+     - [ ] adapt the API to be able to easily describe and access schemas for database documents, as well as nested documents and anonymous objects
+     - [ ] support Collection-supervised/-managed documents, which follow a particular protocol _*(TODO: [specification](about:blank))*_
+     - [ ] support describing Collection-independent object structures
+      - [ ] no index data, because that doesn't even make sense
+      - [ ] no primary-key, or auto-increment
+
+```
 **/
 class FrozenStructSchema {
     public function new(fields:Iterable<FieldInit>, indexes:Iterable<IndexDefInit>, ?opt:{?methods:StructSchemaMethodsInit}):Void {
+        #if java try { #end
         var myfields:Array<FrozenStructSchemaField>;
-        var myindexes:Array<FrozenIndexDefinition>;
+        var myindexes:Array<FrozenStructSchemaIndex>;
         var myprimary:Int = -1;
 
         // compute the list of fields
@@ -90,7 +107,7 @@ class FrozenStructSchema {
             myprimary = 0;
 
             // dictate that documents be indexed by the new '_id' field
-            myindexes.unshift(new FrozenIndexDefinition(this, {
+            myindexes.unshift(new FrozenStructSchemaIndex(this, {
                 name: '_id',
                 kind: Simple(Arch.getDotPath('_id')),
                 type: DataType.TScalar(TInteger),
@@ -104,10 +121,11 @@ class FrozenStructSchema {
             for (k in indexNameToOffset.keys())
                 indexNameToOffset[k]++;
         }
-        else if (myindexes.empty()) {
-            myindexes.unshift(new FrozenIndexDefinition(this, {
+        
+        if (myindexes.empty()) {
+            myindexes.unshift(new FrozenStructSchemaIndex(this, {
                 name: myfields[myprimary].name,
-                kind: Simple(Arch.getDotPath('_id')),
+				kind: Simple(Arch.getDotPath(myfields[myprimary].name)),
                 type: DataType.TScalar(TInteger),
                 algorithm: IndexAlgo.AVLIndex
             }));
@@ -122,10 +140,25 @@ class FrozenStructSchema {
             if (opt==null||opt.methods == null) new DefaultStructSchemaMethods(this)
             else throw '[TODO]';
 
-        #if debug
-            assert(!fields.empty() && !indexes.empty() && pkey != -1, new pm.Error('Not a valid schema structure'));
+        // assert(!fields.empty() && !indexes.empty() && pkey != -1, new pm.Error('Not a valid schema structure'));
+        assert(this.fields.length != 0);
+        assert(this.indexes.length != 0);
+        assert(this.pkey != -1);
+
+        #if java }
+        catch (e: Dynamic) {
+            throw e;
+        }
         #end
     }
+
+#if java
+    
+    static function assert(c:Dynamic):Void {
+        return ;
+    }
+
+#end
 
 /* === Methods === */
 
@@ -136,7 +169,7 @@ class FrozenStructSchema {
         throw new pm.Error('$this has no attribute "${n}"', 'InvalidAccess');
     }
 
-    public function index(handle: String):FrozenIndexDefinition {
+    public function index(handle: String):FrozenStructSchemaIndex {
         if (indexNameToOffset.exists( handle ))
             return indexes[indexNameToOffset[handle]];
         throw new pm.Error('"${handle}" does not refer to any Index on $this');
@@ -209,7 +242,7 @@ class FrozenStructSchema {
                 };
 
                 for (f in fields) {
-                    betty(res, f);
+                    addHaxeMacroField(res, f);
                 }
 
                 var prim = null;
@@ -268,7 +301,7 @@ class FrozenStructSchema {
         return new FrozenStructSchema(schema.fields, schema.indexes, schema.options);
     }
 
-    private static function betty(schema:FrozenStructSchemaInit, f:haxe.macro.Expr.Field) {
+    private static function addHaxeMacroField(schema:FrozenStructSchemaInit, f:haxe.macro.Expr.Field) {
         var flags:Array<FieldFlag> = new Array();
         var type:ValType = DataType.TAny;
         var idx = false;
@@ -299,6 +332,19 @@ class FrozenStructSchema {
                 type = DataType.TAny;
 
             case FieldType.FVar(t, _):
+                switch t {
+                    // case null: false;
+                    case TParent(t): false;
+                    case TOptional(t): false;
+                    case TNamed(n, t): false;
+                    case TExtend(p, fields): false;
+                    case TPath(p): false;
+                    
+                    case TFunction(args, ret): false;
+                    case TAnonymous(fields): false;
+                    case TIntersection(types):
+                        throw new pm.Error.NotImplementedError('intersection (A & B) types not implemented yet');
+                }
                 type = ValType.ofComplexType( t );
 
             default:
@@ -348,6 +394,13 @@ class FrozenStructSchema {
     }
 
     static function freezeFieldInit(i: FieldInit):FrozenStructSchemaField {
+        function nor<T>(x:T, y:T):T {
+            return switch x {
+                case null: y;
+                default: x;
+            }
+        }
+
         assert(i.name!=null&&!i.name.empty());
         if (i.flags == null) i.flags = {};
         var etype = nor(i.type, DataType.TUndefined);
@@ -364,7 +417,7 @@ class FrozenStructSchema {
         });
     }
 
-    static function freezeIndexDefInit(schema:FrozenStructSchema, i:IndexDefInit):FrozenIndexDefinition {
+    static function freezeIndexDefInit(schema:FrozenStructSchema, i:IndexDefInit):FrozenStructSchemaIndex {
         switch i {
             case {name:null, type:null, algorithm:null, kind:null}:
                 throw new ValueError(i, 'the given IndexDefInit object is invalid, as it contains no values');
@@ -393,7 +446,7 @@ class FrozenStructSchema {
             i.kind != null
         );
         
-        return new FrozenIndexDefinition(schema, {
+        return new FrozenStructSchemaIndex(schema, {
             name: i.name,
             type: i.type,
             algorithm: nor(i.algorithm, IndexAlgo.AVLIndex),
@@ -429,7 +482,7 @@ class FrozenStructSchema {
     var fieldNameToOffset : Map<String, Int>;
     
     // array of immutable indexing definitions
-    public final indexes : ReadOnlyArray<FrozenIndexDefinition>;
+    public final indexes : ReadOnlyArray<FrozenStructSchemaIndex>;
     var indexNameToOffset : Map<String, Int>;
 
     // index of the field which will act as a primary key
@@ -547,23 +600,17 @@ typedef FrozenStructSchemaFieldState = {
 typedef FieldInit = {?name:String, ?type:DataType, ?flags:FieldFlagsInit};
 typedef FieldFlagsInit = {?optional:Bool,?unique:Bool,?primary:Bool,?autoIncrement:Bool};
 
-typedef FrozenIndexDefinitionState = {
-    final name : String;
-    final type : DataType;
-    final algorithm : IndexAlgo;
-    final kind : IndexType;
-};
-typedef IndexDefInit = {?name:String,?type:DataType,?algorithm:IndexAlgo,?kind:IndexType};
-
+//#F2SF
 class FrozenStructSchemaField {
     public final state : FrozenStructSchemaFieldState;
+
     public final comparator : Comparator<Dynamic>;
     public final equator : Equator<Dynamic>;
 
     private var incrementer : Null<Incrementer>;
 
     public function new(state) {
-        this.state = state;
+        this.state = normalize_state(state);
         this.comparator = this.type.getTypedComparator();
         this.equator = this.type.getTypedEquator();
         this.incrementer = null;
@@ -586,19 +633,128 @@ class FrozenStructSchemaField {
 
     public var type(get, never): DataType;
     function get_type() return this.state.etype;
+
+    
+    private static inline function normalize_state(s: FrozenStructSchemaFieldState):FrozenStructSchemaFieldState {
+        return {
+            name: s.name,
+            etype: s.etype,
+            flags: {
+                unique: s.flags.primary||s.flags.unique,
+                optional: s.flags.autoIncrement||s.flags.optional,
+                autoIncrement: s.flags.autoIncrement,
+                primary: s.flags.primary
+            }
+        };
+    }
 }
 
-class FrozenIndexDefinition {
-    public final state : FrozenIndexDefinitionState;
+class FrozenStructSchemaIndex/*Definition*/ {
+    public final state : IdxState;
     public final schema : FrozenStructSchema;
 
     public function new(schema, state) {
         this.schema = schema;
         this.state = state;
     }
+
+    @:keep public function toString() {
+		return 'FrozenIndex(name=${state.name}, type=${state.type}, algo=${state.algorithm}, kind=${state.kind})';
+    }
+
+    public function sanityCheck(?schema: FrozenStructSchema) {
+        var a = pm.Assert.assert;
+        var path:Null<DotPath> = null, expr:Null<ValueExpr> = null;
+
+        switch this.state.kind {
+            case Simple(dp):
+                path = dp;
+
+            case Expression(e)://=(isIndexableExpr(_)=>indexable)):
+                var indexable = isIndexableExpr(e);
+                trace(
+                    ''.append(indexable ? ' ' : '<#F00>NOT</> ')
+                    .append('INDEXABLE:\n<bold><#00F> - </>')
+                    .append(e.print(false))
+                    .append('\n</>')
+                );
+                expr = e;
+                throw new pm.Error.NotImplementedError('Evaluation of expressions by the schema is not yet implemented. This API is merely a stub');
+        }
+
+        switch [state.name, state.type, state.kind, state.algorithm] {
+            case [name, _, Simple(dp=_.path.length=>1), _]: 
+                a(name == dp.pathName);
+
+            case [name, _, Simple(dp), _]:
+                //TODO
+
+            default:
+                //
+        }
+
+        //Beginnings of a thorough sparseness validation algorithm
+        /*
+        if (schema != null) {
+            if (path != null) {
+                var sparseness = false;
+                var i = 0;
+                var cp = path.path[i];
+                var cpt = schema.field(cp);
+                a(cpt != null);
+                if (cpt.isOmittable()) sparseness = true;
+
+                do {
+                    var p1 = cp;
+                    cp = '$cp.${path.path[++i]}';
+                    Console.examine(p1, cp);
+
+                }
+            }
+        }
+        */
+    }
+
+    static function isIndexableExpr(e: ValueExpr):Bool {
+        return true;
+    }
+
+
+    // static function STDocument():StructType {throw 0;}
 }
+
+typedef FrozenStructSchemaIndexState = {
+	final name:String;
+	final type:DataType;
+	final algorithm:IndexAlgo;
+	final kind:IndexType;
+};
+private typedef IdxState = FrozenStructSchemaIndexState;
+
+typedef IndexDefInit = {?name:String, ?type:DataType, ?algorithm:IndexAlgo, ?kind:IndexType};
+private typedef IdxInit = IndexDefInit;
 
 private enum Prop {
     PField(f: FrozenStructSchemaField);
     PSub(f: pmdb.ql.ts.DataType.Property);
+}
+
+private enum StructType {
+    /**
+     * `StructType.STAnonymous`
+     * A regular-old JSON object structure, with type safety and constraint validation courtesy of PmDB
+     */
+    STAnonymous;
+    
+    /**
+	 * `StructType.STDocument`
+	 * A Collection Document (or Table Row, if you prefer) object.
+	 */
+    STDocument;
+
+    /**
+     * `StructType.STNested`
+     * How the structure-scheme is expressed for object fields which themselves hold objects for which a schema definition is desired.
+     */
+    STNested(t:StructType, within:FrozenStructSchema);
 }
