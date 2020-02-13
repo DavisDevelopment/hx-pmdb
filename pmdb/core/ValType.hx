@@ -9,10 +9,13 @@ import pmdb.core.Object;
 import haxe.ds.Option;
 import haxe.extern.EitherType;
 import haxe.macro.Expr.ComplexType;
+import haxe.macro.Expr.TypePath as HxTypePath;
 
 using pmdb.ql.ts.DataTypes;
 using pm.Options;
 
+using StringTools;
+using pm.Strings;
 using haxe.macro.ComplexTypeTools;
 
 @:forward
@@ -73,40 +76,87 @@ abstract ValType (DataType) from DataType  to DataType {
 
     @:from
     public static function ofComplexType(ctype: haxe.macro.ComplexType):ValType {
-        return switch ctype {
-            case ComplexType.TAnonymous(fields): DataType.TAnon(new CObjectType(fields.map(f -> new Property(f.name, switch f.kind {
-                //case FVar(null, _): DataType.TUnknown;
-                case FVar(ctype, _) if (ctype != null): ofComplexType( ctype );
-                case _: DataType.TUnknown;
-            }))));
-            case ComplexType.TNamed(_, ctype): ofComplexType(ctype);
-            case ComplexType.TParent(ctype): ofComplexType(ctype);
-            case ComplexType.TOptional(ctype): DataType.TNull(ofComplexType(ctype));
-            case ComplexType.TPath(path): ofTypePath( path );
+        switch ctype {
+            case ComplexType.TAnonymous(fields): 
+                /**
+                  TODO: deprecate the TAnon construct; refactor in favor of FrozenStructSchema
+                 */
+                return DataType.TAnon(new CObjectType(fields.map(f -> new Property(f.name, switch f.kind {
+                        case FVar(ctype, _) if (ctype != null): ofComplexType( ctype );
+                        case _: DataType.TUnknown;
+                    }))));
+            
+            case ComplexType.TParent(ctype), ComplexType.TNamed(_, ctype): 
+                return ofComplexType(ctype);
+
+            case ComplexType.TOptional(ctype):
+                return DataType.TNull(ofComplexType(ctype));
+
+            case ComplexType.TExtend(parent_paths, own_fields):
+                //TODO
+                throw new pm.Error('On hold until TStruct is the default object checker');
+
+            case ComplexType.TIntersection(types):
+                throw new pm.Error('On hold until TStruct is the default object checker');
+                
+            case ComplexType.TFunction(_, _):
+                throw new pm.Error('Sorry. Function types are not implemented yet, but are very much on the roadmap');
+
+            /** [RealType - referenced by its fully qualified name] **/
+			case ComplexType.TPath(path):
+				return ofTypePath(path);
 
             case other:
                 throw 'Unhandled ${ctype.toString()}';
         }
     }
 
+    private static function onTypeNotFound(p: HxTypePath):Option<ValType> {
+        var base:String = p.pack.join('.'), 
+            pack = ('$base.${nor(p.sub.nullEmpty(), p.name)}'), 
+            fullyQualified = ('$base.${p.name}.${p.sub}');
+        
+        return Option.None;
+    }
+
     public static function ofTypePath(path: haxe.macro.Expr.TypePath):ValType {
-        return switch ( path ) {
-            case {name: 'Bool' }|{name: 'StdTypes', sub:'Bool' }: DataType.TScalar( TBoolean );
-            case {name: 'Float'}|{name: 'StdTypes', sub:'Float'}: DataType.TScalar( TDouble  );
-            case {name: 'Int'  }|{name: 'StdTypes', sub:'Int'  }: DataType.TScalar( TInteger );
-            case {name: 'Date' }|{name: 'StdTypes', sub:'Date' }: DataType.TScalar( TDate    );
-            case {name: 'String' }|{name: 'StdTypes', sub:'String' }: DataType.TScalar( TString );
-            case {name: 'Bytes' }: DataType.TScalar( TBytes );
+        final t = DataType;
 
-            case {name: "Array"|"List", params: [TPType(ct)]}:
-                DataType.TArray(ofComplexType(ct));
-            case {name:"Null", params:[TPType(ct)]}:
-                DataType.TNull(ofComplexType(ct));
-            case {name: "Any", params:null|[]}: DataType.TAny;
+        var isSimple = (path.pack.length == 0 && ((path.name == 'StdTypes' && path.sub != null)||(path.sub == null && !path.name.empty())));
+        if (isSimple) {
+            var typeName = pm.Helpers.nor(pm.Strings.nullEmpty(path.sub), path.name);
+            var typeParams = path.params.empty()?[]:path.params.map(function(tp: haxe.macro.Expr.TypeParam) {
+                return switch tp {
+                    case TPType(c): ofComplexType(c);
+                    case TPExpr(_): throw 'Expression type parameters not supported yet';
+                }
+            });
 
-            case other:
-                throw new pm.Error('unhandled ${other}');
+            switch typeName {
+                case 'Bool' :  
+                    return t.TScalar(TBoolean);
+                case 'Float':  
+                    return t.TScalar(TDouble);
+                case 'Int'  :  
+                    return t.TScalar(TInteger);
+                case 'Date' :  
+                    return t.TScalar(TDate);
+                case 'String': 
+                    return t.TScalar(TString);
+                case 'Bytes':  
+                    return t.TScalar(TBytes);
+                case ('Array'|'Null') if (typeParams.length == 1):
+                    return Type.createEnum(t, 'T$typeName', [typeParams[0]]);
+                case other:
+                    throw other;
+            }
         }
+
+        throw 'Unhandled';
+    }
+    
+    static function stdTypeNamed(path:haxe.macro.Expr.TypePath, className:String):Bool {
+        return if (path.name == 'StdTypes') path.sub == className else path.name == className;
     }
 
     public static function ofHscriptCType(type: hscript.Expr.CType):ValType {
