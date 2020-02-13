@@ -27,7 +27,7 @@ enum DataType {
     TTuple(types: Array<DataType>);
 
     // represents (optionally) named structures with a consistent and predefined schema
-    TStruct(schema: StructSchema);
+    TStruct(schema: pmdb.core.FrozenStructSchema);
     TAnon(type: Null<CObjectType>);
 
     // represents objects which are instances of [c]

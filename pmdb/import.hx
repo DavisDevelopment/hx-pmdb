@@ -14,3 +14,6 @@ using StringTools;
 using Lambda;
 using pmdb.utils.Tools;
 
+#if ((java || neko))
+import pm.utils.LazyConsole as Console;
+#end

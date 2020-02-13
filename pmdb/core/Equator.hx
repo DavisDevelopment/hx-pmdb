@@ -146,6 +146,7 @@ class EnumValueEquator<T:EnumValue> extends BaseEquator<T> {
     private var enumType(default, null): Enum<T>;
 }
 
+#if java @:generic #end
 class NumericalEquator<T:Float> extends BaseEquator<T> {
     /* Constructor Function */
     public function new(e: Bool = false) {
@@ -153,48 +154,59 @@ class NumericalEquator<T:Float> extends BaseEquator<T> {
 
         useEpsilon = e;
         eq = function(a:T, b:T):Bool {
-            return almostEquals(a, b, useEpsilon);
+            return N.almostEquals(a, b, useEpsilon);
         }
     }
 
-    /**
-      algorithm for determining approximate equality between two floating-point numbers
-      [=NOTE=] approximate equality is useful because of the loss of precision in floats past certain platform-specific values
-     **/
-    static function almostEquals(a:Float, b:Float, useEpsilon:Bool=false):Bool {
-        if (!useEpsilon) {
-            return (a == b);
-        }
+	private var useEpsilon(default, null):Bool;
+}
+private class N {
+	/**
+		algorithm for determining approximate equality between two floating-point numbers
+		[=NOTE=] approximate equality is useful because of the loss of precision in floats past certain platform-specific values
+    **/
+    public static function almostEquals(a:Float, b:Float, useEpsilon:Bool = false):Bool {
+		if (!useEpsilon) {
+			return (a == b);
+		}
 
-        if (a == b) {
-            return true;
-        }
+		if (a == b) {
+			return true;
+		}
 
-        if (Math.isNaN(a) || Math.isNaN(b)) {
-            return false;
-        }
+		if (Math.isNaN(a) || Math.isNaN(b)) {
+			return false;
+		}
 
-        if (Math.isFinite(a) && Math.isFinite(b)) {
-            var diff = Math.abs(a - b);
-            if (diff < EPSILON) {
-                return true;
-            }
-            else {
-                return (diff <= Math.max(Math.abs(a), Math.abs(b)) * EPSILON);
-            }
-        }
+		if (Math.isFinite(a) && Math.isFinite(b)) {
+			var diff = Math.abs(a - b);
+			if (diff < EPSILON) {
+				return true;
+			} else {
+				return (diff <= Math.max(Math.abs(a), Math.abs(b)) * EPSILON);
+			}
+		}
 
-        return false;
+		return false;
     }
 
-    private var useEpsilon(default, null): Bool;
-
-    static inline var EPSILON:Float = 2.2204460492503130808472633361816e-16;
+	
+	static inline var EPSILON:Float = 2.2204460492503130808472633361816e-16;
 }
 
-class IntEquator extends FEquator<Int> {
+// class IntEquator extends FEquator<Int> {
+//     public function new() {
+//         super((x, y) -> Arch.intEquality(x, y));
+//     }
+// }
+class IntEquator extends BaseEquator<Int> {
+    static function int_equality(a:Int, b:Int):Bool {
+        return a == b || Arch.intEquality(a, b);
+    }
+
     public function new() {
-        super((x, y) -> Arch.intEquality(x, y));
+        super();
+        this.eq = int_equality;
     }
 }
 

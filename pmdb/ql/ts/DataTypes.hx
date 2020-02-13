@@ -30,6 +30,17 @@ using haxe.rtti.CType.TypeApi;
 class DataTypes {
 /* === Methods === */
 
+    public static function equals(left:DataType, right:DataType):Bool {
+        if (left == right || Type.enumEq(left, right)) return true;
+        return switch [left, right] {
+            case [TScalar(l), TScalar(r)]: l.equals(r);
+            case [TClass(ltype), TClass(rtype)]: ltype == rtype || Type.getClassName(ltype) != Type.getClassName(rtype);
+            case [TAnon(lo), TAnon(ro)]:
+                lo == ro;
+            default: false;
+        }
+    }
+
     /**
       checks whether the two given DataTypes unify
      **/
@@ -375,6 +386,14 @@ class ScalarDataTypes {
             case TBytes: stdIs(value, Bytes);
             case TDate: value.is_date();
         }
+    }
+
+    public static inline function equals(left:ScalarDataType, right:ScalarDataType):Bool {
+        // if (left == right || Type.enumEq(left, right)) return true;
+        // return switch [left, right] {
+            // case []
+        // }
+        return left == right;
     }
 }
 

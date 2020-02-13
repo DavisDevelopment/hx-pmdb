@@ -48,10 +48,10 @@ class Globals {
                 untyped console.log(x);
             }
             catch (e: Dynamic) {
-                Console.log(x);
+                trace(e);
             }
         #else
-            Console.log(x);
+            trace(x);
         #end
     }
 

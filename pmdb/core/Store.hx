@@ -237,19 +237,14 @@ class Store<Item> extends Emitter<String, Dynamic> {
         var output:Promise<Store<Item>> = Promise.async(function(done) {
             #if hxnodejs
             if (_loadcc != 0) {
-                Console.printlnFormatted('<#F00><bg#FFF>You did a bad!<//>');
+                //
             }
             _loadcc++;
             #end
 
             var hasBeenLoadedPromise = this.persistence.loadDataStore(this).failAfter(1000);
             hasBeenLoadedPromise.then(function(self: Store<Item>) {
-                #if !notrace
-                Console.debug({
-                    loaded: self.size(),
-                    loadedAt: (DateTime.now().toString())
-                });
-                #end
+                //
             });
             return hasBeenLoadedPromise.handle(done);
         });
@@ -987,7 +982,6 @@ class Store<Item> extends Emitter<String, Dynamic> {
             catch (err: Dynamic) {
                 failingIndex = idx;
                 exception = err;
-                Console.error(exception);
                 break;
             }
         }

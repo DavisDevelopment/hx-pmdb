@@ -323,7 +323,6 @@ class StructSchema {
             var aField = a.fields[aFields[i]], bField = b.fields[bFields[i]];
             if (!aField.equals(bField)) {
                 trace('${aField.name} != ${bField.name}');
-                Console.error('${aField.type.print()} != ${bField.type.print()}');
                 return false;
             }
         }

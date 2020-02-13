@@ -409,10 +409,10 @@ class StoreConnection<Item> {
 
     public function all() {return fmr(store -> store.getAllData());}
     public function get(a:Dynamic, ?b:Dynamic):Promise<Null<Item>> {
-        return fmr.fn(_.get(a, b));
+        return fmr(x -> x.get(a, b));
     }
     public function find(q:Criterion<Item>, ?precompile:Bool):Promise<FindCursor<Item>> {
-        return fmr.fn(_.find(q, precompile));
+        return fmr(x -> x.find(q, precompile));
     }
 
     public function close():Promise<Bool> {
@@ -420,7 +420,7 @@ class StoreConnection<Item> {
     }
 
     public function insert(data: OneOrMany<Item>):Promise<DbStore<Item>> {
-        return vfm.fn(_.insert(data.asMany()));
+        return vfm(x -> x.insert(data.asMany()));
     }
 
     private inline function prom():Promise<DbStore<Item>> {

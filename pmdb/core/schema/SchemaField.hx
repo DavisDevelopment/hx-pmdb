@@ -155,18 +155,15 @@ class SchemaField {
 	}
 
 	public function extract(o:Dynamic):Null<Dynamic> {
-		Console.warn('<invert>TODO:</> <b>reimplement/refactor SchemaField.extract</>');
 		return Reflect.field(o, name);
 	}
 
 	public function assign(o:Dynamic, value:Dynamic):Null<Dynamic> {
-		Console.warn('<invert>TODO:</> <b>reimplement/refactor SchemaField.assign</>');
 		Reflect.setField(o, name, value);
 		return value;
 	}
 
 	public inline function exists(o:Dynamic):Bool {
-		Console.warn('<invert>TODO:</> <b>reimplement/refactor SchemaField.exists</>');
 		return Reflect.hasField(o, name);
 	}
 
