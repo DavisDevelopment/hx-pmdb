@@ -24,12 +24,6 @@ class Executor {
         //queue = new LinkedQueue();
         cats = new Map();
         isClosed = false;
-        Console.warn('<#F00>Executor.new</>');
-        nextTick(function() {
-            Console.error('.nextTick is not broken!');
-        }).always(function() {
-            Console.error('... and neither is the Promise which it returns');
-        });
     }
 
     /**
@@ -124,7 +118,6 @@ class Executor {
 
             task.await(function() {
                 queue.dequeue();
-                Console.error('Task dequeued from "$n"');
 
                 if (!queue.isEmpty() && !isClosed) {
                     // Defer.defer(function() {
@@ -178,7 +171,8 @@ class Task {
         trigger = Promise.trigger();
         promise = Promise.createFromTrigger(trigger);
         promise.then(function(_) {
-            Console.error('betty');
+            // Console.error('betty');
+            trace('betty');
         });
         executionPromise = null;
         begin = null;
@@ -192,7 +186,6 @@ class Task {
             executionPromise = executionPromise.failAfter(2000, new pm.Error('Fuck yew'));
             begin = timestamp();
             executionPromise.handle(function(o) {
-                Console.error(o);
                 switch o {
                     case Success(result):
                         end = timestamp();
