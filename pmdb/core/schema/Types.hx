@@ -1,5 +1,6 @@
 package pmdb.core.schema;
 
+import pm.Ord;
 import pmdb.core.DotPath;
 import pmdb.core.ValType;
 import pmdb.ql.ast.Value;
@@ -29,6 +30,7 @@ class SimpleIndexDef {
 @:keep
 enum abstract IndexAlgo(String) from String to String {
 	var AVLIndex;
+	var MapIndex;//!Stub
 }
 
 typedef TypedAttr = {
@@ -40,8 +42,18 @@ typedef IndexInit = {
 	?name:String,
 	?type:ValType,
 	?kind:IndexType,
-	?algorithm:IndexAlgo
+	?algorithm:IndexAlgo,
+	?config: IndexConfigurationInit
 };
+
+typedef IndexConfigurationInit = {
+	?unique: Bool,
+	?sparse: Bool
+};
+typedef IndexConfiguration = {
+	final unique: Bool;
+	final sparse: Bool;
+}
 
 typedef StructClassInfo = {
 	proto:Class<Dynamic>,
