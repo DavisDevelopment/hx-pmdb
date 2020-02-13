@@ -298,7 +298,7 @@ class Arch {
         for (i in 0...Ints.min(aKeys.length, bKeys.length)) {
             comp = vCmp(field(a, aKeys[i]), field(b, bKeys[i]));
             if (comp != 0) {
-                trace('cmp(${field(a, aKeys[i])}, ${field(b, bKeys[i])}) == $comp');
+                // trace('cmp(${field(a, aKeys[i])}, ${field(b, bKeys[i])}) == $comp');
                 return comp;
             }
         }
@@ -377,6 +377,28 @@ class Arch {
         return compareNumbers(a.length, b.length);
     }
 
+	public static #if (js && !macro) inline #end function isTruthy(value:Dynamic):Bool {
+		#if (js && !macro)
+		return js.Syntax.code('!!{0}', value);
+		#else
+		if (value == null)
+			return false;
+		if (isBool(value))
+			return cast(value, Bool);
+		if (isFloat(value)) {
+			return value != 0 && value != Math.NaN;
+		}
+		if (isString(value)) {
+			return ((value : String).length != 0);
+		}
+		return true;
+		#end
+	}
+
+	public static function isFalsy(value:Dynamic):Bool {
+		return !(inline isTruthy(value));
+	}
+
     /**
       do dat type-checking
      **/
@@ -386,6 +408,7 @@ class Arch {
 
     /**
       Tells whether a value is an "atomic" (true primitive) value
+      @returns `true` for `null | Bool | String | Int | Float`, else `false`
      **/
     public static inline function isAtomic(x: Dynamic):Bool {
         return (
@@ -500,6 +523,7 @@ class Arch {
         throw 'Use .clone() instead';
     }
 
+    /*
     static function _dmapTransform(value:Dynamic, replace:(value:Dynamic) -> Dynamic):Dynamic {
         switch value.typeof() {
     	    case ValueType.TClass(Array):
@@ -522,9 +546,8 @@ class Arch {
         return null;
     }
 
-    /**
-      based on test-code from [try-haxe](http://try-haxe.mrcdk.com/#cF72f)
-     **/
+    //  based on test-code from [try-haxe](http://try-haxe.mrcdk.com/#cF72f)
+    
     public static function dmap(value:Dynamic, mapper:(value:Dynamic) -> Dynamic):Dynamic {
         switch Type.typeof(value) {
             case TNull, TBool, TFloat, TInt, TFunction: _dmapTransform(value, mapper);
@@ -550,6 +573,7 @@ class Arch {
         }
         return agg;
     }
+    */
 
     /**
       create and return an 'empty' instance of the same type as [value]
