@@ -160,6 +160,11 @@ class Arch {
         return true;
     }
 
+
+	public static function areIterablesEqual(a:Iterable<Dynamic>, b:Iterable<Dynamic>) {
+		return areIteratorsEqual(a.iterator(), b.iterator());
+	}
+
     public static inline function boolEquality(a:Bool, b:Bool):Bool {
         return a ? b : !b;
     }
