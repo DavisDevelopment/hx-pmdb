@@ -116,7 +116,8 @@ class QlParser {
 		parser.allowJSON = true;
 
 		parser.initParser('types');
-		parser.input = new haxe.io.StringInput(code);
+        // parser.input = new haxe.io.StringInput(code);
+        parser.input = code;
 		// var a = new Array();
 		// while (true) {
 		// 	var tk = token();

@@ -707,7 +707,7 @@ class FrozenStructSchemaIndex/*Definition*/ {
                 do {
                     var p1 = cp;
                     cp = '$cp.${path.path[++i]}';
-                    Console.examine(p1, cp);
+                    //Console.examine(p1, cp);
 
                 }
             }

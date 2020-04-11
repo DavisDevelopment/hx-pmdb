@@ -174,7 +174,7 @@ class Persistent<T> {
             throw '<Empty>';
         
         storage.writeFile(__name, raw);
-        Console.log('<u><invert><#0F0>[INFO]:<//> ${haxe.Json.stringify(raw)}');
+        //Console.log('<u><invert><#0F0>[INFO]:<//> ${haxe.Json.stringify(raw)}');
     }
 
     public function tryPullData(firstPull: Bool) {

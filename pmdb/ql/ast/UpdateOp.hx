@@ -37,7 +37,7 @@ class PushMany<T> {
     @:optional public var sort(default, null): Sorting;
 }
 
-#if !(macro || eval)
-@:build(pmdb.ql.ast.EnumBuilders.enumCopyWithoutFirstArg('pmdb.ql.ast.UpdateOp')) 
-#end
+// #if !(macro || eval)
+// @:build(pmdb.ql.ast.EnumBuilders.enumCopyWithoutFirstArg('pmdb.ql.ast.UpdateOp')) 
+// #end
 enum KeyUpdateOp {}

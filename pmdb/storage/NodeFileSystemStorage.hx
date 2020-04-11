@@ -188,12 +188,12 @@ class NodeFileSystemStorage implements ICbStorage {
     }
 
     public inline function crashSafeWriteFile(path:String, data:Bytes, callback:Cb<Bool>) {
-        Console.debug('<b>TODO:</> crashSafeWriteFile');
+        //Console.debug('<b>TODO:</> crashSafeWriteFile');
         return writeFileBinary(path, data, callback);
     }
 
     public inline function ensureDatafileIntegrity(path:String, callback:Cb<Bool>) {
-        Console.debug('<b>TODO: </>ensureDatafileIntegrity');
+        //Console.debug('<b>TODO: </>ensureDatafileIntegrity');
         return callback(null, true);
     }
 

@@ -109,8 +109,8 @@ class TestSuite {
 		var testMethods = [];
 		var middlewares = [];
 		middlewares.push(function(flags:TestMetaInit, entry:{name:String, ?value:Dynamic}):Bool {
-			Console.log(flags);
-			Console.log('$name=${Std.string(value)}');
+			//Console.log(flags);
+			//Console.log('$name=${Std.string(value)}');
 			return false;
 		});
 		middlewares.pop();
@@ -263,7 +263,7 @@ class TestCase {
 		});
 		_cbp.then(function(status) switch status {
 			case Failed((_ is Array<Dynamic>) && cast(_, Array<Dynamic>) => arr):
-				Console.warn('Test failed with ${arr.length} errors');
+				//Console.warn('Test failed with ${arr.length} errors');
 				throw arr;
 
 			case Failed(error):
@@ -297,7 +297,7 @@ class TestCase {
 		});
 
 		var invoke:Void->Void = function() {
-			Console.error('well this sucks');
+			//Console.error('well this sucks');
 		};
 
 		if (config.async && Reflect.compareMethods(_spawn, f)) {

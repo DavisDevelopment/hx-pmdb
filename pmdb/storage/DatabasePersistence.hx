@@ -125,7 +125,7 @@ class DatabasePersistence {
 		if the load fails because of any other error, that error is thrown
 	**/
 	function openTableList(tables:ImmutableList<DbStore<Dynamic>>, ?options) {
-        Console.debug('called openTableList(...)');
+        //Console.debug('called openTableList(...)');
 		// var storage = new FileSystemStorage();
 		var tablePromises = tables.map(function(store) @:privateAccess {
 			return this.openTable(store).flatMap(function(status) {
@@ -174,7 +174,7 @@ class DatabasePersistence {
                 case Failure(e): Promise.reject(e);
                 case Success(false): Promise.resolve({store:table, loaded:false});
                 case Success(true):
-                    Console.debug('openTable(${table.name})  =>  loadTable(...)');
+                    //Console.debug('openTable(${table.name})  =>  loadTable(...)');
                     loadTable(table);
             };
         });
@@ -183,11 +183,11 @@ class DatabasePersistence {
 
     inline function loadTable(table: DbStore<Dynamic>):Promise<{store:DbStore<Dynamic>, loaded:Bool}> {
         final startRowCount = table.size();
-        Console.debug('calling table._load');
+        //Console.debug('calling table._load');
         var ltbl = table._load().failAfter(2000);
     
         return ltbl.map(x -> x.size()).flatMap(function(endRowCount: Int) {
-            Console.success("Loaded ", endRowCount, " documents into ", table.name);
+            //Console.success("Loaded ", endRowCount, " documents into ", table.name);
             if (startRowCount != 0)
                 trace('[startRowCount=$startRowCount]');
             return switch [startRowCount, endRowCount] {
@@ -272,7 +272,7 @@ class DatabasePersistence {
                     db._addStoreToRegistry(store.name, store);
                     stores[index] = store;
                     storeManifests[index] = Tools.toJson(store);
-                    Console.success("registered <invert>", store.name, "</>");
+                    //Console.success("registered <invert>", store.name, "</>");
                 }
 
                 storeManifests.sort(function(a, b) {

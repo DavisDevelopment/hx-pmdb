@@ -19,6 +19,20 @@ abstract Object<T> (DynamicAccess<T>) from DynamicAccess<T> to DynamicAccess<T> 
 
 /* === Operator Methods === */
 
+    #if !cpp inline #end
+    public function exists(k: String):Bool {
+        #if cpp
+        if (Type.getClass(this) == null) 
+            return this.exists(k);
+        else if (this.exists(k))
+            return true;
+        else
+            return this.keys().has(k);
+        #else
+        return this.exists(k);
+        #end
+    }
+
     @:arrayAccess
     public inline function get(key: String):Null<T> {
         return _get( key );

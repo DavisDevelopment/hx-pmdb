@@ -6,8 +6,6 @@ import haxe.ds.Option;
 
 import pmdb.ql.ast.BoundingValue;
 
-//import tannus Ints. Ints as Ints;
-//import Slambda.fn;
 import pm.Numbers;
 import pm.Functions.fn;
 
