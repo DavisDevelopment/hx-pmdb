@@ -18,6 +18,7 @@ import haxe.extern.EitherType;
 import haxe.CallStack;
 import haxe.PosInfos;
 import haxe.io.Bytes;
+import haxe.Constraints.IMap;
 
 import haxe.macro.Expr;
 import haxe.macro.Context;
@@ -32,6 +33,7 @@ import Reflect.*;
 using StringTools;
 using pmdb.ql.ts.TypeChecks;
 using pm.Strings;
+using pm.Iterators;
 using pm.Arrays;
 using pm.Maps;
 using pm.Options;
@@ -103,6 +105,7 @@ class Arch {
             if (isArray(b)) return areArraysEqual(a, b);
             return false;
         }
+        
         if (isBool(a)) return isBool(b) ? a == b : false;
         if (isFloat(a)) return isFloat(b) ? a == b : false;
         if (isString(a)) return isString(b) ? a == b : false;
@@ -110,33 +113,62 @@ class Arch {
 
         if (isDate(a)) return isDate(b) ? cast(a, Date).getTime() == cast(b, Date).getTime() : false;
         if (Reflect.isEnumValue(a)) return Reflect.isEnumValue(b) ? areEnumValuesEqual(cast a, cast b) : false;
-        return areObjectsEqual2(a, b);
+
+		if ((a is haxe.IMap<Dynamic, Dynamic>))
+			return ((b is haxe.IMap<Dynamic, Dynamic>) ? areIMapsEqual(cast(a, haxe.Constraints.IMap<Dynamic, Dynamic>), cast(b, haxe.Constraints.IMap<Dynamic, Dynamic>)) : false);
+
+        return areObjectsEqual(a, b);
     }
 
-    public static function areObjectsEqual(a:Dynamic, b:Dynamic):Bool {
-        var aKeys = Reflect.fields( a ), bKeys = Reflect.fields( b );
-        for (i in 0...aKeys.length) {
-            if (!bKeys.has(aKeys[i])) {
-                return false;
-            }
+    /**
+     * check if the two objects contain the "same" data
+     * @param a class instance whose fields are all of types supported by `Arch.areThingsEqual`
+	 * @param b class instance whose fields are all of types supported by `Arch.areThingsEqual`
+     * @return Bool
+     */
+    public static function areObjectsEqual(a:Doc, b:Doc):Bool {
+        var aKeys = a.keys(),
+            bKeys = b.keys();
 
-            if (!areThingsEqual(Reflect.field(a, aKeys[i]), Reflect.field(b, bKeys[i]))) {
+        if (aKeys.length != bKeys.length) 
+            return false;
+
+        for (i in 0...aKeys.length) {
+            final k = aKeys[i];
+
+            if (bKeys.indexOf(k) == -1) 
                 return false;
-            }
+            
+            if (!areThingsEqual(a[k], b[k])) 
+                return false;
         }
 
         return true;
     }
 
-    public static function areObjectsEqual2(a:Doc, b:Doc):Bool {
-        var aKeys = a.keys(), bKeys = b.keys();
-        if (aKeys.length != bKeys.length) return false;
-        for (i in 0...aKeys.length) {
-            if (bKeys.indexOf(aKeys[i]) == -1) return false;
-            if (!areThingsEqual(a[aKeys[i]], b[bKeys[i]])) return false;
-        }
-        return true;
-    }
+	/**
+	 * checks if two `Map`-like values contain the same data
+     * *assumes that all keys and values in both Maps are of types supported by `areThingsEqual`
+	 * @param a 
+	 * @param b 
+	 * @return Bool
+	 */
+	public static function areIMapsEqual(a:haxe.Constraints.IMap<Dynamic, Dynamic>, b:haxe.Constraints.IMap<Dynamic, Dynamic>):Bool {
+		// inline function data(m: haxe.Constraints.IMap<Dynamic, Dynamic>) {
+		//     var entries = [for (entry in m.keyValueIterator()) entry];
+		//     entries.sort(_sortKeyValue);
+		//     return entries;
+		// }
+
+		for (key in a.keys()) {
+			if (!b.exists(key))
+				return false;
+			if (!areThingsEqual(a.get(key), b.get(key)))
+				return false;
+		}
+
+		return true;
+	}
 
     public static function areEnumValuesEqual(a:EnumValue, b:EnumValue):Bool {
         return (
@@ -146,6 +178,12 @@ class Arch {
         );
     }
 
+    /**
+     * checks whether the two Arrays provided are equivalent in the data they hold
+     * @param a 
+     * @param b 
+     * @return Bool
+     */
     public static function areArraysEqual(a:Array<Dynamic>, b:Array<Dynamic>):Bool {
         if (a.length != b.length) {
             return false;
@@ -153,6 +191,7 @@ class Arch {
         
         for (i in 0...Ints.max(a.length, b.length)) {
             if (!areThingsEqual(a[i], b[i])) {
+                trace(a[i], b[i]);
                 return false;
             }
         }
@@ -160,6 +199,9 @@ class Arch {
         return true;
     }
 
+	public static function areIteratorsEqual(a:Iterator<Dynamic>, b:Iterator<Dynamic>):Bool {
+		return areArraysEqual(a.array(), b.array());
+	}
 
 	public static function areIterablesEqual(a:Iterable<Dynamic>, b:Iterable<Dynamic>) {
 		return areIteratorsEqual(a.iterator(), b.iterator());
